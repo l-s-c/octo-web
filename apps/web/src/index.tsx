@@ -37,8 +37,9 @@ WKApp.shared.registerModule(new DataSourceModule()) // 数据源模块
 WKApp.shared.registerModule(new LoginModule()); // 登录模块
 WKApp.shared.registerModule(new ContactsModule()); // 联系模块
 
-
 WKApp.shared.startup() // app启动
+
+// Initialize Electron notification bridge if running in Electron
 
 
 ReactDOM.render(

@@ -70,14 +70,19 @@ export class WKConfig {
 export class WKRemoteConfig {
   revokeSecond: number = 2 * 60; // 撤回时间
   requestSuccess: boolean = false;
+  private retryCount: number = 0;
+  private maxRetries: number = 5; // 最大重试次数
 
   async startRequestConfig() {
     await this.requestConfig();
 
-    if (!this.requestSuccess) {
+    if (!this.requestSuccess && this.retryCount < this.maxRetries) {
+      this.retryCount++;
+      // 指数退避: 3s, 6s, 12s, 24s, 48s
+      const delay = 3000 * Math.pow(2, this.retryCount - 1);
       setTimeout(() => {
         this.startRequestConfig();
-      }, 3000);
+      }, delay);
     }
   }
 
@@ -197,10 +202,10 @@ export class LoginInfo {
     this.token = undefined;
     this.appID = "";
     this.role = "";
-    this.removeStorageItem("token");
-    this.removeStorageItem("app_id");
-    this.removeStorageItem("role");
-    this.removeStorageItem("is_work");
+    this.removeStorageItemForSID("token");
+    this.removeStorageItemForSID("app_id");
+    this.removeStorageItemForSID("role");
+    this.removeStorageItemForSID("is_work");
   }
 }
 

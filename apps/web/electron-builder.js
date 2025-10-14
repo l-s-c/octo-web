@@ -6,7 +6,13 @@ module.exports = {
     output: "dist-ele", // 输出文件夹
   },
   npmRebuild: false,
-  asar: false,
+  asar: true,
+  asarUnpack: [
+    "node_modules/node-screenshots-darwin-x64/**/*",
+    "node_modules/node-screenshots-darwin-arm64/**/*",
+    "node_modules/electron-screenshots/**/*",
+    "**/*.node"
+  ],
   buildDependenciesFromSource: true,
   electronDownload: {
     mirror: "https://registry.npmmirror.com/-/binary/electron/",
@@ -39,7 +45,7 @@ module.exports = {
       },
     ],
     // eslint-disable-next-line no-template-curly-in-string
-    artifactName: '${productName}-${version}-${os}.${ext}',
+    artifactName: '${productName}-${version}-${arch}.${ext}',
     icon: "resources/icons/icon.icns",
   },
   dmg: {

@@ -7,6 +7,7 @@ import { Notification as NotificationUI, Button } from '@douyinfe/semi-ui';
 import { checkUpdate, installUpdate, UpdateManifest } from '@tauri-apps/api/updater'
 import { relaunch } from '@tauri-apps/api/process'
 import { os } from "@tauri-apps/api";
+import { getSid } from "@tsdaodao/base/src/Utils/search";
 
 
 export default class AppLayout extends Component {
@@ -14,7 +15,8 @@ export default class AppLayout extends Component {
     componentDidMount() {
         this.onLogin = () => {
             console.log("登录成功！")
-            window.location.href = "./index.html"
+            const sid = getSid()
+            window.location.href = `./index.html?sid=${sid}`
 
             Notification.requestPermission() // 请求通知权限
         }
@@ -50,7 +52,6 @@ export default class AppLayout extends Component {
                 this.showUpdateUI(manifest)
 
             }
-            console.log("manifest---->", manifest)
         } catch (error) {
             console.log(error)
         }

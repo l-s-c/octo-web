@@ -33,6 +33,8 @@ export * from './Utils/t2s'
 export * from './Utils/pinYin'
 export { default as FileHelper } from './Utils/filehelper'
 export *  from './Utils/filehelper'
+export { NotificationUtil, notificationUtil } from './Utils/NotificationUtil'
+export * from './Utils/NotificationUtil'
 
 export { default as MessageBase } from "./Messages/Base"
 export  * from "./Messages/Image"
@@ -49,3 +51,5 @@ export * from "./Components/MeInfo";
 export * from "./Service/Context";
 export * from "./Components/SmallTableEdit";
 export * from "./Service/Convert";
+
+export * from "./Utils/search"

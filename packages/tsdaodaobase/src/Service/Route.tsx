@@ -2,6 +2,7 @@ import React from "react";
 import WKApp from "../App";
 import { EndpointCategory, EndpointID } from "./Const";
 import { EndpointManager } from "./Module";
+import { getSid } from "../Utils/search";
 
 
 export default class RouteManager {
@@ -37,7 +38,8 @@ export default class RouteManager {
     this.currentPath = path
     const component = EndpointManager.shared.invoke(`${EndpointID.routePrefix}${path}`, param)
     if (component) {
-      window.history.pushState({}, "title", path)
+      let sid = getSid()
+      window.history.pushState({}, "title", `${path}?sid=${sid}`)
       WKApp.shared.restContent(component)
     }
   }

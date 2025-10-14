@@ -19,3 +19,19 @@ contextBridge.exposeInMainWorld("ipc", {
     ipcRenderer.once(channel, listener);
   },
 });
+
+// Expose native notification API
+contextBridge.exposeInMainWorld("electronNotification", {
+  show: (options: any) => ipcRenderer.invoke('show-native-notification', options),
+  close: (tag: string) => ipcRenderer.invoke('close-native-notification', tag),
+  closeAll: () => ipcRenderer.invoke('close-all-native-notifications'),
+  onClicked: (callback: (data: any) => void) => {
+    console.log("onClicked");
+    ipcRenderer.on('notification-clicked', (event, data) => callback(data));
+  },
+  onActionClicked: (callback: (data: any) => void) => {
+    ipcRenderer.on('notification-action-clicked', (event, data) => callback(data));
+  },
+  // Test notification icon
+  testNotificationIcon: () => ipcRenderer.invoke('test-notification-icon'),
+});

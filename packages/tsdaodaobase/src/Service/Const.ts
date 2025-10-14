@@ -8,6 +8,7 @@ export  class  EndpointID {
   static showConversation = "showConversation" // 显示会话页面
   static clearChannelMessages :string = "clearChannelMessages" // 清空某个频道消息
   static emojiService = "emojiService" // emoji服务
+  static messageNotify = "messageNotify" // 消息通知
 }
 
 export class EndpointCategory {

@@ -8,6 +8,7 @@ import {
   systemPreferences,
   Menu,
   Tray,
+  nativeImage,
 } from "electron";
 import fs from "fs";
 import tmp from 'tmp';
@@ -17,6 +18,8 @@ import { join } from "path";
 import logo, { getNoMessageTrayIcon } from "./logo";
 import TSDD_FONFIG from "./confing";
 import checkUpdate from './update';
+import { electronNotificationManager } from './notification';
+import { getRandomSid } from "./utils/search";
 
 let forceQuit = false;
 let mainWindow: any;
@@ -138,6 +141,13 @@ let mainMenu: (Electron.MenuItemConstructorOptions | Electron.MenuItem)[] = [
     role: "window",
     submenu: [
       {
+        label: "新建窗口",
+        accelerator: "Command+N",
+        click() {
+          createNewWindow();
+        },
+      },
+      {
         label: "最小化",
         role: "minimize",
       },
@@ -239,6 +249,7 @@ function updateTray(unread = 0, isFlash= false): any {
       if(isFlash){
         clearInterval(flashTimer)
 		    let flag = false
+        // 优化: 减少闪烁频率从500ms到1000ms，减少50%的CPU使用
         flashTimer = setInterval(() => {
           flag = !flag
           if(flag){
@@ -246,7 +257,7 @@ function updateTray(unread = 0, isFlash= false): any {
           }else{
             tray.setImage(trayIcon);
           }
-      },500)
+      },1000) // 从500ms改为1000ms，减少CPU使用
       }else{
         tray.setImage(trayIcon);
         clearInterval(flashTimer);
@@ -263,9 +274,15 @@ function createMenu() {
   var menu = Menu.buildFromTemplate(mainMenu);
 
   if (isOsx) {
+    // macOS: Set application menu (appears in menu bar)
     Menu.setApplicationMenu(menu);
   } else {
-    mainWindow.setMenu(null);
+    // Windows/Linux: Set window menu (appears in window title bar)
+    Menu.setApplicationMenu(menu);
+    // Also set it on the main window for Windows
+    if (mainWindow) {
+      mainWindow.setMenu(menu);
+    }
   }
 }
 
@@ -287,10 +304,9 @@ function regShortcut() {
   });
 }
 
-const createMainWindow = async () => {
-  const NODE_ENV = process.env.NODE_ENV;
-  const { width, height } = screen.getPrimaryDisplay().workAreaSize;
-  mainWindow = new BrowserWindow({
+// 创建新窗口的通用配置
+const getWindowConfig = () => {
+  return {
     width: 1200,
     height: 800,
     minWidth: 960,
@@ -301,13 +317,54 @@ const createMainWindow = async () => {
     hasShadow: false, // * app 边框阴影
     show: false, // 启动窗口时隐藏,直到渲染进程加载完成「ready-to-show 监听事件」 再显示窗口,防止加载时闪烁
     resizable: true, // 禁止手动修改窗口尺寸
+    // Windows: 允许用户按 Alt 键显示/隐藏菜单栏
+    autoHideMenuBar: isWin,
     webPreferences: {
       // 加载脚本
       preload: join(__dirname, "..", "preload/index"),
       nodeIntegration: true,
     },
     // frame: !isWin,
+  };
+};
+
+// 创建新窗口
+const createNewWindow = () => {
+  const NODE_ENV = process.env.NODE_ENV;
+  const newWindow = new BrowserWindow(getWindowConfig());
+
+  newWindow.center();
+  newWindow.once("ready-to-show", () => {
+    newWindow.show(); // 显示窗口
+    newWindow.focus();
   });
+
+  newWindow.on("close", (e: any) => {
+    // 新窗口关闭时直接销毁，不隐藏到托盘
+    newWindow.destroy();
+  });
+
+  // 加载相同的页面
+  if (NODE_ENV == "development") {
+    newWindow.loadURL("http://localhost:3000?sid=" + getRandomSid());
+  } else {
+    process.env.DIST_ELECTRON = join(__dirname, "../");
+    const WEB_URL = join(process.env.DIST_ELECTRON, "../build/index.html");
+    newWindow.loadFile(WEB_URL, { query: { sid: getRandomSid() } });
+  }
+
+  // 为新窗口设置菜单（Windows 需要）
+  if (!isOsx) {
+    const menu = Menu.buildFromTemplate(mainMenu);
+    newWindow.setMenu(menu);
+  }
+
+  return newWindow;
+};
+
+const createMainWindow = async () => {
+  const NODE_ENV = process.env.NODE_ENV;
+  mainWindow = new BrowserWindow(getWindowConfig());
   mainWindow.center();
   mainWindow.once("ready-to-show", () => {
     mainWindow.show(); // 显示窗口
@@ -331,7 +388,7 @@ const createMainWindow = async () => {
   if (NODE_ENV !== "development") {
     process.env.DIST_ELECTRON = join(__dirname, "../");
     const WEB_URL = join(process.env.DIST_ELECTRON, "../build/index.html");
-    mainWindow.loadFile(WEB_URL);
+    mainWindow.loadFile(WEB_URL, { query: { sid: getRandomSid() } });
   }
 
   ipcMain.on("screenshots-start", (event, args) => {
@@ -355,15 +412,41 @@ const createMainWindow = async () => {
   })
   // 会话未读消息消息数量托盘提醒
   ipcMain.on("conversation-anager-unread-count", (event, num) => {
-    const isFlag = num > 0 && isWin ? true : false;
-    updateTray(num, isFlag);
+    // const isFlag = num > 0 && isWin ? true : false;
+    updateTray(num, false); // 不需要闪烁，闪烁很消耗性能
   });
 
   ipcMain.on("restart-app",()=>{
     restartApp()
   })
 
+  // Test notification handler for debugging
+  ipcMain.handle("test-notification-icon", () => {
+    console.log("Testing notification icon from renderer process");
+    electronNotificationManager.testIconLoading();
+
+    // Show a test notification
+    electronNotificationManager.showNotification({
+      title: "Icon Test",
+      body: "Testing notification icon display",
+      tag: "icon-test",
+      urgency: 'normal',
+      timeoutType: 'default',
+    });
+
+    return true;
+  });
+
   createMenu();
+
+  // Set up notification manager with main window
+  electronNotificationManager.setMainWindow(mainWindow);
+
+  // Test icon loading (can be removed in production)
+  if (process.env.NODE_ENV === "development") {
+    electronNotificationManager.testIconLoading();
+  }
+
   // 检查更新
   checkUpdate(mainWindow)
 };
@@ -405,6 +488,10 @@ app.on("ready", () => {
   regShortcut();
   createMainWindow(); // 创建窗口
 
+  if (isWin) {
+    app.setAppUserModelId("唐僧叨叨");
+  }
+
   screenshots = new Screenshots({
     singleWindow: true,
   });
@@ -436,7 +523,7 @@ app.on("ready", () => {
     }
   };
   // 截图esc快捷键
-  screenshots.on('windowCreated', ($win) => {
+  screenshots.on('windowCreated', ($win: any) => {
     $win.on('focus', () => {
       globalShortcut.register('esc', () => {
         if ($win?.isFocused()) {
@@ -451,7 +538,7 @@ app.on("ready", () => {
   });
 
   // 点击确定按钮回调事件
-  screenshots.on("ok", (e, buffer, bounds) => {
+  screenshots.on("ok", (e: any, buffer: any, bounds: any) => {
     let filename = tmp.tmpNameSync() + '.png';
     let image = NativeImage.createFromBuffer(buffer);
     fs.writeFileSync(filename, image.toPNG());
@@ -470,7 +557,7 @@ app.on("ready", () => {
     onScreenShotEnd();
   });
   // 点击保存按钮回调事件
-  screenshots.on("save", (e, { viewer }) => {
+  screenshots.on("save", (e: any, { viewer }: any) => {
     console.log("screenshots save", e);
     onScreenShotEnd();
   });
@@ -507,3 +594,4 @@ app.on("before-quit", () => {
 app.on("window-all-closed", () => {
   process.platform !== "darwin" && app.quit();
 });
+

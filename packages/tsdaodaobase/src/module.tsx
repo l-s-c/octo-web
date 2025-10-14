@@ -83,12 +83,10 @@ import { SubscriberList } from "./Components/Subscribers/list";
 import GlobalSearch from "./Components/GlobalSearch";
 import { handleGlobalSearchClick } from "./Pages/Chat/vm";
 import { ApproveGroupMemberCell } from "./Messages/ApproveGroupMember";
+import { notificationUtil } from "./Utils/NotificationUtil";
 
 export default class BaseModule implements IModule {
   messageTone?: Howl;
-
-  messageNotification?: Notification //  消息通知
-  messageNotificationTimeoutId?: number
 
   id(): string {
     return "base";
@@ -440,61 +438,8 @@ export default class BaseModule implements IModule {
     return true;
   }
 
-  sendNotification(message: Message, description?: string) {
-    let channelInfo = WKSDK.shared().channelManager.getChannelInfo(
-      message.channel
-    );
-    if (channelInfo && channelInfo.mute) {
-      return;
-    }
-    if (!message.header.reddot) {
-      // 不显示红点的消息不发通知
-      return;
-    }
-    if (description == undefined || description === "") {
-      return;
-    }
-    if (message.header.noPersist) {
-      return;
-    }
-    if (window.Notification && Notification.permission !== "denied") {
-
-      if (this.messageNotification) {
-        if (this.messageNotificationTimeoutId) {
-          clearTimeout(this.messageNotificationTimeoutId)
-        }
-        this.messageNotification.close()
-      }
-
-      this.messageNotification = new Notification(
-        channelInfo ? channelInfo.orgData.displayName : "通知",
-        {
-          body: description,
-          icon: WKApp.shared.avatarChannel(message.channel),
-          lang: "zh-CN",
-          tag: "message",
-          // renotify: true,
-        }
-      );
-
-
-      this.messageNotification.onclick = () => {
-        this.messageNotification?.close();
-        window.focus();
-        WKApp.endpoints.showConversation(message.channel);
-      };
-      this.messageNotification.onshow = () => {
-        console.log("显示通知");
-      };
-      this.messageNotification.onclose = () => {
-        console.log("通知关闭");
-      };
-      // 5秒后关闭消息框
-      const self = this
-      this.messageNotificationTimeoutId = window.setTimeout(function () {
-        self.messageNotification?.close();
-      }, 5000);
-    }
+  async sendNotification(message: Message, description?: string) {
+    await notificationUtil.sendMessageNotification(message, description);
   }
 
   registerChatToolbars() {

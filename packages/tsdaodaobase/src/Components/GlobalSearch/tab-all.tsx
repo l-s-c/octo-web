@@ -85,7 +85,6 @@ export default class TabAll extends Component<TabAllProps> {
                         {
                             this.props.searchResult?.messages.map((item: any) => {
                                 let digest = "[未知消息]"
-                                console.log("item.content--->",item.content)
                                 if(item.content) {
                                     digest = item.content.conversationDigest
                                 }else {
@@ -98,7 +97,7 @@ export default class TabAll extends Component<TabAllProps> {
                                 
 
                                 let sender;
-                                if (item.channel.channel_type !== ChannelTypePerson && item.from_uid && item.from_uid !== "") {
+                                if (item.channel?.channel_type !== ChannelTypePerson && item.from_uid && item.from_uid !== "") {
                                     const senderChannel = new Channel(item.from_uid, ChannelTypePerson)
                                     const channelInfo = WKSDK.shared().channelManager.getChannelInfo(senderChannel)
                                     if (channelInfo) {
@@ -112,8 +111,8 @@ export default class TabAll extends Component<TabAllProps> {
                                 key={item.message_idstr} 
                                 sender={sender} 
                                 digest={digest} 
-                                name={item.channel.channel_name} 
-                                avatar={WKApp.shared.avatarChannel(new Channel(item.channel.channel_id, item.channel.channel_type))} 
+                                name={item.channel?.channel_name} 
+                                avatar={WKApp.shared.avatarChannel(new Channel(item.channel?.channel_id, item.channel?.channel_type))} 
                                 onClick={() => {
                                     if (this.props.onClick) {
                                         this.props.onClick(item, "message")

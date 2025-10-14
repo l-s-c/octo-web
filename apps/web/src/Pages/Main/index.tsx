@@ -25,9 +25,9 @@ export class MainContentLeft extends Component<MainContentLeftProps, MainContent
         return <>
             {
                 vm.historyRoutePaths.map((routePath, i) => {
-                    const cpt = WKApp.route.get(routePath)
+                    const Cpt = WKApp.route.get(routePath)
                     return <div key={i} style={{ "display": routePath === vm.currentMenus?.routePath ? "block" : "none", "width": "100%", "height": "100%" }}>
-                        {cpt}
+                        {React.isValidElement(Cpt) ? Cpt : undefined}
                     </div>
                 })
             }
