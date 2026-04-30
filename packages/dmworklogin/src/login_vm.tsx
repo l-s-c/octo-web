@@ -52,7 +52,7 @@ export class LoginVM extends ProviderListener {
     // ---------- 手机登录方式 ----------
     username?:string
     password?:string
-    /** 本地账号登录失败标记，用于在表单中内联展示「使用 Aegis 登录或注册」引导 */
+    /** 本地账号登录失败标记，用于在表单中内联展示「使用 SSO 登录或注册」引导 */
     loginAttemptFailed: boolean = false
 
     // ---------- 注册方式 ----------

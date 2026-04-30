@@ -905,7 +905,7 @@
     margin-top: 4px;
 }
 
-/* ---- Aegis-first layout ---- */
+/* ---- SSO-first layout ---- */
 .wk-login-panel .wk-login-content-sso-primary.semi-button {
     width: 100%;
     height: 50px;
@@ -963,7 +963,7 @@
     padding: 0 12px;
 }
 
-/* 本地表单整体视觉降级，让 Aegis 按钮成为视觉焦点 */
+/* 本地表单整体视觉降级，让 SSO 按钮成为视觉焦点 */
 .wk-login-content-legacy-form input {
     background: rgba(0, 0, 0, 0.02);
     border-color: rgba(0, 0, 0, 0.08);

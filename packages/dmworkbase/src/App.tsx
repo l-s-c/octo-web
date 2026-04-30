@@ -107,34 +107,83 @@ export class WKConfig {
   }
 }
 
-/**
- * 仅放行 http/https 协议的 URL，防御 javascript:/data: 等协议的注入。
- * 后端配置接口受保护，但作为深度防御，所有用于 window.open / a[href] 的 URL 都需经过此校验。
- */
-function sanitizeHttpUrl(value: unknown): string | undefined {
-  if (typeof value !== "string" || value === "") return undefined;
-  try {
-    const u = new URL(value);
-    if (u.protocol === "https:" || u.protocol === "http:") return value;
-  } catch {
-    /* invalid URL */
-  }
-  return undefined;
-}
+// sanitizeHttpUrl + parseOidcProviders + OidcProviderConfig 抽到 ./Service/OidcConfig
+// 让 dmworklogin 的 vitest 可以做安全边界测试 (App.tsx 顶层 import 链路太重)。
+// 这里 import 是 WKRemoteConfig 自己用; 同名 re-export 保持外部调用面不变。
+import {
+  parseOidcProviders,
+  type OidcProviderConfig,
+} from "./Service/OidcConfig";
+export {
+  sanitizeHttpUrl,
+  parseOidcProviders,
+} from "./Service/OidcConfig";
+export type { OidcProviderConfig } from "./Service/OidcConfig";
 
 export class WKRemoteConfig {
   revokeSecond: number = 2 * 60; // 撤回时间
   threadOn: boolean = false; // 子区功能开关，默认关闭
-  /** OIDC 账户中心首页 URL（如 Aegis 个人主页），由后端按环境下发 */
-  oidcAccountUrl?: string;
-  /** OIDC 重置/修改密码 URL，登录页提示 OIDC 用户跳转此处 */
-  oidcResetPasswordUrl?: string;
+  /**
+   * OIDC provider 元数据数组, 由后端 /v1/common/appconfig 的 oidc_providers 字段下发。
+   * OIDC 关闭时为空数组。前端不再硬编码具体 IdP, 部署 env 切 provider。
+   * 顶层 oidc_account_url / oidc_reset_password_url 是后端兼容老前端用的,新前端只读这里。
+   */
+  oidcProviders: OidcProviderConfig[] = [];
   requestSuccess: boolean = false;
   private retryCount: number = 0;
   private maxRetries: number = 5; // 最大重试次数
+  // listeners 仅在 appconfig 首次成功时触发, 用来通知像登录页这种在首屏前就渲染、
+  // 而其内容(SSO 按钮文案/可见性)依赖 appconfig 字段的组件去 re-render。
+  // 不在每次失败重试上 fire, 避免重复刷新。
+  private listeners: Array<() => void> = [];
+
+  /**
+   * addListener 订阅 appconfig **首次** 加载完成事件——只 fire 一次 (后续重连/手动 refetch 不再触发)。
+   * 返回 unsubscribe 函数, 调用方在卸载时务必调用。
+   *
+   * 调用方契约: 订阅前应先检查 requestSuccess——已 true 时跳过订阅, 自行处理初始状态。
+   * 这里在 requestSuccess 已为 true 时返回 noop 是防御性兜底, 不构成「at-least-once 必通知」的语义。
+   *
+   * 为什么不在已加载时同步调一次 cb 来给「at-least-once」: cb 通常是 forceUpdate / setState,
+   * 在调用方的 componentDidMount 同步栈里触发是 React 反模式; 用 microtask 又得给 cb 加
+   * unmount 防护。当前唯一调用方 (Login) 已自检 requestSuccess, 不值得为此引入复杂度。
+   */
+  addListener(cb: () => void): () => void {
+    if (this.requestSuccess) {
+      return () => {
+        /* noop */
+      };
+    }
+    this.listeners.push(cb);
+    return () => {
+      const i = this.listeners.indexOf(cb);
+      if (i >= 0) this.listeners.splice(i, 1);
+    };
+  }
+
+  private notifyListeners() {
+    // 复制一份以容忍 listener 内部 unsubscribe 时的数组改动。
+    const snapshot = [...this.listeners];
+    // 一次性事件: 通知后立刻清空, 避免遗忘 unsubscribe 的订阅者闭包被 singleton pin 住不被 GC。
+    // 后续 addListener 在 requestSuccess=true 时已经走 noop 分支, 不会再往 listeners 里塞东西。
+    this.listeners = [];
+    for (const cb of snapshot) {
+      try {
+        cb();
+      } catch (e) {
+        console.error("[WKRemoteConfig] listener threw", e);
+      }
+    }
+  }
 
   async startRequestConfig() {
-    await this.requestConfig();
+    // 吃掉 requestConfig 的 reject: 否则 await 直接抛出, 后面的 retry 分支根本到不了——
+    // 网络错误下指数退避就成了死代码。requestSuccess 在出错时保持 false, retry 分支负责重排。
+    try {
+      await this.requestConfig();
+    } catch (e) {
+      console.warn("[WKRemoteConfig] requestConfig failed, will retry", e);
+    }
 
     if (!this.requestSuccess && this.retryCount < this.maxRetries) {
       this.retryCount++;
@@ -148,11 +197,13 @@ export class WKRemoteConfig {
 
   requestConfig() {
     return WKApp.apiClient.get("common/appconfig").then((result) => {
+      const wasSuccessful = this.requestSuccess;
       this.requestSuccess = true;
       this.revokeSecond = result["revoke_second"];
       this.threadOn = !!result["thread_on"];
-      this.oidcAccountUrl = sanitizeHttpUrl(result["oidc_account_url"]);
-      this.oidcResetPasswordUrl = sanitizeHttpUrl(result["oidc_reset_password_url"]);
+      this.oidcProviders = parseOidcProviders(result["oidc_providers"]);
+      // 仅首次成功通知, 后续重新拉取(重连/手动刷新)不重复打扰订阅方。
+      if (!wasSuccessful) this.notifyListeners();
     });
   }
 }
@@ -172,8 +223,9 @@ export class LoginInfo {
   isWork!: boolean;
   sex!: number;
   /**
-   * 登录方式标识：'local' 表示用户名/邮箱密码登录，其他值（如 'aegis'）为 OIDC 提供方 id。
-   * 用于 UI 区分入口（如 OIDC 用户跳转 Aegis 账户中心修改密码）。
+   * 登录方式标识：'local' 表示用户名/邮箱密码登录，其他值为 OIDC 提供方 id
+   * （与后端 /v1/common/appconfig.oidc_providers[].id 对齐）。
+   * 用于 UI 区分入口（如 OIDC 用户跳转对应 IdP 的账户中心修改密码）。
    */
   loginProvider?: string;
 

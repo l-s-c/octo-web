@@ -8,7 +8,7 @@ import { LoginStatus, LoginType, LoginVM } from "./login_vm";
 import classNames from "classnames";
 import { PasswordStrengthIndicator } from "./PasswordStrengthIndicator";
 import { validatePassword } from "./passwordStrength";
-import { SSO_PROVIDERS } from "./oidc";
+import { getSSOProviders } from "./oidc";
 
 const ENTERPRISE_SSO_ENABLED =
     import.meta.env.VITE_ENABLE_ENTERPRISE_SSO === 'true'
@@ -172,9 +172,24 @@ function SendCodeButton({ onSend, countdown, className }: SendCodeButtonProps) {
 }
 
 class Login extends Component<any, LoginState> {
+    // SSO 区域的可见性来自 WKApp.remoteConfig.oidcProviders, 而 appconfig 是异步加载的——
+    // 登录页很可能在 fetch 完成前就先渲染了一次, 这时 oidcProviders 还是空数组,
+    // SSO 按钮就不会显示。订阅 remoteConfig 的一次性「加载完成」事件触发 forceUpdate,
+    // 让按钮在 appconfig 后到时自动出现, 用户无需手动刷新。
+    private _unsubscribeRemoteConfig?: () => void
 
+    componentDidMount() {
+        if (WKApp.remoteConfig.requestSuccess) return
+        this._unsubscribeRemoteConfig = WKApp.remoteConfig.addListener(() => {
+            // 仓库里 React class 组件的 @types 解析有历史问题, this.forceUpdate / setState
+            // 都识别不到 (NavSettingsPanel 等处同样如此)。这里同样走 cast 跟既有写法一致。
+            ; (this as unknown as { forceUpdate(): void }).forceUpdate()
+        })
+    }
 
-
+    componentWillUnmount() {
+        this._unsubscribeRemoteConfig?.()
+    }
 
     render() {
 
@@ -211,12 +226,18 @@ class Login extends Component<any, LoginState> {
                 }
             }
 
+            // SSO 区块的展示和文案以本次渲染为准, 避免在多个 JSX 节点里重复调函数。
+            // TODO(multi-provider): 后端字段已是数组, 但本期 oidc_providers.length ≤ 1,
+            // 所以 UI(主 CTA、重置密码提示)统一取 [0]。多 IdP 落地时这里要改成 picker /
+            // 按 loginInfo.loginProvider 路由各自的 reset URL, 同步检查 login.tsx:513。
+            const ssoProvider = getSSOProviders()[0]
+            const hasSsoProvider = !!ssoProvider
+
             const startSsoLogin = () => {
-                const provider = SSO_PROVIDERS[0]
-                if (!provider) return
-                vm.startOidcLogin(provider.id).catch((err: unknown) => {
+                if (!ssoProvider) return
+                vm.startOidcLogin(ssoProvider.id).catch((err: unknown) => {
                     console.error('OIDC login start failed:', err)
-                    Toast.error('无法启动 ' + provider.name + ' 登录')
+                    Toast.error('无法启动 ' + ssoProvider.name + ' 登录')
                 })
             }
 
@@ -306,12 +327,12 @@ class Login extends Component<any, LoginState> {
                         <div className="wk-login-content-phonelogin" style={{ "display": vm.loginType === LoginType.phone ? "block" : "none" }}>
                             <div className="wk-login-content-slogan">欢迎回来</div>
                             <div className="wk-login-content-slogan-sub">
-                                {ENTERPRISE_SSO_ENABLED && SSO_PROVIDERS.length > 0
-                                    ? `使用 ${SSO_PROVIDERS[0].name} 登录，已有 ${WKApp.config.appName || 'Octo'} 账号可继续使用`
+                                {ENTERPRISE_SSO_ENABLED && hasSsoProvider
+                                    ? `使用 ${ssoProvider!.name} 登录，已有 ${WKApp.config.appName || 'Octo'} 账号可继续使用`
                                     : '登录你的账号以继续'}
                             </div>
-                            {ENTERPRISE_SSO_ENABLED && SSO_PROVIDERS.length > 0 ? (
-                                // SSO 启用：Aegis 作为主 CTA，本地账号下沉为遗留路径
+                            {ENTERPRISE_SSO_ENABLED && hasSsoProvider ? (
+                                // SSO 启用：OIDC provider 作为主 CTA，本地账号下沉为遗留路径
                                 <div className="wk-login-content-form">
                                     <Button
                                         className="wk-login-content-sso-primary"
@@ -320,10 +341,10 @@ class Login extends Component<any, LoginState> {
                                         onClick={startSsoLogin}
                                     >
                                         <IconLock className="wk-login-content-sso-btn-icon" />
-                                        使用 {SSO_PROVIDERS[0].name} 登录或注册
+                                        使用 {ssoProvider!.name} 登录或注册
                                     </Button>
                                     <div className="wk-login-content-sso-helper">
-                                        新用户首次点击将自动创建 {SSO_PROVIDERS[0].name} 账号
+                                        新用户首次点击将自动创建 {ssoProvider!.name} 账号
                                     </div>
                                     <div className="wk-login-content-legacy-divider">
                                         <span>已有 {WKApp.config.appName || 'Octo'} 账号</span>
@@ -344,7 +365,7 @@ class Login extends Component<any, LoginState> {
                                             <div className="wk-login-content-form-error-cta">
                                                 登录不上？企业账号或新用户请
                                                 <a onClick={(e) => { e.preventDefault(); startSsoLogin() }}>
-                                                    使用 {SSO_PROVIDERS[0].name} 登录或注册
+                                                    使用 {ssoProvider!.name} 登录或注册
                                                 </a>
                                             </div>
                                         )}
@@ -492,15 +513,15 @@ class Login extends Component<any, LoginState> {
                         <div className="wk-login-content-phonelogin" style={{ "display": vm.loginType === LoginType.forgetPassword ? "block" : "none" }}>
                             <div className="wk-login-content-slogan">重置密码</div>
                             <div className="wk-login-content-slogan-sub">输入注册邮箱，我们将发送验证码</div>
-                            {ENTERPRISE_SSO_ENABLED && WKApp.remoteConfig.oidcResetPasswordUrl && (
+                            {ENTERPRISE_SSO_ENABLED && ssoProvider?.resetPasswordUrl && (
                                 <div className="wk-login-content-form-oidc-hint">
                                     企业统一认证账号请前往
                                     <a
-                                        href={WKApp.remoteConfig.oidcResetPasswordUrl}
+                                        href={ssoProvider.resetPasswordUrl}
                                         target="_blank"
                                         rel="noopener noreferrer"
                                     >
-                                        {SSO_PROVIDERS[0]?.name || 'Aegis'} 账户中心
+                                        {ssoProvider.name} 账户中心
                                     </a>
                                     修改密码。
                                 </div>

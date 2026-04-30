@@ -33,6 +33,17 @@ vi.mock('@octo/base', () => {
       themeColor: '#000',
       appName: 'Test',
     },
+    // 近期: providers.ts 改读 WKApp.remoteConfig.oidcProviders 来解决硬编码 Aegis,
+    // 这里桩一个固定的 aegis provider, 让 LoginVM.startOidcLogin('aegis') 能跑通。
+    remoteConfig: {
+      oidcProviders: [
+        {
+          id: 'aegis',
+          name: 'Aegis',
+          authorizePath: '/v1/auth/oidc/aegis/authorize',
+        },
+      ],
+    },
   }
   return { WKApp, ProviderListener }
 })

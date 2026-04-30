@@ -5,7 +5,7 @@ export type {
 } from './types'
 export { OIDC_AUTH_STATUS, OIDC_AUTHCODE_TTL_MS } from './types'
 
-export { SSO_PROVIDERS, getProviderById } from './providers'
+export { getSSOProviders, getProviderById } from './providers'
 export { buildAuthorizeURL, parseOidcUrlState } from './url'
 export type { OidcUrlState } from './url'
 export {

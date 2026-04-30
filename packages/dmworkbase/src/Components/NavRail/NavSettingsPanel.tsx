@@ -92,11 +92,16 @@ export default class NavSettingsPanel extends Component<NavSettingsPanelProps, N
 
         const { hasNewVersionLocal } = this.state;
 
-        // 仅 OIDC 登录用户 + 后端下发了 oidcAccountUrl 时显示「账户中心」入口。
+        // 仅 OIDC 登录用户 + 后端在该 provider 下发了 accountUrl 时显示「账户中心」入口。
         // 普通账号无此入口（应用内修改密码暂未实现）。
-        const provider = WKApp.loginInfo.loginProvider;
-        const accountCenterUrl = WKApp.remoteConfig.oidcAccountUrl;
-        const showAccountCenter = !!provider && provider !== 'local' && !!accountCenterUrl;
+        // 按 loginProvider id 在 oidcProviders 数组里查对应 provider 的 accountUrl,
+        // 多 provider 部署时不同用户跳到各自的账户中心。
+        const providerId = WKApp.loginInfo.loginProvider;
+        const oidcProvider = providerId
+            ? WKApp.remoteConfig.oidcProviders.find((p) => p.id === providerId)
+            : undefined;
+        const accountCenterUrl = oidcProvider?.accountUrl;
+        const showAccountCenter = !!providerId && providerId !== 'local' && !!accountCenterUrl;
 
         return (
             <>
