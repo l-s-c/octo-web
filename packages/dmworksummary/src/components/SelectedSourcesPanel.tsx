@@ -27,11 +27,7 @@ const SelectedSourcesPanel: React.FC<SelectedSourcesPanelProps> = ({ sources }) 
     };
 
     const getDisplayName = (source: SourceItem): string => {
-        const name = source.source_name || source.source_id;
-        if (source.source_type === SourceType.DIRECT_MESSAGE) {
-            return `和${name}的聊天记录`;
-        }
-        return name;
+        return source.source_name || source.source_id;
     };
 
     return (
