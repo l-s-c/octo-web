@@ -354,6 +354,7 @@ export default class SummaryDetailPage extends Component<SummaryDetailPageProps,
             await api.regenerateSummary(this.taskId);
             Toast.success("已开始重新生成");
             this.loadDetail();
+            window.dispatchEvent(new CustomEvent("summary-task-regenerated", { detail: { taskId: this.taskId } }));
         } catch (err: any) {
             Toast.error(err.message || "操作失败");
         }

@@ -62,9 +62,12 @@ export default class SummaryListPage extends Component<{}, SummaryListPageState>
 
     private handleSpaceChanged_ = () => this.loadData();
 
+    private handleTaskRegenerated_ = () => this.loadData();
+
     componentDidMount() {
         this.loadData();
         WKApp.mittBus.on("summary-space-changed", this.handleSpaceChanged_);
+        window.addEventListener("summary-task-regenerated", this.handleTaskRegenerated_);
     }
 
     componentWillUnmount() {
@@ -72,6 +75,7 @@ export default class SummaryListPage extends Component<{}, SummaryListPageState>
         if (this.searchTimer) clearTimeout(this.searchTimer);
         this.stopBatchPoll();
         WKApp.mittBus.off("summary-space-changed", this.handleSpaceChanged_);
+        window.removeEventListener("summary-task-regenerated", this.handleTaskRegenerated_);
     }
 
     async loadData() {
