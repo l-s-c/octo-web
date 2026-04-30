@@ -86,3 +86,7 @@ export { default as NavRail } from "./Components/NavRail"
 export type { NavRailProps, NavRailItem } from "./Components/NavRail"
 export { startVersionCheck, checkVersionOnce } from "./Utils/versionChecker"
 export { isSafeUrl } from './Utils/security'
+// YUJ-138: 外部成员/消息来源判定 resolver（纯函数）对外暴露，供 AssigneeEditor
+// 等包外组件在「按当前查看 Space 相对渲染」时复用，避免各自复制逻辑漂移。
+export { resolveExternalForViewer } from './Utils/externalViewer'
+export type { ExternalViewerInput, ExternalViewerResult } from './Utils/externalViewer'

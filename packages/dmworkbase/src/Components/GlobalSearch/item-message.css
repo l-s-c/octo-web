@@ -51,3 +51,13 @@ mark {
     background-color: transparent; /* 移除默认背景色 */
     color: var(--wk-color-theme); /* 设置文本颜色为红色，可以根据需要更改 */
 }
+/* YUJ-138: 消息摘要行的发送者样式。拆出独立 span 是为了在 sender 后插入
+   .wk-search-result-item-space 后缀（复用同一 class），而原实现把 sender
+   拼到 digest 字符串里无法独立加后缀样式。 */
+.wk-item-message-sender {
+    color: #666;
+}
+
+body[theme-mode=dark] .wk-item-message-sender {
+    color: #ccc;
+}

@@ -1,5 +1,4 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
-import React from 'react'
 import GlobalSearch from './index'
 
 const meta: Meta<typeof GlobalSearch> = {
