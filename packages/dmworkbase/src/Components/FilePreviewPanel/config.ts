@@ -6,10 +6,10 @@
 /** 文件大小阈值配置（单位：字节） */
 export const FILE_SIZE_THRESHOLD = {
   /** 小于此值：完全渲染（语法高亮） */
-  HIGHLIGHT: 30 * 1024, // 30KB
+  HIGHLIGHT: 200 * 1024, // 200KB (SMALL)
 
   /** 小于此值：纯文本渲染（无高亮） */
-  PLAIN_TEXT: 500 * 1024, // 500KB
+  PLAIN_TEXT: 2 * 1024 * 1024, // 2MB (MEDIUM)
 
   /** 小于此值：允许预览（超过则提示下载） */
   MAX_PREVIEW: 20 * 1024 * 1024, // 20MB
