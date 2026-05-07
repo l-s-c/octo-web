@@ -7,6 +7,7 @@ import React, {
 } from "react";
 import SyntaxHighlighter from "react-syntax-highlighter";
 import { BaseRendererProps } from "../types";
+import { Info } from "lucide-react";
 import { isFileTooLarge, getRenderMode, formatFileSize } from "../config";
 import { useFileContent } from "../hooks/useFileContent";
 import { RendererState } from "./RendererState";
@@ -283,9 +284,10 @@ const HtmlRenderer: React.FC<HtmlRendererProps> = ({
       {/* CSP 降级提示 */}
       {cspFallback && !iframeLoading && (
         <div className="wk-file-preview-html-renderer__csp-notice">
-          <span className="wk-file-preview-html-renderer__csp-notice-icon">
-            ℹ
-          </span>
+          <Info
+            size={14}
+            className="wk-file-preview-html-renderer__csp-notice-icon"
+          />
           <span className="wk-file-preview-html-renderer__csp-notice-text">
             由于安全策略限制，已禁用脚本执行，部分交互功能可能不可用
           </span>

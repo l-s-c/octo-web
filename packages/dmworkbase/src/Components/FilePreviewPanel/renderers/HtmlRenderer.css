@@ -95,8 +95,7 @@
 }
 
 .wk-file-preview-html-renderer__csp-notice-icon {
-  font-size: 14px;
-  line-height: 1;
+  flex-shrink: 0;
 }
 
 .wk-file-preview-html-renderer__csp-notice-text {
