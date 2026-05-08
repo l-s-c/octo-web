@@ -32,8 +32,9 @@ interface BotDetailModalState {
     editingDescription: boolean;
     descriptionDraft: string;
     savingDescription: boolean;
-    // Mock 显示：后端接口未 ready，暂时固定为 "managed_unreported"
-    octopushStatus: "reported" | "managed_unreported" | "unmanaged";
+    // Agent Card 上报状态（true=已上报，false=未上报，null=加载中）
+    reported: boolean | null;
+    reportStatusLoading: boolean;
     showClawInfo: boolean;
 }
 
@@ -57,18 +58,22 @@ export default class BotDetailModal extends Component<BotDetailModalProps, BotDe
         editingDescription: false,
         descriptionDraft: "",
         savingDescription: false,
-        // Mock 显示：后端接口未 ready，暂时固定为 "reported"（已上报）
-        octopushStatus: "reported",
+        reported: null,
+        reportStatusLoading: false,
         showClawInfo: false,
     };
 
     componentDidMount() {
-        if (this.props.uid) this.loadBotInfo();
+        if (this.props.uid) {
+            this.loadBotInfo();
+            this.loadReportStatus();
+        }
     }
 
     componentDidUpdate(prevProps: BotDetailModalProps) {
         if (prevProps.uid !== this.props.uid && this.props.uid) {
             this.loadBotInfo();
+            this.loadReportStatus();
         }
     }
 
@@ -78,6 +83,39 @@ export default class BotDetailModal extends Component<BotDetailModalProps, BotDe
             this.refreshTimer = null;
         }
     }
+
+    loadReportStatus = async () => {
+        const { uid } = this.props;
+        if (!uid) return;
+
+        this.setState({ reportStatusLoading: true });
+        try {
+            const baseUrl = process.env.REACT_APP_CARD_BASE_URL || "http://localhost:8080";
+            const token = WKApp.loginInfo.token || "";
+
+            const response = await fetch(`${baseUrl}/api/v1/agent-cards/${uid}/report-status`, {
+                headers: { Token: token },
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+
+            const result = await response.json();
+            if (result.code === 0) {
+                this.setState({ reported: result.data.reported });
+            } else {
+                // API 返回错误，默认为未上报
+                this.setState({ reported: false });
+            }
+        } catch (error) {
+            console.error("[BotDetailModal] loadReportStatus failed:", error);
+            // 网络错误，默认为未上报
+            this.setState({ reported: false });
+        } finally {
+            this.setState({ reportStatusLoading: false });
+        }
+    };
 
     loadBotInfo = async () => {
         const requestedUid = this.props.uid;
@@ -103,8 +141,6 @@ export default class BotDetailModal extends Component<BotDetailModalProps, BotDe
             editingDescription: false,
             descriptionDraft: "",
             savingDescription: false,
-            // Mock 显示：后端接口未 ready，暂时固定为 "reported"（已上报）
-            octopushStatus: "reported",
         });
 
         const isStale = () => this.props.uid !== requestedUid;
@@ -123,9 +159,6 @@ export default class BotDetailModal extends Component<BotDetailModalProps, BotDe
                 botCommands: data.bot_commands || "",
                 isFriend: data.follow === 1,
                 editingDescription: false,
-                // Mock 显示：后端接口未 ready，暂时固定为 "reported"（已上报）
-                // TODO: 后端接口 ready 后，改为 data.octopush_status || "unmanaged"
-                octopushStatus: "reported",
             });
         } catch {
             // fallback to channel info
@@ -144,9 +177,6 @@ export default class BotDetailModal extends Component<BotDetailModalProps, BotDe
                     botCommands: channelInfo?.orgData?.bot_commands || "",
                     isFriend: channelInfo?.orgData?.follow === 1,
                     editingDescription: false,
-                    // Mock 显示：后端接口未 ready，暂时固定为 "reported"（已上报）
-                    // TODO: 后端接口 ready 后，改为 channelInfo?.orgData?.octopush_status || "unmanaged"
-                    octopushStatus: "reported",
                 });
             } catch {
                 if (isStale()) return;
@@ -162,8 +192,6 @@ export default class BotDetailModal extends Component<BotDetailModalProps, BotDe
                     botCommands: "",
                     isFriend: false,
                     editingDescription: false,
-                    // Mock 显示：后端接口未 ready，暂时固定为 "reported"（已上报）
-                    octopushStatus: "reported",
                 });
             }
         }
@@ -317,7 +345,8 @@ export default class BotDetailModal extends Component<BotDetailModalProps, BotDe
             editingDescription,
             descriptionDraft,
             savingDescription,
-            octopushStatus,
+            reported,
+            reportStatusLoading,
             showClawInfo,
         } = this.state;
         const isOwner = this.isOwner();
@@ -377,19 +406,19 @@ export default class BotDetailModal extends Component<BotDetailModalProps, BotDe
                                 {name.replace(/\*\*/g, '')} <AiBadge />
                             </div>
                             <div className="wk-bot-detail-id">@{username}</div>
-                            {isOwner && (
+                            {isOwner && reported !== null && (
                                 <div
-                                    className={`wk-bot-detail-octopush-chip wk-bot-detail-octopush-chip--${octopushStatus}`}
+                                    className={`wk-bot-detail-octopush-chip ${
+                                        reported
+                                            ? "wk-bot-detail-octopush-chip--reported"
+                                            : "wk-bot-detail-octopush-chip--managed_unreported"
+                                    }`}
                                 >
                                     <span className="wk-bot-detail-octopush-chip-icon">
-                                        {octopushStatus === "reported" && "✅"}
-                                        {octopushStatus === "managed_unreported" && "⚠️"}
-                                        {octopushStatus === "unmanaged" && "🔌"}
+                                        {reported ? "✅" : "⚠️"}
                                     </span>
                                     <span className="wk-bot-detail-octopush-chip-text">
-                                        {octopushStatus === "reported" && "OctoPush · 已上报"}
-                                        {octopushStatus === "managed_unreported" && "OctoPush · 未上报"}
-                                        {octopushStatus === "unmanaged" && "未接入 OctoPush"}
+                                        {reported ? "已上报" : "未上报"}
                                     </span>
                                 </div>
                             )}
@@ -460,13 +489,15 @@ export default class BotDetailModal extends Component<BotDetailModalProps, BotDe
                                 ))}
                             </div>
                         )}
-                        {isOwner && (
+                        {isOwner && reported !== null && (
                             <Button
                                 block
+                                disabled={!reported}
                                 onClick={this.handleViewClawInfo}
-                                className="wk-bot-detail-claw-btn"
+                                className={`wk-bot-detail-claw-btn${!reported ? " wk-bot-detail-claw-btn--disabled" : ""}`}
                                 style={{ marginTop: 16 }}
-                                aria-label="查看龙虾信息"
+                                aria-label={reported ? "查看龙虾信息" : undefined}
+                                title={!reported ? "请先上报 Agent Card 数据" : undefined}
                             >
                                 🦞 查看龙虾信息
                             </Button>
@@ -477,7 +508,7 @@ export default class BotDetailModal extends Component<BotDetailModalProps, BotDe
                                 type="primary"
                                 block
                                 onClick={this.handleChat}
-                                style={{ marginTop: isOwner ? 10 : 16 }}
+                                style={{ marginTop: isOwner && reported !== null ? 10 : 16 }}
                             >
                                 发送消息
                             </Button>
