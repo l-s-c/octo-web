@@ -14,6 +14,10 @@ export interface ClawSessionItemProps {
     channel: string;
     /** 对话方（如"罗敬为 · 皮皮虾(私聊)"） */
     party: string;
+    /** Bot 显示名（如"皮皮虾"） */
+    botName: string;
+    /** Bot ID（如"pipixia_bot"） */
+    botId: string;
     /** 模型名称 */
     model: string;
     /** 已使用上下文 */
@@ -44,6 +48,8 @@ export default function ClawSessionItem({ session }: ClawSessionItemProps) {
     running,
     channel,
     party,
+    botName,
+    botId,
     model,
     ctxUsed,
     ctxMax,
@@ -130,6 +136,27 @@ export default function ClawSessionItem({ session }: ClawSessionItemProps) {
               </span>
             </div>
 
+            {/* Bot */}
+            <div className="wk-session-field">
+              <span className="wk-session-field__label">Bot</span>
+              <span
+                className="wk-session-field__value wk-session-field__value--normal"
+                data-testid="claw-session-bot"
+              >
+                {botName}{" "}
+                <span
+                  style={{
+                    color: "rgba(0, 0, 0, 0.35)",
+                    fontFamily:
+                      "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
+                    fontSize: "11px",
+                  }}
+                >
+                  (@{botId})
+                </span>
+              </span>
+            </div>
+
             {/* 模型 */}
             <div className="wk-session-field">
               <span className="wk-session-field__label">模型</span>
@@ -141,8 +168,11 @@ export default function ClawSessionItem({ session }: ClawSessionItemProps) {
               </span>
             </div>
 
-            {/* SESSION ID */}
-            <div className="wk-session-field">
+            {/* SESSION ID（占 2 列） */}
+            <div
+              className="wk-session-field"
+              style={{ gridColumn: "span 2" }}
+            >
               <span className="wk-session-field__label">SESSION ID</span>
               <span
                 className="wk-session-field__value"
