@@ -70,8 +70,8 @@
   background: var(--wk-color-bg-hover, #f9fafb);
 }
 
-.appbot-list-item-active {
-  background: var(--wk-color-primary-light, #eef2ff) !important;
+.appbot-page .appbot-list-item.appbot-list-item-active {
+  background: var(--wk-color-primary-light, #eef2ff);
 }
 
 .appbot-list-avatar {

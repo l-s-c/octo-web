@@ -193,42 +193,42 @@ export default function AppBotPage() {
       // Ensure friend relationship with bot (opt-in consent).
       // This is idempotent — already-friends returns OK immediately.
       await WKApp.apiClient.post("/app_bot/apply", { robot_uid: bot.uid })
+
+      setSelectedUid(bot.uid)
+
+      const channel = new Channel(bot.uid, ChannelTypePerson)
+
+      // Write bot identity to channelManager FIRST — Conversation component
+      // reads this for message row avatars/names. Must be set before any
+      // component renders or triggers fetchChannelInfo.
+      const info = new ChannelInfo()
+      info.channel = channel
+      info.title = bot.display_name
+      // When bot has no avatar, use a data URI so avatarChannel() uses it
+      // instead of falling back to /users/{uid}/avatar (which 404s for bots)
+      info.logo = bot.avatar || BOT_DEFAULT_AVATAR_DATA_URI
+      info.orgData = { displayName: bot.display_name, robot: 1, name: bot.display_name }
+      WKSDK.shared().channelManager.setChannleInfoForCache(info)
+
+      // Ensure conversation exists in SDK
+      const convMgr = WKSDK.shared().conversationManager
+      if (!convMgr.findConversation(channel) && convMgr.createEmptyConversation) {
+        convMgr.createEmptyConversation(channel)
+      }
+
+      // Render bot chat: our header + Conversation (messages + input only)
+      WKApp.routeRight.replaceToRoot(
+        <div key={channel.getChannelKey()} className="appbot-chat-wrap">
+          <BotChatHeader bot={bot} />
+          <Conversation channel={channel} />
+        </div>
+      )
     } catch (err) {
-      console.error("[AppBotPage] app_bot/apply failed:", err)
+      console.error("[AppBotPage] handleSelect failed:", err)
       showErrorToast("无法连接到该应用，请稍后重试")
+    } finally {
       isSelectingRef.current = false
-      return
     }
-
-    setSelectedUid(bot.uid)
-
-    const channel = new Channel(bot.uid, ChannelTypePerson)
-
-    // Write bot identity to channelManager FIRST — Conversation component
-    // reads this for message row avatars/names. Must be set before any
-    // component renders or triggers fetchChannelInfo.
-    const info = new ChannelInfo()
-    info.channel = channel
-    info.title = bot.display_name
-    // When bot has no avatar, use a data URI so avatarChannel() uses it
-    // instead of falling back to /users/{uid}/avatar (which 404s for bots)
-    info.logo = bot.avatar || BOT_DEFAULT_AVATAR_DATA_URI
-    info.orgData = { displayName: bot.display_name, robot: 1, name: bot.display_name }
-    WKSDK.shared().channelManager.setChannleInfoForCache(info)
-
-    // Ensure conversation exists in SDK
-    if (!WKSDK.shared().conversationManager.findConversation(channel)) {
-      WKSDK.shared().conversationManager.createEmptyConversation(channel)
-    }
-
-    // Render bot chat: our header + Conversation (messages + input only)
-    WKApp.routeRight.replaceToRoot(
-      <div key={channel.getChannelKey()} className="appbot-chat-wrap">
-        <BotChatHeader bot={bot} />
-        <Conversation channel={channel} />
-      </div>
-    )
-    isSelectingRef.current = false
   }
 
   const renderItem = (bot: AppBotInfo) => {
