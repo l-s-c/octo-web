@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import React, { useState } from 'react'
-import MatterCard from '../../../../packages/dmworktodo/src/ui/MatterCard'
+import MatterCard from '../../../../packages/dmworktodo/src/ui/TodoCard'
 import MemberPicker from '../../../../packages/dmworktodo/src/ui/MemberPicker'
 import CreateTaskModal from '../../../../packages/dmworktodo/src/ui/CreateTaskModal'
 import type { Matter, MatterStatus } from '../../../../packages/dmworktodo/src/bridge/types'
@@ -90,25 +90,25 @@ function CardDemo() {
   const cards = [
     {
       matter: { ...baseMatter, id: 'matter-1', status: statuses['matter-1'], deadline: today },
-      : '产品 v2.0', channelName: '开发讨论',
+      channelName: '开发讨论',
       assigneeUids: ['u1', 'u2', 'u3', 'u4'],
       label: '今天到期 + 4个负责人（超出显+1）',
     },
     {
       matter: { ...baseMatter, id: 'matter-2', title: '输出设计评审稿', status: statuses['matter-2'], deadline: yesterday },
-      : 'Q2 迭代', channelName: '产品讨论',
+      channelName: '产品讨论',
       assigneeUids: ['u1'],
       label: '已完成 + 逾期',
     },
     {
       matter: { ...baseMatter, id: 'matter-3', title: '整理 Q2 迭代需求文档', status: statuses['matter-3'], deadline: undefined, source_channel_id: undefined, source_name: undefined },
-      : undefined, channelName: undefined,
+      channelName: undefined,
       assigneeUids: [],
       label: '无截止 + 无项目 + 无频道',
     },
     {
       matter: { ...baseMatter, id: 'matter-4', title: '完成接口联调', status: statuses['matter-4'], deadline: nextWeek },
-      : '产品 v2.0', channelName: '开发讨论',
+      channelName: '开发讨论',
       assigneeUids: ['u1', 'u2'],
       label: '下周到期',
     },
@@ -130,14 +130,12 @@ function CardDemo() {
       ))}
 
       <div style={{ marginTop: 24, marginBottom: 4, fontSize: 11, color: '#aaa' }}>
-        =true（项目内部视图，不显示项目名）
+        频道内视图（不显示来源频道名）
       </div>
       <MatterCard
         matter={{ ...baseMatter, status: statuses['matter-1'] }}
-        ="产品 v2.0"
         channelName="开发讨论"
         assigneeUids={['u1', 'u2']}
-        
         onClick={(id) => console.log('点击详情:', id)}
         onStatusChange={handleStatusChange}
       />

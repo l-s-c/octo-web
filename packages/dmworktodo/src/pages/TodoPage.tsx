@@ -85,7 +85,7 @@ function TodoListView({ navView }: TodoListViewProps) {
   const initialFilters = useMemo(() => buildParams(navView, myUid), [navView, myUid]);
 
   const { matters, loading, hasMore, filters, setFilters, reload, loadMore, toggleStatus } = useMatterList({ initialFilters });
-  const [selectedMatterId, setSelectedTodoId] = useState<string | null>(null);
+  const [selectedMatterId, setSelectedMatterId] = useState<string | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [doneExpanded, setDoneExpanded] = useState(false);
 
@@ -96,7 +96,7 @@ function TodoListView({ navView }: TodoListViewProps) {
 
   // navView 切换时重置选中
   useEffect(() => {
-    setSelectedTodoId(null);
+    setSelectedMatterId(null);
   }, [navView]);
 
   const grouped = useMemo(() => groupByTime(matters), [matters]);
@@ -129,7 +129,7 @@ function TodoListView({ navView }: TodoListViewProps) {
             selected={selectedMatterId ===matter.id}
             assigneeUids={[]}
             channelName={matter.source_name}
-            onClick={(id) => setSelectedTodoId(id)}
+            onClick={(id) => setSelectedMatterId(id)}
             onStatusChange={(id) => toggleStatus(id,matter.status)}
           />
         ))}
@@ -182,7 +182,7 @@ function TodoListView({ navView }: TodoListViewProps) {
                   selected={selectedMatterId ===matter.id}
                   assigneeUids={[]}
                   channelName={matter.source_name}
-                  onClick={(id) => setSelectedTodoId(id)}
+                  onClick={(id) => setSelectedMatterId(id)}
                   onStatusChange={(id) => toggleStatus(id,matter.status)}
                 />
               ))}
@@ -200,7 +200,7 @@ function TodoListView({ navView }: TodoListViewProps) {
         {selectedMatterId && (
           <DetailPanel
             matterId={selectedMatterId}
-            onClose={() => setSelectedTodoId(null)}
+            onClose={() => setSelectedMatterId(null)}
             onStatusChanged={() => { reload(); }}
           />
         )}

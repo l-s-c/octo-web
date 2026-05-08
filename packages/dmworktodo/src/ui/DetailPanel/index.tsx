@@ -178,7 +178,7 @@ export default function DetailPanel({ matterId, onClose, onStatusChanged, channe
   const handleDeadlineChange = useCallback(
     async (deadline: string) => {
       if (!matter) return;
-    if (matter.status === 'archived') return;
+      if (matter.status === 'archived') return;
       try {
         const updated = await api.updateMatter(matterId, {
           deadline: deadline || null,
@@ -225,7 +225,7 @@ export default function DetailPanel({ matterId, onClose, onStatusChanged, channe
   const handleRemindModeChange = useCallback(
     async (mode: 'none' | '1h' | '1d' | 'custom') => {
       if (!matter) return;
-    if (matter.status === 'archived') return;
+      if (matter.status === 'archived') return;
       setRemindMode(mode);
 
       let remindAt: string | null = null;

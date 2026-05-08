@@ -28,7 +28,7 @@ export default function ChatMatterPanel({
   onClose,
 }: ChatMatterPanelProps) {
   const [activeTab, setActiveTab] = useState<Tab>('open');
-  const [selectedMatterId, setSelectedTodoId] = useState<string | null>(null);
+  const [selectedMatterId, setSelectedMatterId] = useState<string | null>(null);
 
   const { matters, loading, reload, toggleStatus, addOptimistic, removeOptimistic } = useMatterList({
     initialFilters: {
@@ -76,14 +76,14 @@ export default function ChatMatterPanel({
         <button
           type="button"
           className={`wk-matter-chat-panel__tab${activeTab === 'open' ? ' wk-matter-chat-panel__tab--active' : ''}`}
-          onClick={() => { setActiveTab('open'); setSelectedTodoId(null); }}
+          onClick={() => { setActiveTab('open'); setSelectedMatterId(null); }}
         >
           待处理 <span className="wk-matter-chat-panel__tab-count">{openMatters.length}</span>
         </button>
         <button
           type="button"
           className={`wk-matter-chat-panel__tab${activeTab === 'done' ? ' wk-matter-chat-panel__tab--active' : ''}`}
-          onClick={() => { setActiveTab('done'); setSelectedTodoId(null); }}
+          onClick={() => { setActiveTab('done'); setSelectedMatterId(null); }}
         >
           已完成 <span className="wk-matter-chat-panel__tab-count">{closedMatters.length}</span>
         </button>
@@ -95,7 +95,7 @@ export default function ChatMatterPanel({
           <DetailPanel
             matterId={selectedMatterId}
             channel={channel}
-            onClose={() => setSelectedTodoId(null)}
+            onClose={() => setSelectedMatterId(null)}
             onStatusChanged={reload}
             showBack
           />
@@ -108,11 +108,11 @@ export default function ChatMatterPanel({
               </div>
             )}
             {!loading && displayMatters.map((matter) => (
-              <div key={matter.id} style={{ marginBottom: 'var(--wk-sp-1, 4px)' }}>
+              <div key={matter.id} style={{ marginBottom: 4 }}>
                 <MatterCard
                   matter={matter}
                   assigneeUids={[]}
-                  onClick={(id) => setSelectedTodoId(id)}
+                  onClick={(id) => setSelectedMatterId(id)}
                   onStatusChange={(id) => toggleStatus(id,matter.status)}
                 />
               </div>
