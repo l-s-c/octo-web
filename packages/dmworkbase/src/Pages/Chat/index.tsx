@@ -553,10 +553,9 @@ export class ChatContentPage extends Component<
                       className="wk-chat-conversation-header-right-item"
                       onClick={(e) => {
                         e.stopPropagation();
+                        // 点击更多按钮只切换设置面板，不影响文件预览/子区面板状态
                         this.setState({
                           showChannelSetting: !this.state.showChannelSetting,
-                          previewFile: null, // 关闭文件预览（互斥）
-                          activePreviewMessageId: null,
                         });
                       }}
                     >
