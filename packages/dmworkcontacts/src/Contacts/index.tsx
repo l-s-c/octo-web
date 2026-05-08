@@ -255,11 +255,12 @@ export default class ContactsList extends Component<any, ContactsState> {
         let items: Contacts[]
 
         if (filterMode === 'bots') {
-            // "只看 AI"：使用 space_bots 展示企业内所有 AI
+            // "只看 AI"：spaceBots + spaceMembers 中 robot=1 但不在 spaceBots 的（系统 bot）
             const allBots = spaceBots || []
+            const spaceBotUids = new Set(allBots.map((b: any) => b.uid))
             // 用 spaceMembers 中已有的 bot uid 集合判断是否已是成员
-            const memberUids = new Set(spaceMembers.filter(m => m.robot === 1).map(m => m.uid))
-            items = allBots
+            const memberUids = new Set(spaceMembers.filter(m => Number(m.robot) === 1).map(m => m.uid))
+            const botItems = allBots
                 .filter((b: any) => b.uid !== myUID)
                 .map((b: any) => {
                     const c = new Contacts()
@@ -272,8 +273,21 @@ export default class ContactsList extends Component<any, ContactsState> {
                     ;(c as any)._description = b.description
                     return c
                 })
+            // 补充 spaceMembers 中 robot=1 但不在 spaceBots 的（如通知助手、App Bot 等系统级 bot）
+            const systemBotItems = spaceMembers
+                .filter(m => m.uid !== myUID && Number(m.robot) === 1 && !spaceBotUids.has(m.uid))
+                .map(m => {
+                    const c = new Contacts()
+                    c.uid = m.uid
+                    c.name = m.name || m.uid
+                    c.avatar = m.avatar || ""
+                    c.robot = true
+                    c.follow = 1
+                    return c
+                })
+            items = [...botItems, ...systemBotItems]
         } else if (filterMode === 'humans') {
-            const filtered = spaceMembers.filter(m => m.uid !== myUID && m.robot !== 1)
+            const filtered = spaceMembers.filter(m => m.uid !== myUID && Number(m.robot) !== 1)
             items = filtered.map(m => {
                 const c = new Contacts()
                 c.uid = m.uid
@@ -295,7 +309,7 @@ export default class ContactsList extends Component<any, ContactsState> {
                     c.name = m.name
                     c.avatar = m.avatar || ""
                     c.follow = 1
-                    c.robot = m.robot === 1
+                    c.robot = Number(m.robot) === 1
                     ;(c as any)._spaceRole = m.role
                     return c
                 })
@@ -491,14 +505,14 @@ export default class ContactsList extends Component<any, ContactsState> {
                         <div className="wk-contacts-search-section-title">联系人</div>
                         {searchContacts.map((m: any) => (
                             <div key={m.uid} className="wk-contacts-section-item" onClick={() => {
-                                this.handleContactClick(m.uid, m.robot === 1)
+                                this.handleContactClick(m.uid, Number(m.robot) === 1)
                             }}>
                                 <div className="wk-contacts-section-item-avatar">
                                     <WKAvatar channel={new Channel(m.uid, ChannelTypePerson)} />
                                 </div>
                                 <div className="wk-contacts-section-item-name">
                                     {m.name}
-                                    {m.robot === 1 && <AiBadge />}
+                                    {Number(m.robot) === 1 && <AiBadge />}
                                 </div>
                             </div>
                         ))}
@@ -530,8 +544,11 @@ export default class ContactsList extends Component<any, ContactsState> {
         const myUID = WKApp.loginInfo.uid || ""
         const memberUids = new Set(spaceMembers.map(m => m.uid))
 
-        const humansCount = spaceMembers.filter(m => m.uid !== myUID && m.robot !== 1).length
-        const botsCount = (spaceBots || []).filter((b: any) => b.uid !== myUID).length
+        const humansCount = spaceMembers.filter(m => m.uid !== myUID && Number(m.robot) !== 1).length
+        // bots = spaceBots + spaceMembers with robot=1 not already in spaceBots
+        const spaceBotUids = new Set((spaceBots || []).map((b: any) => b.uid))
+        const memberBots = spaceMembers.filter(m => m.uid !== myUID && Number(m.robot) === 1 && !spaceBotUids.has(m.uid))
+        const botsCount = (spaceBots || []).filter((b: any) => b.uid !== myUID).length + memberBots.length
         // "全部" = members(去掉自己) + spaceBots 中不在 members 的
         const allCount = spaceMembers.filter(m => m.uid !== myUID).length
             + (spaceBots || []).filter((b: any) => b.uid !== myUID && !memberUids.has(b.uid)).length
