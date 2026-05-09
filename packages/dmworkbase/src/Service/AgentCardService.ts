@@ -38,18 +38,11 @@ export interface FileContent {
   content: string;
 }
 
-/** 
- * Agent Card 数据（向后兼容别名）
- * 注意：dmworkcontacts/api/types 中的 AgentCardResponse 是 HTTP 响应封装 { code, message, data }
- * 这里的 AgentCardResponse 指的是数据载荷本身（即 AgentCardData）
- */
-export type AgentCardResponse = AgentCardData;
-
 /** Session 别名（兼容旧代码） */
 export type Session = SessionInfo;
 
 /** 导出共享类型 */
-export type { RuntimeInfo, SessionInfo, CoreFile, MemoryFile };
+export type { AgentCardData, RuntimeInfo, SessionInfo, CoreFile, MemoryFile };
 
 /** 文件内容响应 */
 export interface FileContentResponse {
@@ -68,10 +61,10 @@ class AgentCardService {
   /**
    * 获取 Agent Card（包含概览、Session、文件列表）
    * @param botId Bot ID
-   * @returns AgentCardResponse
+   * @returns AgentCardData
    */
-  async getAgentCard(botId: string): Promise<AgentCardResponse> {
-    const response = await APIClient.shared.get<{ code: number; message: string; data: AgentCardResponse }>(
+  async getAgentCard(botId: string): Promise<AgentCardData> {
+    const response = await APIClient.shared.get<{ code: number; message: string; data: AgentCardData }>(
       `/agent-cards/${botId}`
     );
 
@@ -90,7 +83,7 @@ class AgentCardService {
    */
   async getFileContent(botId: string, fileName: string): Promise<FileContent> {
     const response = await APIClient.shared.get<{ code: number; message: string; data: FileContentResponse }>(
-      `/agent-cards/${botId}/files/${fileName}`
+      `/agent-cards/${botId}/files/${encodeURIComponent(fileName)}`
     );
 
     if (response.code !== 0) {
@@ -114,7 +107,7 @@ class AgentCardService {
    */
   async getFileData(botId: string, fileName: string): Promise<FileContentData> {
     const response = await APIClient.shared.get<{ code: number; message: string; data: FileContentData }>(
-      `/agent-cards/${botId}/files/${fileName}`
+      `/agent-cards/${botId}/files/${encodeURIComponent(fileName)}`
     );
 
     if (response.code !== 0) {
@@ -125,11 +118,11 @@ class AgentCardService {
   }
 
   /**
-   * 将 AgentCardResponse 转换为 FileViewer 所需的 FileGroup[]
-   * @param agentCard AgentCardResponse
+   * 将 AgentCardData 转换为 FileViewer 所需的 FileGroup[]
+   * @param agentCard AgentCardData
    * @returns FileGroup[]
    */
-  buildFileGroups(agentCard: AgentCardResponse): FileGroup[] {
+  buildFileGroups(agentCard: AgentCardData): FileGroup[] {
     const groups: FileGroup[] = [];
 
     // 按 category 分组核心文件

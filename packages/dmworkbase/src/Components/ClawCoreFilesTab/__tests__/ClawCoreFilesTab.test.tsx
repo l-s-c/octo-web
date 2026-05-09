@@ -3,7 +3,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import ClawCoreFilesTab from '../ClawCoreFilesTab';
 import AgentCardService from '../../../Service/AgentCardService';
-import type { AgentCardResponse } from '../../../Service/AgentCardService';
+import type { AgentCardData } from '../../../Service/AgentCardService';
 
 // Mock AgentCardService
 vi.mock('../../../Service/AgentCardService', () => ({
@@ -17,7 +17,7 @@ vi.mock('../../../Service/AgentCardService', () => ({
 describe('ClawCoreFilesTab', () => {
   const mockBotId = '01913a2b3c4d5e6f7890abcd_bot';
 
-  const mockAgentCard: AgentCardResponse = {
+  const mockAgentCard: AgentCardData = {
     bot_id: mockBotId,
     session_total: 5,
     session_running_count: 2,

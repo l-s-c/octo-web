@@ -3,7 +3,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import { vi } from "vitest";
 import "@testing-library/jest-dom";
 import ClawInfoModal from "../ClawInfoModal";
-import type { AgentCardResponse } from "../../Service/AgentCardService";
+import type { AgentCardData } from "../../Service/AgentCardService";
 
 // Mock AgentCardService
 vi.mock("../../Service/AgentCardService", () => ({
@@ -35,7 +35,7 @@ describe("ClawInfoModal", () => {
    * AC-1: 有 Session 数据时，正确渲染列表和统计
    */
   it("应该渲染 Session 列表和顶部统计", async () => {
-    const mockData: AgentCardResponse = {
+    const mockData: AgentCardData = {
       bot_id: "test_bot",
       session_total: 3,
       session_running_count: 2,
@@ -114,7 +114,7 @@ describe("ClawInfoModal", () => {
    * AC-2: 空态处理
    */
   it("应该在无 Session 时显示空态", async () => {
-    const mockData: AgentCardResponse = {
+    const mockData: AgentCardData = {
       bot_id: "empty_bot",
       session_total: 0,
       session_running_count: 0,
@@ -170,7 +170,7 @@ describe("ClawInfoModal", () => {
    * AC-5: running Session 排在前面
    */
   it("应该将 running Session 排在前面", async () => {
-    const mockData: AgentCardResponse = {
+    const mockData: AgentCardData = {
       bot_id: "sort_bot",
       session_total: 3,
       session_running_count: 2,

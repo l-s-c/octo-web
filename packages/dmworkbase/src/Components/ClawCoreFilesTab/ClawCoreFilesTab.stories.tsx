@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react';
 import ClawCoreFilesTab from './ClawCoreFilesTab';
 import AgentCardService from '../../Service/AgentCardService';
-import type { AgentCardResponse, FileContentResponse } from '../../Service/AgentCardService';
+import type { AgentCardData, FileContentResponse } from '../../Service/AgentCardService';
 import FileHelper from '../../Utils/filehelper';
 
 /**
@@ -35,8 +35,8 @@ const meta: Meta<typeof ClawCoreFilesTab> = {
 export default meta;
 type Story = StoryObj<typeof ClawCoreFilesTab>;
 
-// Mock AgentCardResponse
-const mockAgentCard: AgentCardResponse = {
+// Mock AgentCardData
+const mockAgentCard: AgentCardData = {
   bot_id: '01913a2b3c4d5e6f7890abcd_bot',
   session_total: 5,
   session_running_count: 2,
@@ -187,7 +187,7 @@ LUO 让我帮忙产出 OctoPush V0.0.3 产品线框。
 const originalGetAgentCard = AgentCardService.getAgentCard;
 const originalGetFileContent = AgentCardService.getFileContent;
 
-const mockGetAgentCard = async (): Promise<AgentCardResponse> => {
+const mockGetAgentCard = async (): Promise<AgentCardData> => {
   await new Promise((resolve) => setTimeout(resolve, 500));
   return mockAgentCard;
 };

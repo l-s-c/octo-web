@@ -90,7 +90,7 @@ export default class BotDetailModal extends Component<BotDetailModalProps, BotDe
 
         const isStale = () => this.props.uid !== requestedUid;
 
-        this.setState({ reportStatusLoading: true });
+        this.setState({ reported: null, reportStatusLoading: true });
         try {
             const result = await WKApp.apiClient.get(`agent-cards/${requestedUid}/report-status`);
             if (isStale()) return; // 如果已切换到其他 bot，忽略旧请求

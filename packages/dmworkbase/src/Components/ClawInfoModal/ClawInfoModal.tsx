@@ -4,7 +4,7 @@ import WKModal from "../WKModal";
 import ClawSessionItem from "../ClawSessionItem";
 import ClawOverviewTab from "../ClawOverviewTab/ClawOverviewTab";
 import ClawCoreFilesTab from "../ClawCoreFilesTab/ClawCoreFilesTab";
-import AgentCardService, { type AgentCardResponse } from "../../Service/AgentCardService";
+import AgentCardService, { type AgentCardData } from "../../Service/AgentCardService";
 import "./ClawInfoModal.css";
 
 export interface ClawInfoModalProps {
@@ -44,7 +44,7 @@ export interface SessionData {
  */
 export default function ClawInfoModal({ botId, botName, visible, onClose }: ClawInfoModalProps) {
   const [loading, setLoading] = useState(true);
-  const [data, setData] = useState<AgentCardResponse | null>(null);
+  const [data, setData] = useState<AgentCardData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"overview" | "session" | "files">("overview");
 
@@ -87,7 +87,7 @@ export default function ClawInfoModal({ botId, botName, visible, onClose }: Claw
     }
   }, [visible]);
 
-  const mapToSessionData = (s: AgentCardResponse["sessions"][0]): SessionData => {
+  const mapToSessionData = (s: AgentCardData["sessions"][0]): SessionData => {
     // 渠道名称映射（中文）
     const channelMap: Record<string, string> = {
       dmwork: "dmwork",

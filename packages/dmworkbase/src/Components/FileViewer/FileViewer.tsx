@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
+import DOMPurify from 'dompurify';
 import './FileViewer.css';
 
 /** 文件分组 */
@@ -83,6 +84,8 @@ export default function FileViewer({
   );
   const [fileContent, setFileContent] = useState<FileContent | null>(null);
   const [loading, setLoading] = useState(false);
+  // 竞态保护：每次发起请求时递增，响应回来时检查是否仍是最新请求
+  const currentRequestIdRef = useRef(0);
 
   // 初始化时加载默认文件
   React.useEffect(() => {
@@ -95,10 +98,13 @@ export default function FileViewer({
   const handleFileClick = async (path: string) => {
     setActivePath(path);
     setLoading(true);
+    const requestId = ++currentRequestIdRef.current;
     try {
       const content = await onFetchFile(path);
+      if (requestId !== currentRequestIdRef.current) return;
       setFileContent(content);
     } catch (error) {
+      if (requestId !== currentRequestIdRef.current) return;
       console.error('Failed to fetch file:', error);
       setFileContent({
         name: path,
@@ -107,13 +113,15 @@ export default function FileViewer({
         content: '## 加载失败\n\n无法获取文件内容',
       });
     } finally {
-      setLoading(false);
+      if (requestId === currentRequestIdRef.current) {
+        setLoading(false);
+      }
     }
   };
 
-  // 简易 Markdown 渲染
-  const renderMarkdown = (md: string) => {
-    return md
+  // 简易 Markdown 渲染（仅允许 div[class] 和 code 标签，经 DOMPurify 净化）
+  const renderMarkdown = (md: string): string => {
+    const raw = md
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;')
@@ -121,6 +129,10 @@ export default function FileViewer({
       .replace(/^## (.+)$/gm, '<div class="md-h2">$1</div>')
       .replace(/^# (.+)$/gm, '<div class="md-h1">$1</div>')
       .replace(/`([^`]+)`/g, '<code>$1</code>');
+    return DOMPurify.sanitize(raw, {
+      ALLOWED_TAGS: ['div', 'code'],
+      ALLOWED_ATTR: ['class'],
+    });
   };
 
   return (
