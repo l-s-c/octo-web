@@ -27,6 +27,8 @@ interface VoiceInputIndicatorProps {
   /** 获取当前选区的 ProseMirror 位置 */
   getSelectionRange?: () => SelectionRange | undefined;
   getChatContext?: () => ChatContextResult | Promise<ChatContextResult>;
+  /** 判断当前输入框是否处于活动状态（用于避免多个输入框同时响应语音快捷键） */
+  checkIsInputActive?: () => boolean;
 }
 
 // Floating indicator positioning constants
@@ -50,6 +52,7 @@ export default function VoiceInputIndicator({
   getSelectedText,
   getSelectionRange,
   getChatContext,
+  checkIsInputActive,
 }: VoiceInputIndicatorProps) {
   // Voice mode menu state (不保存选中的模式，每次都是临时选择)
   const [showModeMenu, setShowModeMenu] = useState(false);
@@ -243,6 +246,11 @@ export default function VoiceInputIndicator({
     if (!isVoiceEnabled) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
+      // 只处理当前活动输入框的快捷键（避免多个输入框同时响应）
+      if (checkIsInputActive && !checkIsInputActive()) {
+        return;
+      }
+
       // Esc to cancel recording
       if (e.code === "Escape" && isRecordingRef.current) {
         e.preventDefault();
@@ -334,6 +342,12 @@ export default function VoiceInputIndicator({
     };
 
     const handleKeyUp = (e: KeyboardEvent) => {
+      // 如果正在录音，允许任何输入框停止录音（用户可能在录音时切换了输入框）
+      // 如果没在录音，只处理当前活动输入框的事件
+      if (!isRecordingRef.current && checkIsInputActive && !checkIsInputActive()) {
+        return;
+      }
+
       // ShiftLeft released while timer is pending: cancel (normal Shift press)
       if (e.code === "ShiftLeft" && shiftTimerRef.current !== null) {
         clearShiftTimer();

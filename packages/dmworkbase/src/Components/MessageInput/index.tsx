@@ -1383,6 +1383,10 @@ const MessageInput: React.FC<MessageInputProps> = (props) => {
                 return { from, to };
               }}
               getChatContext={props.getChatContext}
+              checkIsInputActive={() => {
+                // 检查编辑器是否处于聚焦状态，避免多个输入框同时响应语音快捷键
+                return editor ? editor.isFocused : false;
+              }}
             />
 
             {/* 展开/收起按钮 */}
