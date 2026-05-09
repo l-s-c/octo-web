@@ -861,3 +861,33 @@
   font-size: var(--wk-text-size-xs);
   color: var(--wk-text-tertiary);
 }
+
+/* ─── Tab Content / Channel Items ────────────────────── */
+
+.wk-mp-tab-content {
+  padding: var(--wk-sp-2) var(--wk-sp-5);
+}
+
+.wk-mp-channel-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--wk-sp-2) var(--wk-sp-3);
+  border-radius: var(--wk-r-sm);
+  margin-bottom: var(--wk-sp-1);
+}
+
+.wk-mp-channel-item:hover {
+  background: var(--wk-bg-hover);
+}
+
+.wk-mp-channel-item__name {
+  font-size: var(--wk-text-size-sm);
+  color: var(--wk-text-primary);
+  font-weight: 500;
+}
+
+.wk-mp-channel-item__type {
+  font-size: var(--wk-text-size-xs);
+  color: var(--wk-text-tertiary);
+}

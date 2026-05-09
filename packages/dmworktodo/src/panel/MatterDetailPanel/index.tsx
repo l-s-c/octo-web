@@ -140,8 +140,8 @@ export default function MatterDetailPanel({ channelId, channelType, matterId, on
           </div>
         </div>
         <h2 className="wk-mp-head__title">{matter.title}</h2>
-        <div className="wk-mp-head__meta">
-          <span>创建: {matter.creator_id.slice(0, 8)}</span>
+        <div className="wk-mp-head__creator">
+          <span className="wk-mp-head__creator-label">创建: {matter.creator_id.slice(0, 8)}</span>
           {assignees.length > 0 && (
             <span> · 负责: {assignees.map((a) => a.user_id.slice(0, 8)).join(', ')}</span>
           )}
@@ -165,11 +165,11 @@ export default function MatterDetailPanel({ channelId, channelType, matterId, on
             type="button"
             role="tab"
             aria-selected={tab === t.id}
-            className={`wk-mp-tabs__item${tab === t.id ? ' is-active' : ''}`}
+            className={`wk-mp-tab${tab === t.id ? ' is-active' : ''}`}
             onClick={() => setTab(t.id)}
           >
             {t.label}
-            {t.count > 0 && <span className="wk-mp-tabs__count">{t.count}</span>}
+            {t.count > 0 && <span className="wk-mp-tab__count">{t.count}</span>}
           </button>
         ))}
       </div>
@@ -211,10 +211,10 @@ export { MatterDetailPanel };
 
 // ─── StatusPicker ─────────────────────────────────────────
 
-const STATUS_OPTIONS: { value: MatterStatus; label: string }[] = [
-  { value: 'open', label: '进行中' },
-  { value: 'done', label: '已完成' },
-  { value: 'archived', label: '已归档' },
+const STATUS_OPTIONS: { value: MatterStatus; label: string; cssKey: string }[] = [
+  { value: 'open', label: '进行中', cssKey: 'active' },
+  { value: 'done', label: '已完成', cssKey: 'done' },
+  { value: 'archived', label: '已归档', cssKey: 'archived' },
 ];
 
 function StatusPicker({ status, onChange }: { status: MatterStatus; onChange: (s: MatterStatus) => void }) {
@@ -236,10 +236,10 @@ function StatusPicker({ status, onChange }: { status: MatterStatus; onChange: (s
     <div className="wk-mp-status-picker" ref={ref}>
       <button
         type="button"
-        className={`wk-mp-status-picker__btn wk-mp-status-picker__btn--${status}`}
+        className={`wk-mp-head__status wk-mp-head__status--${current.cssKey}`}
         onClick={() => setOpen(!open)}
       >
-        <span className="wk-mp-status-picker__dot" />
+        <span className="wk-mp-head__status-dot" />
         {current.label}
         <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
           <polyline points="6 9 12 15 18 9" />
@@ -254,7 +254,7 @@ function StatusPicker({ status, onChange }: { status: MatterStatus; onChange: (s
               className={`wk-mp-status-picker__option${opt.value === status ? ' is-active' : ''}`}
               onClick={() => { onChange(opt.value); setOpen(false); }}
             >
-              <span className={`wk-mp-status-picker__dot wk-mp-status-picker__dot--${opt.value}`} />
+              <span className={`wk-mp-head__status-dot`} />
               {opt.label}
             </button>
           ))}
