@@ -6,6 +6,7 @@ import { Channel, ChannelTypePerson, WKSDK } from "wukongimjssdk";
 import WKApp from "../../App";
 import WKAvatar from "../WKAvatar";
 import AiBadge from "../AiBadge";
+import ClawInfoModal from "../ClawInfoModal/ClawInfoModal";
 import "./index.css";
 
 interface BotDetailModalProps {
@@ -31,6 +32,10 @@ interface BotDetailModalState {
     editingDescription: boolean;
     descriptionDraft: string;
     savingDescription: boolean;
+    // Agent Card 上报状态（true=已上报，false=未上报，null=加载中）
+    reported: boolean | null;
+    reportStatusLoading: boolean;
+    showClawInfo: boolean;
 }
 
 export default class BotDetailModal extends Component<BotDetailModalProps, BotDetailModalState> {
@@ -53,15 +58,22 @@ export default class BotDetailModal extends Component<BotDetailModalProps, BotDe
         editingDescription: false,
         descriptionDraft: "",
         savingDescription: false,
+        reported: null,
+        reportStatusLoading: false,
+        showClawInfo: false,
     };
 
     componentDidMount() {
-        if (this.props.uid) this.loadBotInfo();
+        if (this.props.uid) {
+            this.loadBotInfo();
+            this.loadReportStatus();
+        }
     }
 
     componentDidUpdate(prevProps: BotDetailModalProps) {
         if (prevProps.uid !== this.props.uid && this.props.uid) {
             this.loadBotInfo();
+            this.loadReportStatus();
         }
     }
 
@@ -71,6 +83,29 @@ export default class BotDetailModal extends Component<BotDetailModalProps, BotDe
             this.refreshTimer = null;
         }
     }
+
+    loadReportStatus = async () => {
+        const requestedUid = this.props.uid;
+        if (!requestedUid) return;
+
+        const isStale = () => this.props.uid !== requestedUid;
+
+        this.setState({ reportStatusLoading: true });
+        try {
+            const result = await WKApp.apiClient.get(`agent-cards/${requestedUid}/report-status`);
+            if (isStale()) return; // 如果已切换到其他 bot，忽略旧请求
+            this.setState({ reported: result.data?.reported ?? false });
+        } catch (error) {
+            if (isStale()) return;
+            console.error("[BotDetailModal] loadReportStatus failed:", error);
+            // 网络错误时不设置 reported，避免误导用户
+            // reported 保持 null，不显示 OctoPush chip 和龙虾按钮
+        } finally {
+            if (!isStale()) {
+                this.setState({ reportStatusLoading: false });
+            }
+        }
+    };
 
     loadBotInfo = async () => {
         const requestedUid = this.props.uid;
@@ -279,6 +314,10 @@ export default class BotDetailModal extends Component<BotDetailModalProps, BotDe
         }
     };
 
+    handleViewClawInfo = () => {
+        this.setState({ showClawInfo: true });
+    };
+
     render() {
         const { visible, onClose, uid } = this.props;
         const {
@@ -296,6 +335,9 @@ export default class BotDetailModal extends Component<BotDetailModalProps, BotDe
             editingDescription,
             descriptionDraft,
             savingDescription,
+            reported,
+            reportStatusLoading,
+            showClawInfo,
         } = this.state;
         const isOwner = this.isOwner();
 
@@ -305,6 +347,7 @@ export default class BotDetailModal extends Component<BotDetailModalProps, BotDe
         } catch {}
 
         return (
+            <>
             <WKModal
                 title={null}
                 visible={visible}
@@ -353,6 +396,34 @@ export default class BotDetailModal extends Component<BotDetailModalProps, BotDe
                                 {name.replace(/\*\*/g, '')} <AiBadge />
                             </div>
                             <div className="wk-bot-detail-id">@{username}</div>
+                            {isOwner && reported !== null && (
+                                <div
+                                    className={`wk-bot-detail-octopush-chip ${
+                                        reported
+                                            ? "wk-bot-detail-octopush-chip--reported"
+                                            : "wk-bot-detail-octopush-chip--unmanaged"
+                                    }`}
+                                >
+                                    <span className="wk-bot-detail-octopush-chip-icon">
+                                        {reported ? "✅" : "🔌"}
+                                    </span>
+                                    <span className="wk-bot-detail-octopush-chip-text">
+                                        {reported ? "OctoPush · 已接入" : "未接入 OctoPush"}
+                                    </span>
+                                    {!reported && (
+                                        <button
+                                            className="wk-bot-detail-help-btn"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                            }}
+                                            title="该 Bot 尚未在 OctoPush 中接入管理。请在 OctoPush 中配置所在机器的网关，并在该 Agent 详情页打开「上报机器信息」开关。"
+                                            aria-label="帮助"
+                                        >
+                                            ?
+                                        </button>
+                                    )}
+                                </div>
+                            )}
                         </div>
                         <div className="wk-bot-detail-desc">
                             <div className="wk-bot-detail-label">
@@ -420,13 +491,26 @@ export default class BotDetailModal extends Component<BotDetailModalProps, BotDe
                                 ))}
                             </div>
                         )}
+                        {isOwner && reported !== null && (
+                            <Button
+                                block
+                                disabled={!reported}
+                                onClick={this.handleViewClawInfo}
+                                className={`wk-bot-detail-claw-btn${!reported ? " wk-bot-detail-claw-btn--disabled" : ""}`}
+                                style={{ marginTop: 16 }}
+                                aria-label={reported ? "查看龙虾信息" : undefined}
+                                data-tooltip={!reported ? "该 Bot 尚未在 OctoPush 中接入并上报。请先配置 OctoPush 网关并打开上报信息开关。" : undefined}
+                            >
+                                🦞 查看龙虾信息
+                            </Button>
+                        )}
                         {isFriend ? (
                             <Button
                                 theme="solid"
                                 type="primary"
                                 block
                                 onClick={this.handleChat}
-                                style={{ marginTop: 16 }}
+                                style={{ marginTop: isOwner && reported !== null ? 10 : 16 }}
                             >
                                 发送消息
                             </Button>
@@ -464,6 +548,13 @@ export default class BotDetailModal extends Component<BotDetailModalProps, BotDe
                     </div>
                 )}
             </WKModal>
+            <ClawInfoModal
+                botId={uid}
+                botName={name}
+                visible={showClawInfo}
+                onClose={() => this.setState({ showClawInfo: false })}
+            />
+        </>
         );
     }
 }

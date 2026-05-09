@@ -14,6 +14,10 @@ export interface ClawSessionItemProps {
     channel: string;
     /** 对话方（如"罗敬为 · 皮皮虾(私聊)"） */
     party: string;
+    /** Bot 显示名（如"皮皮虾"） */
+    botName: string;
+    /** Bot ID（如"pipixia_bot"） */
+    botId: string;
     /** 模型名称 */
     model: string;
     /** 已使用上下文 */
@@ -36,7 +40,7 @@ export interface ClawSessionItemProps {
  * AC-8: 上下文进度条 > 70% 显示警告色
  */
 export default function ClawSessionItem({ session }: ClawSessionItemProps) {
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(true); // 默认折叠
 
   const {
     key,
@@ -44,6 +48,8 @@ export default function ClawSessionItem({ session }: ClawSessionItemProps) {
     running,
     channel,
     party,
+    botName,
+    botId,
     model,
     ctxUsed,
     ctxMax,
@@ -93,9 +99,9 @@ export default function ClawSessionItem({ session }: ClawSessionItemProps) {
           {channel}
         </span>
 
-        {/* Session Key */}
-        <span className="wk-session-key" data-testid="claw-session-key">
-          {key}
+        {/* 对话方 */}
+        <span className="wk-session-party" data-testid="claw-session-party-head">
+          {party}
         </span>
 
         {/* 展开/收起箭头 */}
@@ -119,14 +125,35 @@ export default function ClawSessionItem({ session }: ClawSessionItemProps) {
       {!collapsed && (
         <>
           <div className="wk-session-body" data-testid="claw-session-body">
-            {/* 对话方 */}
+            {/* Session Key（占满 3 列） */}
+            <div className="wk-session-field" style={{ gridColumn: "span 3" }}>
+              <span className="wk-session-field__label">Session Key</span>
+              <span
+                className="wk-session-field__value"
+                data-testid="claw-session-key"
+              >
+                {key}
+              </span>
+            </div>
+
+            {/* Bot */}
             <div className="wk-session-field">
-              <span className="wk-session-field__label">对话方</span>
+              <span className="wk-session-field__label">Bot</span>
               <span
                 className="wk-session-field__value wk-session-field__value--normal"
-                data-testid="claw-session-party"
+                data-testid="claw-session-bot"
               >
-                {party}
+                {botName}{" "}
+                <span
+                  style={{
+                    color: "rgba(0, 0, 0, 0.35)",
+                    fontFamily:
+                      "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
+                    fontSize: "11px",
+                  }}
+                >
+                  (@{botId})
+                </span>
               </span>
             </div>
 
@@ -141,8 +168,11 @@ export default function ClawSessionItem({ session }: ClawSessionItemProps) {
               </span>
             </div>
 
-            {/* SESSION ID */}
-            <div className="wk-session-field">
+            {/* SESSION ID（占 2 列） */}
+            <div
+              className="wk-session-field"
+              style={{ gridColumn: "span 2" }}
+            >
               <span className="wk-session-field__label">SESSION ID</span>
               <span
                 className="wk-session-field__value"
@@ -176,12 +206,6 @@ export default function ClawSessionItem({ session }: ClawSessionItemProps) {
                 </span>
               </div>
             </div>
-          </div>
-
-          {/* 最近消息 */}
-          <div className="wk-session-msg" data-testid="claw-session-msg">
-            <span className="wk-session-msg__label">最近用户消息</span>
-            <span className="wk-session-msg__content">{lastMsg}</span>
           </div>
         </>
       )}

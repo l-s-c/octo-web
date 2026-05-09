@@ -103,4 +103,24 @@ export default class FileHelper {
         return `${(size / (1024 * 1024 * 1024)).toFixed(2)}G`
     }
 
+    /**
+     * 格式化文件大小（现代样式，无空格）
+     * @param bytes 字节数
+     * @returns 格式化后的文件大小字符串（如 "1.5KB", "2.3MB"）
+     * 
+     * @example
+     * FileHelper.formatFileSize(1024); // "1.0KB"
+     * FileHelper.formatFileSize(1536); // "1.5KB"
+     * FileHelper.formatFileSize(2097152); // "2.0MB"
+     */
+    static formatFileSize(bytes: number): string {
+        if (bytes < 1024) {
+            return `${bytes}B`;
+        } else if (bytes < 1024 * 1024) {
+            return `${(bytes / 1024).toFixed(1)}KB`;
+        } else {
+            return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
+        }
+    }
+
 }
