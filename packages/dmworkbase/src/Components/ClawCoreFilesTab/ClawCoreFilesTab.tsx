@@ -44,7 +44,6 @@ export default function ClawCoreFilesTab({ botId, height = '100%', agentCardData
         if (signal?.cancelled) return;
         const groups = AgentCardService.buildFileGroups(agentCardData);
         setFileGroups(groups);
-        setLoading(false);
         return;
       }
 
