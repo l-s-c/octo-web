@@ -69,8 +69,6 @@ export interface ChatContentPageState {
   showMatterPanel: boolean;
   /** v0.7 Matter 详情面板是否显示（跟子区/文件预览/任务列表可并存） */
   showMatterDetailPanel: boolean;
-  /** 是否处于"选择消息添加到事项"的多选模式 */
-  matterSelectionMode: boolean;
 }
 export class ChatContentPage extends Component<
   ChatContentPageProps,
@@ -92,7 +90,6 @@ export class ChatContentPage extends Component<
       activePreviewMessageId: null,
       showMatterPanel: false,
       showMatterDetailPanel: false,
-      matterSelectionMode: false,
     };
   }
 
@@ -211,22 +208,6 @@ export class ChatContentPage extends Component<
       });
     };
     WKApp.mittBus.on("wk:toggle-matter-panel", this._onToggleMatterPanel);
-
-    // 监听"选择消息添加到事项"按钮 → 进入多选模式
-    this._onEnterMatterSelection = (data) => {
-      if (
-        data.channelId !== channel.channelID ||
-        data.channelType !== channel.channelType
-      )
-        return;
-      // 进入多选模式
-      this.conversationContext?.setEditOn(true);
-      this.setState({ matterSelectionMode: true });
-    };
-    WKApp.mittBus.on(
-      "wk:enter-matter-selection",
-      this._onEnterMatterSelection
-    );
 
     // 注册 v0.7 事项详情面板切换（跟子区/文件预览/任务列表可并存，不互斥）
     this._onToggleMatterDetailPanel = (data) => {
@@ -366,10 +347,6 @@ export class ChatContentPage extends Component<
     channelId: string;
     channelType: number;
   }) => void;
-  private _onEnterMatterSelection?: (data: {
-    channelId: string;
-    channelType: number;
-  }) => void;
 
   componentWillUnmount() {
     WKApp.mittBus.off("wk:file-preview", this._onFilePreview);
@@ -386,12 +363,6 @@ export class ChatContentPage extends Component<
       WKApp.mittBus.off(
         "wk:toggle-matter-detail-panel",
         this._onToggleMatterDetailPanel
-      );
-    }
-    if (this._onEnterMatterSelection) {
-      WKApp.mittBus.off(
-        "wk:enter-matter-selection",
-        this._onEnterMatterSelection
       );
     }
     WKSDK.shared().channelManager.removeListener(this.channelInfoListener);
@@ -569,7 +540,6 @@ export class ChatContentPage extends Component<
                       e.stopPropagation();
                       this.conversationContext?.clearCheckedMessages();
                       this.conversationContext?.setEditOn(false);
-                      this.setState({ matterSelectionMode: false });
                     }}
                   >
                     取消

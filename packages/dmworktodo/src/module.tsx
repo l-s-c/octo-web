@@ -236,7 +236,7 @@ export default class MatterModule implements IModule {
 
   /**
    * Register matter icon in chat header (right side).
-   * 点击进入多选模式（用于选择消息添加到事项）。
+   * 点击打开事项列表面板（ChatMatterPanel）。
    */
   private registerChatHeaderIcon(): void {
     WKApp.endpoints.registerChannelHeaderRightItem(
@@ -251,14 +251,13 @@ export default class MatterModule implements IModule {
             key="matter-icon"
             onClick={(e) => {
               e.stopPropagation();
-              // 进入多选模式（复用 Conversation 已有的 editOn 机制）
-              WKApp.mittBus.emit('wk:enter-matter-selection', {
+              WKApp.mittBus.emit('wk:toggle-matter-panel', {
                 channelId: channel.channelID,
                 channelType: channel.channelType,
               });
             }}
             style={{ cursor: 'pointer', display: 'flex', alignItems: 'center' }}
-            title="选择消息添加到事项"
+            title="事项"
           >
             <ChecklistIcon />
           </div>
