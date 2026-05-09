@@ -297,6 +297,8 @@ function formatMentionTextV2(text: string): {
 
 export interface MessageInputContext {
   insertText: (text: string) => void;
+  /** Restore draft content (replaces editor content, parses @[uid:label] to mention nodes) */
+  restoreDraft: (text: string) => void;
   addMention: (uid: string, name: string) => void;
   addAttachment: (files: File[], source?: "paste" | "upload") => void;
   getAttachmentFiles: () => File[];
@@ -912,6 +914,7 @@ const MessageInput: React.FC<MessageInputProps> = (props) => {
     if (props.onContext) {
       props.onContext({
         insertText,
+        restoreDraft,
         addMention,
         addAttachment,
         getAttachmentFiles,
@@ -946,10 +949,25 @@ const MessageInput: React.FC<MessageInputProps> = (props) => {
   const insertText = useCallback(
     (text: string) => {
       if (editor) {
+        // insertText 保持追加语义，用于 emoji、引用回复等场景
+        // 解析 @[uid:label] 格式为 Tiptap 节点后逐个追加
+        const content = parseDraftToContent(text);
+        content.content.forEach((p) => {
+          p.content.forEach((node) => editor.commands.insertContent(node));
+        });
+        editor.commands.focus();
+      }
+    },
+    [editor]
+  );
+
+  // 专用于草稿恢复的方法，会替换整个编辑器内容
+  const restoreDraft = useCallback(
+    (text: string) => {
+      if (editor) {
         // 解析草稿中的 @[uid:label] 格式为 Tiptap 文档结构
         const content = parseDraftToContent(text);
-        // 使用 setContent 替代 insertContent，确保先清空编辑器再设置内容
-        // 避免重复插入导致 @梨花 变成 @梨花@梨花
+        // 使用 setContent 替换编辑器内容，避免重复插入
         editor.commands.setContent(content);
         editor.commands.focus();
       }

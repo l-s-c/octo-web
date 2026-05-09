@@ -152,6 +152,7 @@ export class Conversation
   avatarMenusContext!: ContextMenusContext; // 点击头像弹出的菜单
   _messageInputContext!: MessageInputContext;
   private _pendingInsertText?: string;
+  private _pendingRestoreDraft?: string;
   scrollTimer: number | null = null;
   updateBrowseToMessageSeqAndReminderDoneing: boolean = false;
   private _dragFileCallback?: (file: File) => void;
@@ -473,6 +474,16 @@ export class Conversation
       this._pendingInsertText = text;
     }
   }
+  /** 恢复草稿内容（替换编辑器内容，解析 @[uid:label] 为 mention 节点） */
+  restoreDraft(text: string): void {
+    const ctx = this.messageInputContext();
+    if (ctx) {
+      ctx.restoreDraft(text);
+    } else {
+      // MessageInput 的 useEffect 尚未执行，延迟重试
+      this._pendingRestoreDraft = text;
+    }
+  }
   editOn(): boolean {
     return this.vm.editOn;
   }
@@ -745,7 +756,7 @@ export class Conversation
     WKApp.shared.pendingAttachmentGuardId = this._guardId;
 
     if (this.vm.hasDraft()) {
-      this.insertText(this.vm.draft());
+      this.restoreDraft(this.vm.draft());
     }
     // 恢复引用/回复状态
     const channelKey = `${channel.channelID}-${channel.channelType}`;
@@ -1973,6 +1984,11 @@ export class Conversation
                         if (this._pendingInsertText) {
                           ctx.insertText(this._pendingInsertText);
                           this._pendingInsertText = undefined;
+                        }
+                        // flush 延迟的草稿恢复
+                        if (this._pendingRestoreDraft) {
+                          ctx.restoreDraft(this._pendingRestoreDraft);
+                          this._pendingRestoreDraft = undefined;
                         }
                       }}
                       toolbar={this.chatToolbarUI()}
