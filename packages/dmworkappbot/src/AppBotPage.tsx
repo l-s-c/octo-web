@@ -181,7 +181,7 @@ export default function AppBotPage() {
         onClick={() => handleSelect(bot)}
       >
         <div className="appbot-list-avatar">
-          <WKAvatar channel={new Channel(bot.uid, ChannelTypePerson)} style={{ width: "100%", height: "100%", borderRadius: "12px" }} />
+          <WKAvatar channel={new Channel(bot.uid, ChannelTypePerson)} style={{ width: "100%", height: "100%" }} />
         </div>
         <div className="appbot-list-info">
           <div className="appbot-list-name">{bot.display_name}</div>
