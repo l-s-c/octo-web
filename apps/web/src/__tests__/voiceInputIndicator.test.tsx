@@ -37,6 +37,8 @@ function createMockHookReturn(overrides = {}) {
     stopRecordingAndTranscribe: vi.fn(),
     cancelRecording: vi.fn(),
     isVoiceEnabled: true,
+    localAvailable: false,
+    currentMode: "append_only",
     ...overrides,
   };
 }

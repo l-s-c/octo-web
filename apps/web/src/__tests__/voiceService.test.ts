@@ -16,8 +16,22 @@ vi.mock("@octo/base/src/Service/APIClient", () => {
     }
 })
 
+// Mock LocalModelService
+vi.mock("@octo/base/src/Service/LocalModelService", () => {
+    const mockLocalModelService = {
+        shared: {
+            transcribe: vi.fn().mockResolvedValue(null),
+            probe: vi.fn().mockResolvedValue(false),
+            status: "unavailable" as const,
+            config: { enabled: false, preferLocal: true, endpoint: "http://localhost:8787", probeTimeoutMs: 2000, requestTimeoutMs: 30000 },
+        },
+    }
+    return { default: mockLocalModelService }
+})
+
 import APIClient from "@octo/base/src/Service/APIClient"
 import VoiceService from "@octo/base/src/Service/VoiceService"
+import LocalModelService from "@octo/base/src/Service/LocalModelService"
 
 describe("VoiceService", () => {
     beforeEach(() => {
@@ -49,6 +63,37 @@ describe("VoiceService", () => {
 
             expect(result.enabled).toBe(false)
             expect(result.max_duration).toBe(30)
+        })
+
+        it("should return VoiceConfig with local_enabled and local_timeout_ms fields", async () => {
+            const mockConfig = { enabled: true, max_duration: 60, max_file_size: 5000000, local_enabled: true, local_timeout_ms: 15000 }
+            vi.mocked(APIClient.shared.get).mockResolvedValue(mockConfig)
+
+            const result = await VoiceService.shared.getConfig()
+
+            expect(result.enabled).toBe(true)
+            expect(result.local_enabled).toBe(true)
+            expect(result.local_timeout_ms).toBe(15000)
+        })
+
+        it("should return VoiceConfig with local_probe_url and local_transcribe_url fields", async () => {
+            const mockConfig = { enabled: true, max_duration: 60, max_file_size: 5000000, local_enabled: true, local_timeout_ms: 15000, local_probe_url: "http://myserver:8080/health", local_transcribe_url: "http://myserver:8080/api/transcribe" }
+            vi.mocked(APIClient.shared.get).mockResolvedValue(mockConfig)
+
+            const result = await VoiceService.shared.getConfig()
+
+            expect(result.local_probe_url).toBe("http://myserver:8080/health")
+            expect(result.local_transcribe_url).toBe("http://myserver:8080/api/transcribe")
+        })
+
+        it("should return VoiceConfig without local_enabled when not set by server", async () => {
+            const mockConfig = { enabled: true, max_duration: 60, max_file_size: 5000000 }
+            vi.mocked(APIClient.shared.get).mockResolvedValue(mockConfig)
+
+            const result = await VoiceService.shared.getConfig()
+
+            expect(result.local_enabled).toBeUndefined()
+            expect(result.local_timeout_ms).toBeUndefined()
         })
     })
 
@@ -194,6 +239,52 @@ describe("VoiceService", () => {
 
             expect(result.m).toBe("g3fp")
             expect(result.text).toBe("hello")
+        })
+
+        it("should skip local model when skipLocal is true", async () => {
+            vi.mocked(LocalModelService.shared.transcribe).mockResolvedValue({ text: "local result", m: "local" })
+            vi.mocked(APIClient.shared.post).mockResolvedValue({ text: "backend result", m: "whisper-1" })
+
+            const audioBlob = new Blob(["audio-data"], { type: "audio/webm;codecs=opus" })
+            const result = await VoiceService.shared.transcribe(audioBlob, undefined, undefined, undefined, undefined, undefined, true)
+
+            expect(LocalModelService.shared.transcribe).not.toHaveBeenCalled()
+            expect(result.text).toBe("backend result")
+        })
+
+        it("should try local model when skipLocal is false or undefined", async () => {
+            vi.mocked(LocalModelService.shared.transcribe).mockResolvedValue({ text: "local result", m: "local" })
+
+            const audioBlob = new Blob(["audio-data"], { type: "audio/webm;codecs=opus" })
+            const result = await VoiceService.shared.transcribe(audioBlob, "ctx", "chat", "personal", "member", "smart")
+
+            expect(LocalModelService.shared.transcribe).toHaveBeenCalledWith(audioBlob, "ctx", "chat", "personal", "member", "smart")
+            expect(result.text).toBe("local result")
+            expect(APIClient.shared.post).not.toHaveBeenCalled()
+        })
+
+        it("should pass all context params to LocalModelService.transcribe", async () => {
+            vi.mocked(LocalModelService.shared.transcribe).mockResolvedValue(null)
+            vi.mocked(APIClient.shared.post).mockResolvedValue({ text: "backend", m: "whisper-1" })
+
+            const audioBlob = new Blob(["audio-data"], { type: "audio/webm;codecs=opus" })
+            await VoiceService.shared.transcribe(audioBlob, "ctxText", "chatCtx", "personalCtx", "memberCtx", "edit_only")
+
+            expect(LocalModelService.shared.transcribe).toHaveBeenCalledWith(
+                audioBlob, "ctxText", "chatCtx", "personalCtx", "memberCtx", "edit_only"
+            )
+        })
+
+        it("should fallback to backend when local model returns null", async () => {
+            vi.mocked(LocalModelService.shared.transcribe).mockResolvedValue(null)
+            vi.mocked(APIClient.shared.post).mockResolvedValue({ text: "backend result", m: "whisper-1" })
+
+            const audioBlob = new Blob(["audio-data"], { type: "audio/webm;codecs=opus" })
+            const result = await VoiceService.shared.transcribe(audioBlob, "ctx")
+
+            expect(LocalModelService.shared.transcribe).toHaveBeenCalledWith(audioBlob, "ctx", undefined, undefined, undefined, undefined)
+            expect(APIClient.shared.post).toHaveBeenCalled()
+            expect(result.text).toBe("backend result")
         })
     })
 

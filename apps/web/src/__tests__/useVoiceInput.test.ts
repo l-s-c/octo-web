@@ -505,7 +505,9 @@ describe("useVoiceInput - personal voice context", () => {
       undefined, // contextText
       undefined, // chatContext
       "个人纠错词", // personalContext
-      "聊天成员：Alice,Bob" // memberContext
+      "聊天成员：Alice,Bob", // memberContext
+      "smart", // mode
+      true // skipLocal
     );
     expect(getChatContext).toHaveBeenCalled();
   });
@@ -544,7 +546,9 @@ describe("useVoiceInput - personal voice context", () => {
       undefined, // contextText
       undefined, // chatContext
       undefined, // personalContext (has_context=false)
-      "聊天成员：Alice,Bob" // memberContext
+      "聊天成员：Alice,Bob", // memberContext
+      "smart", // mode
+      true // skipLocal
     );
     expect(getChatContext).toHaveBeenCalled();
   });
@@ -583,7 +587,9 @@ describe("useVoiceInput - personal voice context", () => {
       undefined, // contextText
       undefined, // chatContext
       undefined, // personalContext (context 为空字符串，视为无)
-      "聊天成员：Alice" // memberContext
+      "聊天成员：Alice", // memberContext
+      "smart", // mode
+      true // skipLocal
     );
   });
 
@@ -618,7 +624,9 @@ describe("useVoiceInput - personal voice context", () => {
       undefined, // contextText
       undefined, // chatContext
       undefined, // personalContext (API 失败，voiceContextRef 为 null)
-      "聊天成员：Alice" // memberContext
+      "聊天成员：Alice", // memberContext
+      "smart", // mode
+      true // skipLocal
     );
   });
 
@@ -671,7 +679,9 @@ describe("useVoiceInput - personal voice context", () => {
       undefined, // contextText
       undefined, // chatContext (无 getChatContext)
       "延迟到达的纠错词", // personalContext
-      undefined // memberContext (无 getChatContext)
+      undefined, // memberContext (无 getChatContext)
+      "smart", // mode
+      true // skipLocal
     );
   });
 

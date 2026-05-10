@@ -5,6 +5,7 @@ import VoiceService, {
   VoiceContextResponse,
   VoiceMode,
 } from "../../Service/VoiceService";
+import LocalModelService, { LocalModelConfig } from "../../Service/LocalModelService";
 import WKApp from "../../App";
 import { ChatContextResult } from "../Conversation/chatContext";
 
@@ -25,6 +26,7 @@ export interface UseVoiceInputReturn {
   cancelRecording: () => void;
   isVoiceEnabled: boolean;
   currentMode: VoiceMode;
+  localAvailable: boolean;
 }
 
 function getSupportedMimeType(): string {
@@ -53,6 +55,7 @@ export default function useVoiceInput(
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [isVoiceEnabled, setIsVoiceEnabled] = useState(false);
   const [currentMode, setCurrentMode] = useState<VoiceMode>(mode);
+  const [localAvailable, setLocalAvailable] = useState(false);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
@@ -73,18 +76,53 @@ export default function useVoiceInput(
     useRef<Promise<VoiceContextResponse | null> | null>(null);
   const voiceContextSpaceIdRef = useRef<string>("");
   const maxFileSizeRef = useRef<number>(0);
+  const backendEnabledRef = useRef(false);
 
-  // Fetch voice config on mount
+  // Load local model config from localStorage on mount, then fetch voice config
   useEffect(() => {
+    let cancelled = false;
+
+    LocalModelService.shared.loadConfig(localStorage);
+    LocalModelService.shared.updateConfig({ enabled: false }, localStorage);
+
+    const LOCAL_DEFAULT_TIMEOUT_MS = 10000;
+
     VoiceService.shared
       .getConfig()
       .then((config: VoiceConfig) => {
-        setIsVoiceEnabled(config.enabled);
+        if (cancelled) return;
+        const localAllowed = config.local_enabled === true;
+        setIsVoiceEnabled(config.enabled || localAllowed);
+        backendEnabledRef.current = config.enabled;
         maxFileSizeRef.current = config.max_file_size || 0;
+        const localTimeout = config.local_timeout_ms ?? LOCAL_DEFAULT_TIMEOUT_MS;
+
+        if (localAllowed) {
+          const updateFields: Partial<LocalModelConfig> = {
+            enabled: true,
+            requestTimeoutMs: localTimeout,
+          };
+          // Backend-provided URLs take priority
+          if (config.local_probe_url) {
+            updateFields.probeUrl = config.local_probe_url;
+          }
+          if (config.local_transcribe_url) {
+            updateFields.transcribeUrl = config.local_transcribe_url;
+          }
+          LocalModelService.shared.updateConfig(updateFields, localStorage);
+          // Probe immediately so status becomes "available" before first recording
+          LocalModelService.shared.probe().then((available) => {
+            if (!cancelled) setLocalAvailable(available);
+          });
+        }
       })
       .catch(() => {
+        if (cancelled) return;
+        // Backend unreachable: keep local disabled (safety-first, require backend confirmation)
         setIsVoiceEnabled(false);
       });
+
+    return () => { cancelled = true; };
   }, []);
 
   // Listen for space changes to clear stale cache
@@ -223,6 +261,74 @@ export default function useVoiceInput(
 
         setIsTranscribing(true);
         try {
+          const localConfig = LocalModelService.shared.config;
+          const useLocalFirst =
+            localConfig.preferLocal &&
+            localConfig.enabled;
+
+          if (useLocalFirst) {
+            const contextPromise = voiceContextPromiseRef.current
+              ? Promise.race([
+                  voiceContextPromiseRef.current,
+                  new Promise<null>((resolve) =>
+                    setTimeout(() => resolve(null), 3000)
+                  ),
+                ])
+              : Promise.resolve(null);
+            const chatCtxPromise =
+              getChatContextRef.current?.() ?? Promise.resolve({});
+
+            // Await context before passing to local model
+            await contextPromise;
+            voiceContextPromiseRef.current = null;
+
+            let personalContext: string | undefined;
+            const voiceCtx = voiceContextRef.current;
+            if (voiceCtx && voiceCtx.has_context === true && voiceCtx.context) {
+              personalContext = voiceCtx.context;
+            }
+
+            const chatCtxResult = (await chatCtxPromise) ?? {};
+            const memberContext = chatCtxResult.memberContext;
+            const chatContext = chatCtxResult.chatContext;
+
+            const localResult =
+              await LocalModelService.shared.transcribe(
+                blob,
+                contextTextRef.current,
+                chatContext,
+                personalContext,
+                memberContext,
+                recordingModeRef.current,
+              );
+            if (localResult) {
+              if (localResult.text && onTranscribed) {
+                onTranscribed(localResult.text);
+              }
+              return;
+            }
+
+            if (!backendEnabledRef.current) {
+              Toast.error("本地转写失败");
+              if (onError) onError(new Error("Transcription failed"));
+              return;
+            }
+
+            const result = await VoiceService.shared.transcribe(
+              blob,
+              contextTextRef.current,
+              chatContext,
+              personalContext,
+              memberContext,
+              recordingModeRef.current,
+              true
+            );
+            if (result.text && onTranscribed) {
+              onTranscribed(result.text);
+            }
+            return;
+          }
+
           if (voiceContextPromiseRef.current) {
             await voiceContextPromiseRef.current;
             voiceContextPromiseRef.current = null;
@@ -240,13 +346,20 @@ export default function useVoiceInput(
           const memberContext = chatCtxResult.memberContext;
           const chatContext = chatCtxResult.chatContext;
 
+          if (!backendEnabledRef.current) {
+            Toast.error("语音功能不可用");
+            if (onError) onError(new Error("Transcription failed"));
+            return;
+          }
+
           const result = await VoiceService.shared.transcribe(
             blob,
             contextTextRef.current,
             chatContext,
             personalContext,
             memberContext,
-            recordingModeRef.current
+            recordingModeRef.current,
+            true
           );
           if (result.text && onTranscribed) {
             onTranscribed(result.text);
@@ -304,5 +417,6 @@ export default function useVoiceInput(
     cancelRecording,
     isVoiceEnabled,
     currentMode,
+    localAvailable,
   };
 }

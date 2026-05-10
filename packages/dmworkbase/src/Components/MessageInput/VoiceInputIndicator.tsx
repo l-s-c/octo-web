@@ -64,31 +64,6 @@ export default function VoiceInputIndicator({
   const cancelPendingRef = useRef(false);
   const [isPreparing, setIsPreparing] = useState(false);
 
-  const [isOnline, setIsOnline] = useState(navigator.onLine);
-  const isOnlineRef = useRef(isOnline);
-  isOnlineRef.current = isOnline;
-  const buttonGroupRef = useRef<HTMLDivElement>(null);
-
-  // Floating indicator position state
-  const [floatingPosition, setFloatingPosition] = useState<{
-    top: number;
-    left: number;
-  } | null>(null);
-
-  // Network status detection - PRD: 无网络时话筒 icon 置灰
-  useEffect(() => {
-    const handleOnline = () => setIsOnline(true);
-    const handleOffline = () => setIsOnline(false);
-
-    window.addEventListener("online", handleOnline);
-    window.addEventListener("offline", handleOffline);
-
-    return () => {
-      window.removeEventListener("online", handleOnline);
-      window.removeEventListener("offline", handleOffline);
-    };
-  }, []);
-
   // 记录开始录音时是否有选中文本，用于决定替换模式
   const hadSelectionRef = useRef(false);
   // 记录开始录音时选中的文本内容（用于后续定位替换）
@@ -106,6 +81,7 @@ export default function VoiceInputIndicator({
     cancelRecording,
     isVoiceEnabled,
     currentMode,
+    localAvailable,
   } = useVoiceInput({
     onTranscribed: (text: string) => {
       // 根据模式和是否有选中文本决定替换方式
@@ -157,6 +133,34 @@ export default function VoiceInputIndicator({
       setIsPreparing(false);
     },
   });
+
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const isOnlineRef = useRef(isOnline);
+  isOnlineRef.current = isOnline;
+  const localAvailableRef = useRef(localAvailable);
+  localAvailableRef.current = localAvailable;
+  const canRecord = isOnline || localAvailable;
+  const buttonGroupRef = useRef<HTMLDivElement>(null);
+
+  // Floating indicator position state
+  const [floatingPosition, setFloatingPosition] = useState<{
+    top: number;
+    left: number;
+  } | null>(null);
+
+  // Network status detection - PRD: 无网络时话筒 icon 置灰
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
+  }, []);
 
   // Refs to avoid closure staleness in timer/keyboard callbacks
   const startRecordingRef = useRef(startRecording);
@@ -263,7 +267,7 @@ export default function VoiceInputIndicator({
         if (!isRecordingRef.current && !isTranscribingRef.current) {
           e.preventDefault();
           // Check network status before starting
-          if (!isOnlineRef.current) {
+          if (!isOnlineRef.current && !localAvailableRef.current) {
             Toast.warning("网络不可用，无法使用语音功能");
             return;
           }
@@ -300,7 +304,7 @@ export default function VoiceInputIndicator({
           shiftTimerRef.current = setTimeout(() => {
             shiftTimerRef.current = null;
             // Check network status before starting
-            if (!isOnlineRef.current) {
+            if (!isOnlineRef.current && !localAvailableRef.current) {
               Toast.warning("网络不可用，无法使用语音功能");
               setIsPreparing(false);
               return;
@@ -435,7 +439,7 @@ export default function VoiceInputIndicator({
     setShowModeMenu(false);
 
     // 直接用选中的模式开始录音（不保存到 state）
-    if (isOnline) {
+    if (canRecord) {
       // 记录开始录音时是否有选中文本、选中文本内容、位置和使用的模式
       const selectedText = getSelectedText?.();
       const selectionRange = getSelectionRange?.();
@@ -451,7 +455,7 @@ export default function VoiceInputIndicator({
   const handleVoiceClick = () => {
     setShowModeMenu(false);
 
-    if (!isOnline) {
+    if (!canRecord) {
       Toast.warning("网络不可用，无法使用语音功能");
       return;
     }
@@ -683,7 +687,7 @@ export default function VoiceInputIndicator({
       trigger="hover"
       position="topRight"
       render={dropdownMenu}
-      visible={isOnline ? showModeMenu : false}
+      visible={canRecord ? showModeMenu : false}
       onVisibleChange={setShowModeMenu}
       spacing={4}
     >
@@ -695,21 +699,21 @@ export default function VoiceInputIndicator({
         onClick={handleVoiceClick}
         onKeyDown={handleVoiceKeyDown}
         style={{
-          cursor: isOnline ? "pointer" : "not-allowed",
+          cursor: canRecord ? "pointer" : "not-allowed",
         }}
       >
         {/* 麦克风 + 箭头一体，点击整个区域开始录音 */}
         <div
           className={`wk-voice-button ${
-            !isOnline
+            !canRecord
               ? "wk-voice-button--disabled"
               : isActive
               ? "wk-voice-button--active"
               : ""
           }`}
-          title={isOnline ? "语音输入 (长按 Shift)" : "网络不可用"}
+          title={canRecord ? "语音输入 (长按 Shift)" : "网络不可用"}
           role="button"
-          tabIndex={isOnline ? 0 : -1}
+          tabIndex={canRecord ? 0 : -1}
         >
           <Mic size={18} color="currentColor" />
           <svg

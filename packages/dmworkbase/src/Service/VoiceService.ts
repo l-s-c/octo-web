@@ -1,4 +1,5 @@
 import APIClient from "./APIClient";
+import LocalModelService from "./LocalModelService";
 
 export type VoiceMode = "smart" | "append_only" | "edit_only";
 
@@ -6,6 +7,10 @@ export interface VoiceConfig {
   enabled: boolean;
   max_duration: number;
   max_file_size: number;
+  local_enabled?: boolean;
+  local_timeout_ms?: number;
+  local_probe_url?: string;
+  local_transcribe_url?: string;
 }
 
 export interface TranscribeResult {
@@ -50,8 +55,16 @@ export default class VoiceService {
     chatContext?: string,
     personalContext?: string,
     memberContext?: string,
-    mode?: VoiceMode
+    mode?: VoiceMode,
+    skipLocal?: boolean
   ): Promise<TranscribeResult> {
+    if (!skipLocal) {
+      const localResult = await LocalModelService.shared.transcribe(audio, contextText, chatContext, personalContext, memberContext, mode);
+      if (localResult) {
+        return localResult;
+      }
+    }
+
     const formData = new FormData();
     const ext = audio.type.includes("mp4") ? "mp4" : "webm";
     formData.append("audio", audio, `recording.${ext}`);
