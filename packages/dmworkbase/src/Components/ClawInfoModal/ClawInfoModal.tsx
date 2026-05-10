@@ -32,6 +32,7 @@ export interface SessionData {
   ctxMax: number;
   sessionId: string;
   lastMsg: string;
+  lastActiveAt: string;
 }
 
 /**
@@ -131,6 +132,7 @@ export default function ClawInfoModal({ botId, botName, visible, onClose }: Claw
       ctxMax: s.context_total,
       sessionId: s.session_id,
       lastMsg: s.last_user_message,
+      lastActiveAt: s.last_active_at,
     };
   };
 
@@ -172,7 +174,7 @@ export default function ClawInfoModal({ botId, botName, visible, onClose }: Claw
         <div className="claw-session-toolbar">
           <span className="claw-session-count">
             <span className="claw-session-count__running">{runningCount} running</span>
-            <span> · 共 {total} 个（最近 1 小时）</span>
+            <span> · 共 {total} 个</span>
           </span>
         </div>
 
@@ -204,7 +206,7 @@ export default function ClawInfoModal({ botId, botName, visible, onClose }: Claw
                 <circle cx="40" cy="24" r="2" fill="#D1D5DB" />
               </svg>
             }
-            description="最近 1 小时内没有活跃的会话，有新对话产生后会出现在这里"
+            description="暂无活跃的会话，有新对话产生后会出现在这里"
             style={{ padding: "60px 24px" }}
           />
         )}
