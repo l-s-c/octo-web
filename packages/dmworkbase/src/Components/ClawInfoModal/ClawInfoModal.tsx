@@ -40,18 +40,17 @@ export interface SessionData {
  * 格式化 ISO 8601 时间为 "2026-05-10 12:30:00"
  */
 function formatDateTime(isoString: string): string {
-  try {
-    const date = new Date(isoString);
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, "0");
-    const day = String(date.getDate()).padStart(2, "0");
-    const hours = String(date.getHours()).padStart(2, "0");
-    const minutes = String(date.getMinutes()).padStart(2, "0");
-    const seconds = String(date.getSeconds()).padStart(2, "0");
-    return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
-  } catch {
-    return isoString;
+  const date = new Date(isoString);
+  if (Number.isNaN(date.getTime())) {
+    return "—";
   }
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  const hours = String(date.getHours()).padStart(2, "0");
+  const minutes = String(date.getMinutes()).padStart(2, "0");
+  const seconds = String(date.getSeconds()).padStart(2, "0");
+  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
 }
 
 /**
@@ -59,39 +58,41 @@ function formatDateTime(isoString: string): string {
  * @returns "green" | "orange" | "red"
  */
 function getReportFreshness(lastReportAt: string): "green" | "orange" | "red" {
-  try {
-    const now = Date.now();
-    const reportTime = new Date(lastReportAt).getTime();
-    const diffMs = now - reportTime;
-    const diffHours = diffMs / (1000 * 60 * 60);
-
-    if (diffHours < 2) return "green";
-    if (diffHours < 6) return "orange";
-    return "red";
-  } catch {
-    return "red"; // 解析失败时默认红色
+  const now = Date.now();
+  const reportTime = new Date(lastReportAt).getTime();
+  
+  if (Number.isNaN(reportTime)) {
+    return "red"; // 无效时间默认红色
   }
+  
+  const diffMs = now - reportTime;
+  const diffHours = diffMs / (1000 * 60 * 60);
+
+  if (diffHours < 2) return "green";
+  if (diffHours < 6) return "orange";
+  return "red";
 }
 
 /**
  * 计算相对时间文本（如"2小时前"）
  */
 function getRelativeTime(isoString: string): string {
-  try {
-    const now = Date.now();
-    const reportTime = new Date(isoString).getTime();
-    const diffMs = now - reportTime;
-    const diffMinutes = Math.floor(diffMs / (1000 * 60));
-    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-
-    if (diffMinutes < 1) return "刚刚";
-    if (diffMinutes < 60) return `${diffMinutes}分钟前`;
-    if (diffHours < 24) return `${diffHours}小时前`;
-    return `${diffDays}天前`;
-  } catch {
+  const now = Date.now();
+  const reportTime = new Date(isoString).getTime();
+  
+  if (Number.isNaN(reportTime)) {
     return "未知";
   }
+  
+  const diffMs = now - reportTime;
+  const diffMinutes = Math.floor(diffMs / (1000 * 60));
+  const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+  if (diffMinutes < 1) return "刚刚";
+  if (diffMinutes < 60) return `${diffMinutes}分钟前`;
+  if (diffHours < 24) return `${diffHours}小时前`;
+  return `${diffDays}天前`;
 }
 
 /**
@@ -325,7 +326,7 @@ export default function ClawInfoModal({ botId, botName, visible, onClose }: Claw
                         data-freshness={getReportFreshness(data.last_report_at)}
                         data-testid="claw-report-time"
                       >
-                        <Clock size={14} style={{ marginRight: 4 }} />
+                        <Clock size={14} className="claw-info-meta__report-time-icon" />
                         {formatDateTime(data.last_report_at)}
                       </span>
                     </Tooltip>
