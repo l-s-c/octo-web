@@ -1,13 +1,19 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
+import { WKApp } from "@octo/base";
 import {
   getCategories,
   getSkills,
   getMySkills,
   getSkill,
+  createSkill,
+  updateSkill,
   deleteSkill,
   initUpload,
+  uploadFile,
   initReupload,
+  triggerParse,
   pollParse,
+  getDownloadUrl,
 } from "./skillApiReal";
 
 // Mock global fetch
@@ -16,6 +22,8 @@ const mockFetch = vi.fn();
 beforeEach(() => {
   mockFetch.mockReset();
   vi.stubGlobal("fetch", mockFetch);
+  WKApp.loginInfo.token = "test-token";
+  WKApp.shared.currentSpaceId = "space-123";
 });
 
 afterEach(() => {
@@ -46,8 +54,25 @@ describe("skillApiReal", () => {
     ]);
     expect(mockFetch).toHaveBeenCalledWith(
       "/market/api/v1/skill/categories",
-      expect.objectContaining({ headers: expect.objectContaining({ "Content-Type": "application/json" }) }),
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          "Content-Type": "application/json",
+          token: "test-token",
+          "X-Space-Id": "space-123",
+        }),
+      }),
     );
+  });
+
+  it("omits auth and space headers when host context is empty", async () => {
+    WKApp.loginInfo.token = "";
+    WKApp.shared.currentSpaceId = "";
+    mockFetch.mockReturnValueOnce(jsonResponse([]));
+
+    await getCategories();
+
+    const headers = mockFetch.mock.calls[0][1].headers;
+    expect(headers).toEqual({ "Content-Type": "application/json" });
   });
 
   it("getSkills maps paged result and passes query params", async () => {
@@ -157,7 +182,98 @@ describe("skillApiReal", () => {
       }),
     );
 
-    await expect(getSkill("nonexistent")).rejects.toThrow("not found");
+    const request = getSkill("nonexistent");
+
+    await expect(request).rejects.toThrow("not found");
+    await expect(request).rejects.toMatchObject({
+      name: "SkillMarketApiError",
+      code: "err.marketplace.not_found",
+      status: 404,
+      message: "not found",
+    });
+  });
+
+  it("normalizes HTTP and network errors into SkillMarketApiError", async () => {
+    mockFetch.mockReturnValueOnce(
+      Promise.resolve({
+        ok: false,
+        status: 500,
+        json: () => Promise.resolve({ message: "server exploded" }),
+      }),
+    );
+    await expect(getCategories()).rejects.toMatchObject({
+      name: "SkillMarketApiError",
+      code: "http_500",
+      status: 500,
+      message: "server exploded",
+    });
+
+    mockFetch.mockRejectedValueOnce(new TypeError("Failed to fetch"));
+    await expect(getCategories()).rejects.toMatchObject({
+      name: "SkillMarketApiError",
+      code: "network_error",
+      message: "Failed to fetch",
+    });
+  });
+
+  it("createSkill and updateSkill send backend snake_case payloads", async () => {
+    const rawSkill = {
+      id: "new-skill",
+      name: "New Skill",
+      description: "desc",
+      category_id: "dev-tools",
+      tags: ["tag"],
+      owner_id: "u1",
+      owner_name: "User",
+      space_id: "s1",
+      visibility: "space",
+      version: "1.0.0",
+      readme_content: "# New Skill",
+      file_name: "skill.zip",
+      file_url: "/files/skill.zip",
+      file_size: 512,
+      file_sha256: "sha",
+      created_at: "2026-01-01T00:00:00Z",
+      updated_at: "2026-01-02T00:00:00Z",
+    };
+    mockFetch.mockReturnValueOnce(jsonResponse(rawSkill));
+    await createSkill({
+      parseTaskId: "task-1",
+      name: "New Skill",
+      description: "desc",
+      categoryId: "dev-tools",
+      tags: ["tag"],
+      visibility: "space",
+      version: "1.0.0",
+      readmeContent: "# ignored by API",
+      fileName: "skill.zip",
+      fileSize: 512,
+    });
+    expect(mockFetch).toHaveBeenLastCalledWith(
+      "/market/api/v1/skill",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({
+          parse_task_id: "task-1",
+          name: "New Skill",
+          description: "desc",
+          category_id: "dev-tools",
+          tags: ["tag"],
+          visibility: "space",
+          version: "1.0.0",
+        }),
+      }),
+    );
+
+    mockFetch.mockReturnValueOnce(jsonResponse(rawSkill));
+    await updateSkill("new-skill", { parseTaskId: "task-2", visibility: "private" });
+    expect(mockFetch).toHaveBeenLastCalledWith(
+      "/market/api/v1/skill/new-skill",
+      expect.objectContaining({
+        method: "PUT",
+        body: JSON.stringify({ parse_task_id: "task-2", visibility: "private" }),
+      }),
+    );
   });
 
   it("initUpload maps backend presigned upload fields", async () => {
@@ -218,25 +334,96 @@ describe("skillApiReal", () => {
     );
   });
 
-  it("pollParse maps nested success result from backend", async () => {
-    mockFetch.mockReturnValueOnce(
-      jsonResponse({
-        status: "success",
-        task_id: "task-123",
-        result: {
-          name: "ci-failure-map",
-          description: "Analyze CI logs",
-          tags: ["CI", "debug"],
-          version: "1.2.3",
-          readme_content: "# ci-failure-map",
-          file_name: "ci-failure-map.zip",
-          file_size: 8192,
-          file_sha256: "abc123",
-        },
-      }),
-    );
+  it("uploadFile PUTs with presigned headers and reports progress", async () => {
+    const xhrInstances: MockXHR[] = [];
+    class MockXHR {
+      upload = new EventTarget();
+      headers: Record<string, string> = {};
+      method = "";
+      url = "";
+      status = 204;
+      private listeners: Record<string, Array<() => void>> = {};
 
-    const result = await pollParse("task-123");
+      open(method: string, url: string) {
+        this.method = method;
+        this.url = url;
+      }
+
+      setRequestHeader(key: string, value: string) {
+        this.headers[key] = value;
+      }
+
+      addEventListener(type: string, listener: () => void) {
+        this.listeners[type] = [...(this.listeners[type] ?? []), listener];
+      }
+
+      send(body: File) {
+        expect(body.name).toBe("skill.zip");
+        this.upload.dispatchEvent(new ProgressEvent("progress", {
+          lengthComputable: true,
+          loaded: 50,
+          total: 100,
+        }));
+        this.listeners.load?.forEach((listener) => listener());
+      }
+    }
+    vi.stubGlobal("XMLHttpRequest", function XHRFactory() {
+      const xhr = new MockXHR();
+      xhrInstances.push(xhr);
+      return xhr;
+    });
+    const onProgress = vi.fn();
+
+    await uploadFile("https://storage/upload", new File(["zip"], "skill.zip", { type: "application/zip" }), {
+      "Content-Type": "application/zip",
+      "x-amz-meta-id": "upload-1",
+    }, onProgress);
+
+    expect(xhrInstances[0].method).toBe("PUT");
+    expect(xhrInstances[0].url).toBe("https://storage/upload");
+    expect(xhrInstances[0].headers).toEqual({
+      "Content-Type": "application/zip",
+      "x-amz-meta-id": "upload-1",
+    });
+    expect(onProgress).toHaveBeenCalledWith(50);
+  });
+
+  it("triggerParse returns the backend task id", async () => {
+    mockFetch.mockReturnValueOnce(jsonResponse({ task_id: "task-123" }));
+
+    await expect(triggerParse("upload-123")).resolves.toEqual({ taskId: "task-123" });
+    expect(mockFetch).toHaveBeenCalledWith(
+      "/market/api/v1/skill/upload/upload-123/parse",
+      expect.objectContaining({ method: "POST" }),
+    );
+  });
+
+  it("pollParse polls every 2s until success and maps nested result", async () => {
+    vi.useFakeTimers();
+    mockFetch
+      .mockReturnValueOnce(jsonResponse({ status: "pending", task_id: "task-123" }))
+      .mockReturnValueOnce(jsonResponse({ status: "parsing", task_id: "task-123" }))
+      .mockReturnValueOnce(
+        jsonResponse({
+          status: "success",
+          task_id: "task-123",
+          result: {
+            name: "ci-failure-map",
+            description: "Analyze CI logs",
+            tags: ["CI", "debug"],
+            version: "1.2.3",
+            readme_content: "# ci-failure-map",
+            file_name: "ci-failure-map.zip",
+            file_size: 8192,
+            file_sha256: "abc123",
+          },
+        }),
+      );
+
+    const pending = pollParse("task-123");
+    await vi.advanceTimersByTimeAsync(2000);
+    await vi.advanceTimersByTimeAsync(2000);
+    const result = await pending;
 
     expect(result).toEqual({
       status: "success",
@@ -255,9 +442,11 @@ describe("skillApiReal", () => {
       "/market/api/v1/skill/parse/task-123",
       expect.anything(),
     );
+    expect(mockFetch).toHaveBeenCalledTimes(3);
+    vi.useRealTimers();
   });
 
-  it("pollParse maps nested failure error from backend", async () => {
+  it("pollParse throws nested failure error from backend", async () => {
     mockFetch.mockReturnValueOnce(
       jsonResponse({
         status: "failed",
@@ -269,14 +458,35 @@ describe("skillApiReal", () => {
       }),
     );
 
-    const result = await pollParse("task-404");
-
-    expect(result).toEqual({
-      status: "failed",
-      error: {
-        code: "err.marketplace.parse.invalid_zip",
-        message: "invalid zip",
-      },
+    await expect(pollParse("task-404")).rejects.toMatchObject({
+      name: "SkillMarketApiError",
+      code: "err.marketplace.parse.invalid_zip",
+      message: "invalid zip",
     });
+  });
+
+  it("pollParse times out after 60 pending attempts", async () => {
+    vi.useFakeTimers();
+    for (let i = 0; i < 60; i += 1) {
+      mockFetch.mockReturnValueOnce(jsonResponse({ status: "pending", task_id: "task-timeout" }));
+    }
+
+    const pending = pollParse("task-timeout");
+    const assertion = expect(pending).rejects.toMatchObject({
+      name: "SkillMarketApiError",
+      code: "parse_timeout",
+      message: "解析超时，请重试",
+    });
+    await vi.advanceTimersByTimeAsync(2_000 * 60);
+
+    await assertion;
+    expect(mockFetch).toHaveBeenCalledTimes(60);
+    vi.useRealTimers();
+  });
+
+  it("getDownloadUrl exposes the backend 302 download endpoint", () => {
+    expect(getDownloadUrl("skill/with space")).toBe(
+      "/market/api/v1/skill/skill%2Fwith%20space/download",
+    );
   });
 });

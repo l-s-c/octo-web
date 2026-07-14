@@ -41,7 +41,8 @@ describe("SkillDetailModal", () => {
     });
   });
 
-  it("shows mock feedback for copy and download actions", async () => {
+  it("copies the package link and opens the backend download URL", async () => {
+    vi.mocked(api.downloadSkill).mockReturnValue(undefined);
     render(<SkillDetailModal skillId={skill.id} categories={categories} onClose={vi.fn()} />);
 
     expect(await screen.findByText("meeting-note-cleaner.zip")).toBeInTheDocument();
@@ -51,6 +52,7 @@ describe("SkillDetailModal", () => {
     expect(screen.getByText("已复制下载链接")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "下载 Skill 包" }));
-    expect(screen.getByText("下载功能为 mock 演示")).toBeInTheDocument();
+    expect(api.downloadSkill).toHaveBeenCalledWith(skill.id);
+    expect(screen.getByText("浏览器已打开下载链接")).toBeInTheDocument();
   });
 });

@@ -72,6 +72,13 @@ export const Toast = {
 };
 
 export const WKApp = {
+  loginInfo: {
+    token: "test-token",
+    uid: "test-uid",
+  },
+  shared: {
+    currentSpaceId: "space-123",
+  },
   routeRight: {
     replaceToRoot: () => undefined,
   },

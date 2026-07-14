@@ -168,12 +168,13 @@ describe("SkillListPage", () => {
     expect(screen.getByText("可以切换到其他分类，或新建一个 Skill。")).toBeInTheDocument();
   });
 
-  it("shows mock feedback for detail download and copy actions", async () => {
+  it("shows detail feedback for download and copy actions", async () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
     Object.defineProperty(navigator, "clipboard", {
       configurable: true,
       value: { writeText },
     });
+    vi.mocked(api.downloadSkill).mockReturnValue(undefined);
 
     render(<SkillListPage />);
 
@@ -183,6 +184,7 @@ describe("SkillListPage", () => {
     expect(await screen.findAllByText("已复制")).toHaveLength(2);
 
     fireEvent.click(screen.getByRole("button", { name: "下载 Skill 包" }));
-    expect(await screen.findAllByText("功能开发中")).toHaveLength(2);
+    expect(api.downloadSkill).toHaveBeenCalledWith(skill.id);
+    expect(await screen.findByText("浏览器已打开下载链接")).toBeInTheDocument();
   });
 });

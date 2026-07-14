@@ -5,7 +5,7 @@ import remarkGfm from "remark-gfm";
 import { Copy, Download, FileArchive, Lock, Pencil, Trash2, Users } from "lucide-react";
 import { WKButton, WKModal } from "@octo/base";
 import type { Category, Skill } from "../types/skill";
-import { getSkill } from "../api/skillApi";
+import { downloadSkill, getSkill } from "../api/skillApi";
 import { formatFileSize, formatRelativeTime } from "../utils/format";
 
 interface SkillDetailModalProps {
@@ -79,8 +79,10 @@ export default function SkillDetailModal({
   }
 
   function downloadSkillPackage() {
+    if (!skill) return;
+    downloadSkill(skill.id);
     setInstallFeedback("download");
-    onFeedback?.("功能开发中");
+    onFeedback?.("下载已打开");
   }
 
   return (
@@ -168,8 +170,8 @@ export default function SkillDetailModal({
                     </>
                   ) : (
                     <>
-                      <strong>功能开发中</strong>
-                      <span>下载功能为 mock 演示</span>
+                      <strong>下载已打开</strong>
+                      <span>浏览器已打开下载链接</span>
                     </>
                   )}
                 </div>

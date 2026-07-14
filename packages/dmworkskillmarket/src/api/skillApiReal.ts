@@ -5,6 +5,7 @@
  * snake_case responses to camelCase frontend types.
  */
 import { API_BASE_URL } from "./constants";
+import { WKApp } from "@octo/base";
 import type {
   Category,
   NewSkillForm,
@@ -23,33 +24,89 @@ import type {
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
 
-class ApiError extends Error {
+export class SkillMarketApiError extends Error {
   constructor(
     public code: string | number,
     message: string,
+    public status?: number,
+    public details?: unknown,
   ) {
     super(message);
-    this.name = "ApiError";
+    this.name = "SkillMarketApiError";
   }
+}
+
+function getAuthHeaders(): Record<string, string> {
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  const token = WKApp.loginInfo?.token;
+  if (token) headers.token = token;
+  const spaceId = WKApp.shared?.currentSpaceId;
+  if (spaceId) headers["X-Space-Id"] = spaceId;
+  return headers;
+}
+
+async function parseJson(response: Response): Promise<unknown> {
+  try {
+    return await response.json();
+  } catch {
+    return null;
+  }
+}
+
+function normalizeError(input: {
+  code?: string | number;
+  message?: string;
+  status?: number;
+  details?: unknown;
+}): SkillMarketApiError {
+  return new SkillMarketApiError(
+    input.code ?? (input.status ? `http_${input.status}` : "unknown_error"),
+    input.message || "Request failed",
+    input.status,
+    input.details,
+  );
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const url = `${API_BASE_URL}${path}`;
-  const res = await fetch(url, {
-    headers: { "Content-Type": "application/json", ...init?.headers },
-    ...init,
-  });
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      ...init,
+      headers: { ...getAuthHeaders(), ...(init?.headers as Record<string, string> | undefined) },
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Network error";
+    throw normalizeError({ code: "network_error", message, details: err });
+  }
 
-  // 204 No Content (e.g. DELETE success)
   if (res.status === 204) return undefined as unknown as T;
 
-  const body: ApiResponse<T> = await res.json();
+  const body = (await parseJson(res)) as Partial<ApiResponse<T>> | null;
+  const ok = typeof res.ok === "boolean" ? res.ok : res.status >= 200 && res.status < 300;
+  if (!ok) {
+    throw normalizeError({
+      code: body?.code ?? `http_${res.status}`,
+      message: body?.message ?? res.statusText ?? "Request failed",
+      status: res.status,
+      details: body,
+    });
+  }
 
-  if (body.code !== 0) {
-    throw new ApiError(body.code, body.message ?? "Unknown error");
+  if (!body || body.code !== 0) {
+    throw normalizeError({
+      code: body?.code ?? "invalid_response",
+      message: body?.message ?? "Invalid response",
+      status: res.status,
+      details: body,
+    });
   }
 
   return body.data;
+}
+
+function wait(ms: number): Promise<void> {
+  return new Promise((resolve) => globalThis.setTimeout(resolve, ms));
 }
 
 // ─── Mappers ───────────────────────────────────────────────────────────────
@@ -166,6 +223,14 @@ export function deleteSkill(id: string): Promise<void> {
   });
 }
 
+export function getDownloadUrl(id: string): string {
+  return `${API_BASE_URL}/skill/${encodeURIComponent(id)}/download`;
+}
+
+export function downloadSkill(id: string): void {
+  window.open(getDownloadUrl(id), "_blank", "noopener,noreferrer");
+}
+
 // ─── Upload / Parse flow ───────────────────────────────────────────────────
 
 /** Step 1: Get a pre-signed upload URL from the backend. */
@@ -220,49 +285,69 @@ export function triggerParse(uploadId: string): Promise<TriggerParseResult> {
   }));
 }
 
-/** Step 4: Poll parse status until success or failure. */
-export function pollParse(taskId: string): Promise<ParseStatusResult> {
-  return request<{
-    status: string;
-    task_id: string;
-    result?: {
-      name: string;
-      description?: string;
-      version: string;
-      tags: string[];
-      readme_content?: string;
-      file_name: string;
-      file_size: number;
-      file_sha256: string;
+type RawParseStatusResult = {
+  status: string;
+  task_id: string;
+  result?: {
+    name: string;
+    description?: string;
+    version: string;
+    tags: string[];
+    readme_content?: string;
+    file_name: string;
+    file_size: number;
+    file_sha256: string;
+  };
+  error?: {
+    code: string;
+    message: string;
+  };
+};
+
+function mapParseStatus(raw: RawParseStatusResult): ParseStatusResult {
+  const result: ParseStatusResult = {
+    status: raw.status as ParseStatusResult["status"],
+  };
+  if (raw.status === "success" && raw.result) {
+    result.result = {
+      name: raw.result.name,
+      description: raw.result.description ?? "",
+      tags: raw.result.tags ?? [],
+      version: raw.result.version ?? "1.0.0",
+      readmeContent: raw.result.readme_content ?? "",
+      fileName: raw.result.file_name ?? "",
+      fileSize: raw.result.file_size ?? 0,
+      fileSha256: raw.result.file_sha256 ?? "",
     };
-    error?: {
-      code: string;
-      message: string;
+  }
+  if (raw.status === "failed" && raw.error) {
+    result.error = {
+      code: raw.error.code ?? "unknown",
+      message: raw.error.message ?? "解析失败",
     };
-  }>(`/skill/parse/${encodeURIComponent(taskId)}`).then((raw) => {
-    const result: ParseStatusResult = {
-      status: raw.status as ParseStatusResult["status"],
-    };
-    if (raw.status === "success" && raw.result) {
-      result.result = {
-        name: raw.result.name,
-        description: raw.result.description ?? "",
-        tags: raw.result.tags ?? [],
-        version: raw.result.version ?? "1.0.0",
-        readmeContent: raw.result.readme_content ?? "",
-        fileName: raw.result.file_name ?? "",
-        fileSize: raw.result.file_size ?? 0,
-        fileSha256: raw.result.file_sha256 ?? "",
-      };
+  }
+  return result;
+}
+
+async function fetchParseStatus(taskId: string): Promise<ParseStatusResult> {
+  return request<RawParseStatusResult>(`/skill/parse/${encodeURIComponent(taskId)}`).then(mapParseStatus);
+}
+
+/** Step 4: Poll parse status every 2 seconds until success, failure, or timeout. */
+export async function pollParse(taskId: string): Promise<ParseStatusResult> {
+  for (let attempt = 0; attempt < 60; attempt += 1) {
+    const status = await fetchParseStatus(taskId);
+    if (status.status === "success") return status;
+    if (status.status === "failed") {
+      throw normalizeError({
+        code: status.error?.code ?? "parse_failed",
+        message: status.error?.message ?? "解析失败",
+        details: status.error,
+      });
     }
-    if (raw.status === "failed" && raw.error) {
-      result.error = {
-        code: raw.error.code ?? "unknown",
-        message: raw.error.message ?? "解析失败",
-      };
-    }
-    return result;
-  });
+    if (attempt < 59) await wait(2000);
+  }
+  throw normalizeError({ code: "parse_timeout", message: "解析超时，请重试" });
 }
 
 /** Reupload init for an existing skill. */

@@ -1,22 +1,22 @@
-/**
- * Skill marketplace API — real HTTP client.
- *
- * This module re-exports all public API functions from the real HTTP client
- * so all consumers transparently talk to the backend via /market/api/v1.
- *
- * The original mock is preserved at ./skillApiMock.ts for testing.
- */
-export {
-  getCategories,
-  getSkills,
-  getMySkills,
-  getSkill,
-  createSkill,
-  updateSkill,
-  deleteSkill,
-  initUpload,
-  uploadFile,
-  triggerParse,
-  pollParse,
-  initReupload,
-} from "./skillApiReal";
+import * as mockApi from "./skillApiMock";
+import * as realApi from "./skillApiReal";
+
+const env = (import.meta as { env?: Record<string, string | boolean | undefined> }).env;
+const processEnv = typeof process === "undefined" ? undefined : process.env;
+const useMock = env?.VITE_USE_MOCK === "true" || processEnv?.VITE_USE_MOCK === "true";
+const api = useMock ? mockApi : realApi;
+
+export const getCategories = api.getCategories;
+export const getSkills = api.getSkills;
+export const getMySkills = api.getMySkills;
+export const getSkill = api.getSkill;
+export const createSkill = api.createSkill;
+export const updateSkill = api.updateSkill;
+export const deleteSkill = api.deleteSkill;
+export const initUpload = realApi.initUpload;
+export const uploadFile = realApi.uploadFile;
+export const triggerParse = realApi.triggerParse;
+export const pollParse = realApi.pollParse;
+export const initReupload = realApi.initReupload;
+export const getDownloadUrl = realApi.getDownloadUrl;
+export const downloadSkill = realApi.downloadSkill;
