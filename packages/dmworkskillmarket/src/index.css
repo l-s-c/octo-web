@@ -872,6 +872,14 @@
   background: var(--wk-accent-tint-08);
 }
 
+.skill-market-upload-file__input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+}
+
 .skill-market-radio-group {
   display: flex;
   flex-wrap: wrap;

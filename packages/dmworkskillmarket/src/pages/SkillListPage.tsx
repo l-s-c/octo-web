@@ -22,6 +22,7 @@ export default function SkillListPage({ mine = false }: SkillListPageProps) {
   const [editing, setEditing] = useState<Skill | null>(null);
   const [deleting, setDeleting] = useState<Skill | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [detailRefreshKey, setDetailRefreshKey] = useState(0);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -52,6 +53,12 @@ export default function SkillListPage({ mine = false }: SkillListPageProps) {
     if (!mine) {
       WKApp.routeRight.replaceToRoot(<SkillListPage mine />);
     }
+  }
+
+  function handleUpdated() {
+    setToast("已保存");
+    list.refresh();
+    setDetailRefreshKey((current) => current + 1);
   }
 
   return (
@@ -139,6 +146,7 @@ export default function SkillListPage({ mine = false }: SkillListPageProps) {
       <SkillDetailModal
         skillId={detailId}
         categories={list.categories}
+        refreshKey={detailRefreshKey}
         onClose={() => setDetailId(null)}
         onEdit={mine ? setEditing : undefined}
         onDelete={mine ? setDeleting : undefined}
@@ -153,7 +161,7 @@ export default function SkillListPage({ mine = false }: SkillListPageProps) {
         skill={editing}
         categories={list.categories}
         onClose={() => setEditing(null)}
-        onUpdated={list.refresh}
+        onUpdated={handleUpdated}
       />
       <DeleteConfirmModal
         skill={deleting}

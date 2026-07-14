@@ -38,6 +38,7 @@ describe("SkillListPage", () => {
     vi.mocked(api.getSkills).mockResolvedValue({ items: [skill], nextCursor: null });
     vi.mocked(api.getMySkills).mockResolvedValue({ items: [skill], nextCursor: null });
     vi.mocked(api.getSkill).mockResolvedValue(skill);
+    vi.mocked(api.updateSkill).mockResolvedValue(skill);
     vi.mocked(api.deleteSkill).mockResolvedValue();
   });
 
@@ -82,5 +83,32 @@ describe("SkillListPage", () => {
     fireEvent.click(screen.getByRole("button", { name: "删除" }));
 
     await waitFor(() => expect(api.deleteSkill).toHaveBeenCalledWith("meeting-note-cleaner"));
+  });
+
+  it("refreshes an open detail modal after saving from detail edit", async () => {
+    const updatedSkill: Skill = {
+      ...skill,
+      description: "更新后的详情说明",
+      updatedAt: "2026-07-14T08:00:00.000Z",
+    };
+    vi.mocked(api.updateSkill).mockResolvedValue(updatedSkill);
+    vi.mocked(api.getSkill)
+      .mockResolvedValueOnce(skill)
+      .mockResolvedValueOnce(updatedSkill);
+
+    render(<SkillListPage mine />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "meeting-note-cleaner @我" }));
+    expect(await screen.findByText(skill.description)).toBeInTheDocument();
+
+    fireEvent.click(screen.getAllByRole("button", { name: "编辑 meeting-note-cleaner" })[1]);
+    fireEvent.change(screen.getByLabelText("描述"), { target: { value: updatedSkill.description } });
+    fireEvent.click(screen.getByRole("button", { name: "保存" }));
+
+    await waitFor(() => expect(api.updateSkill).toHaveBeenCalledWith("meeting-note-cleaner", expect.objectContaining({
+      description: updatedSkill.description,
+    })));
+    expect(await screen.findByText(updatedSkill.description)).toBeInTheDocument();
+    expect(api.getSkill).toHaveBeenCalledTimes(2);
   });
 });

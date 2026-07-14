@@ -11,6 +11,7 @@ import { formatFileSize, formatRelativeTime } from "../utils/format";
 interface SkillDetailModalProps {
   skillId: string | null;
   categories: Category[];
+  refreshKey?: number;
   onClose: () => void;
   onEdit?: (skill: Skill) => void;
   onDelete?: (skill: Skill) => void;
@@ -22,7 +23,7 @@ function visibilityText(value: Skill["visibility"]): string {
   return "公开";
 }
 
-export default function SkillDetailModal({ skillId, categories, onClose, onEdit, onDelete }: SkillDetailModalProps) {
+export default function SkillDetailModal({ skillId, categories, refreshKey = 0, onClose, onEdit, onDelete }: SkillDetailModalProps) {
   const [skill, setSkill] = useState<Skill | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -48,7 +49,7 @@ export default function SkillDetailModal({ skillId, categories, onClose, onEdit,
     return () => {
       alive = false;
     };
-  }, [skillId]);
+  }, [skillId, refreshKey]);
 
   const categoryName = skill ? categories.find((category) => category.id === skill.categoryId)?.name : "";
   const hasOwnerActions = Boolean(skill && (onEdit || onDelete));
