@@ -33,4 +33,26 @@ describe("CategoryChips", () => {
 
     expect(onChange).toHaveBeenCalledWith("quality");
   });
+
+  it("offers all non-all categories from the mobile more menu", () => {
+    render(<CategoryChips categories={categories} activeId="all" onChange={vi.fn()} />);
+
+    fireEvent.click(screen.getByRole("button", { name: /更多/ }));
+    const menu = screen.getByRole("menu");
+
+    expect(within(menu).getByRole("menuitem", { name: /开发工具/ })).toBeInTheDocument();
+    expect(within(menu).getByRole("menuitem", { name: /办公协作/ })).toBeInTheDocument();
+    expect(within(menu).getByRole("menuitem", { name: /洞察研究/ })).toBeInTheDocument();
+    expect(within(menu).getByRole("menuitem", { name: /代码质检/ })).toBeInTheDocument();
+  });
+
+  it("still renders the mobile more menu when desktop has no overflow", () => {
+    render(<CategoryChips categories={categories.slice(0, 4)} activeId="all" onChange={vi.fn()} />);
+
+    fireEvent.click(screen.getByRole("button", { name: /更多/ }));
+    const menu = screen.getByRole("menu");
+
+    expect(within(menu).getByRole("menuitem", { name: /开发工具/ })).toBeInTheDocument();
+    expect(within(menu).getByRole("menuitem", { name: /办公协作/ })).toBeInTheDocument();
+  });
 });

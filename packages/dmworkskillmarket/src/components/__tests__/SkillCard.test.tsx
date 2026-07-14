@@ -66,5 +66,9 @@ describe("SkillCard", () => {
     fireEvent.click(screen.getByRole("button", { name: "删除 ci-helper" }));
     expect(onDelete).toHaveBeenCalledWith(skill);
     expect(onOpen).toHaveBeenCalledTimes(1);
+
+    fireEvent.keyDown(screen.getByRole("button", { name: "编辑 ci-helper" }), { key: "Enter" });
+    fireEvent.keyDown(screen.getByRole("button", { name: "删除 ci-helper" }), { key: " " });
+    expect(onOpen).toHaveBeenCalledTimes(1);
   });
 });

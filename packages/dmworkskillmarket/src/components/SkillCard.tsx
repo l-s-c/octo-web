@@ -17,6 +17,10 @@ export default function SkillCard({ skill, categories, onOpen, onEdit, onDelete 
   const isOwnerCard = Boolean(onEdit || onDelete);
 
   function handleKeyDown(event: React.KeyboardEvent<HTMLElement>) {
+    if (event.target instanceof HTMLElement && event.target.closest("button")) {
+      return;
+    }
+
     if (event.key === "Enter" || event.key === " ") {
       event.preventDefault();
       onOpen(skill);

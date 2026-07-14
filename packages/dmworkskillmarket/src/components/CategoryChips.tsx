@@ -71,6 +71,11 @@ export default function CategoryChips({ categories, activeId, onChange }: Catego
     : desktopBase;
   const desktopVisibleIds = new Set(desktopVisible.map((category) => category.id));
   const overflow = ordered.filter((category) => !desktopVisibleIds.has(category.id));
+  const mobileOnlyMenuItems = ordered.filter(
+    (category) => category.id !== "all" && desktopVisibleIds.has(category.id),
+  );
+  const hasDesktopOverflow = overflow.length > 0;
+  const showMore = hasDesktopOverflow || mobileOnlyMenuItems.length > 0;
 
   function choose(categoryId: string) {
     onChange(categoryId);
@@ -102,8 +107,8 @@ export default function CategoryChips({ categories, activeId, onChange }: Catego
     <div className="skill-market-category-strip" aria-label="Skill 分类">
       {desktopVisible.map((category) => renderChip(category))}
       {ordered.slice(0, 1).map((category) => renderChip(category, "skill-market-category-chip skill-market-category-chip--mobile-primary"))}
-      {overflow.length > 0 && (
-        <div className="skill-market-category-more">
+      {showMore && (
+        <div className={hasDesktopOverflow ? "skill-market-category-more" : "skill-market-category-more skill-market-category-more--mobile-only"}>
         <button
           type="button"
           className="skill-market-category-chip skill-market-category-more__button"
@@ -123,6 +128,23 @@ export default function CategoryChips({ categories, activeId, onChange }: Catego
                   type="button"
                   role="menuitem"
                   className={category.id === activeId ? "is-active" : undefined}
+                  onClick={() => choose(category.id)}
+                >
+                  <CategoryIcon iconKey={category.iconKey} />
+                  <span>{category.name}</span>
+                  <span>{category.skillCount}</span>
+                </button>
+              ))}
+              {mobileOnlyMenuItems.map((category) => (
+                <button
+                  key={`mobile-${category.id}`}
+                  type="button"
+                  role="menuitem"
+                  className={
+                    category.id === activeId
+                      ? "skill-market-category-menu__mobile-only is-active"
+                      : "skill-market-category-menu__mobile-only"
+                  }
                   onClick={() => choose(category.id)}
                 >
                   <CategoryIcon iconKey={category.iconKey} />

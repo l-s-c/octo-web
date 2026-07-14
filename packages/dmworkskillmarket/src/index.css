@@ -178,6 +178,10 @@
   flex: 0 0 auto;
 }
 
+.skill-market-category-more--mobile-only {
+  display: none;
+}
+
 .skill-market-category-more__button {
   max-width: none;
 }
@@ -219,6 +223,10 @@
   outline: none;
   background: var(--wk-bg-item-hover);
   color: var(--wk-text-primary);
+}
+
+.skill-market-category-menu button.skill-market-category-menu__mobile-only {
+  display: none;
 }
 
 .skill-market-content {
@@ -759,6 +767,10 @@
   .skill-market-category-menu {
     right: auto;
     left: 0;
+  }
+
+  .skill-market-category-menu button.skill-market-category-menu__mobile-only {
+    display: grid;
   }
 
   .skill-market-install {
