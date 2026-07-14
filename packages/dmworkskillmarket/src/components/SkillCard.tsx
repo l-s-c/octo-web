@@ -1,7 +1,6 @@
 import React from "react";
-import { CalendarDays, Lock, Package, Users } from "lucide-react";
+import { Pencil, Trash2 } from "lucide-react";
 import type { Category, Skill } from "../types/skill";
-import { formatDate, formatFileSize } from "../utils/format";
 
 interface SkillCardProps {
   skill: Skill;
@@ -11,63 +10,66 @@ interface SkillCardProps {
   onDelete?: (skill: Skill) => void;
 }
 
-function visibilityLabel(value: Skill["visibility"]): string {
-  if (value === "private") return "私有";
-  if (value === "space") return "空间";
-  return "公开";
-}
-
-function VisibilityIcon({ value }: { value: Skill["visibility"] }) {
-  if (value === "private") return <Lock size={13} />;
-  if (value === "space") return <Users size={13} />;
-  return <Package size={13} />;
-}
-
 export default function SkillCard({ skill, categories, onOpen, onEdit, onDelete }: SkillCardProps) {
-  const categoryName = categories.find((category) => category.id === skill.categoryId)?.name ?? skill.categoryId;
+  void categories;
+  const visibleTags = skill.tags.slice(0, 3);
+  const hiddenTagCount = Math.max(0, skill.tags.length - visibleTags.length);
+  const isOwnerCard = Boolean(onEdit || onDelete);
+
+  function handleKeyDown(event: React.KeyboardEvent<HTMLElement>) {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      onOpen(skill);
+    }
+  }
+
   return (
-    <article className="skill-market-card" tabIndex={0} onClick={() => onOpen(skill)} onKeyDown={(event) => {
-      if (event.key === "Enter") onOpen(skill);
-    }}>
+    <article
+      className={isOwnerCard ? "skill-market-card skill-market-card--owner" : "skill-market-card"}
+      role="button"
+      tabIndex={0}
+      aria-label={`${skill.name} @${skill.ownerName}`}
+      onClick={() => onOpen(skill)}
+      onKeyDown={handleKeyDown}
+    >
       <div className="skill-market-card__header">
-        <div className="skill-market-card__mark">{skill.name.slice(0, 2).toUpperCase()}</div>
-        <div className="skill-market-card__title-block">
+        <div className="skill-market-card__title-row">
           <h3>{skill.name}</h3>
-          <span>{categoryName}</span>
+          <span className="skill-market-card__owner">@{skill.ownerName}</span>
         </div>
-        <span className="skill-market-card__version">v{skill.version}</span>
+        {(onEdit || onDelete) && (
+          <div className="skill-market-card__actions" onClick={(event) => event.stopPropagation()}>
+            {onEdit && (
+              <button
+                type="button"
+                aria-label={`编辑 ${skill.name}`}
+                title="编辑"
+                onClick={() => onEdit(skill)}
+              >
+                <Pencil size={15} />
+              </button>
+            )}
+            {onDelete && (
+              <button
+                type="button"
+                className="is-danger"
+                aria-label={`删除 ${skill.name}`}
+                title="删除"
+                onClick={() => onDelete(skill)}
+              >
+                <Trash2 size={15} />
+              </button>
+            )}
+          </div>
+        )}
       </div>
-      <p className="skill-market-card__desc">{skill.description}</p>
       <div className="skill-market-card__tags">
-        {skill.tags.map((tag) => (
+        {visibleTags.map((tag) => (
           <span key={tag}>{tag}</span>
         ))}
+        {hiddenTagCount > 0 && <span>+{hiddenTagCount}</span>}
       </div>
-      <div className="skill-market-card__footer">
-        <span className="skill-market-card__meta">
-          <VisibilityIcon value={skill.visibility} />
-          {visibilityLabel(skill.visibility)}
-        </span>
-        <span className="skill-market-card__meta">
-          <CalendarDays size={13} />
-          {formatDate(skill.updatedAt)}
-        </span>
-        <span className="skill-market-card__size">{formatFileSize(skill.fileSize)}</span>
-      </div>
-      {(onEdit || onDelete) && (
-        <div className="skill-market-card__actions" onClick={(event) => event.stopPropagation()}>
-          {onEdit && (
-            <button type="button" onClick={() => onEdit(skill)}>
-              编辑
-            </button>
-          )}
-          {onDelete && (
-            <button type="button" className="is-danger" onClick={() => onDelete(skill)}>
-              删除
-            </button>
-          )}
-        </div>
-      )}
+      <p className="skill-market-card__desc">{skill.description}</p>
     </article>
   );
 }

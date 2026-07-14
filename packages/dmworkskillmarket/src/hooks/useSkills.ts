@@ -25,6 +25,7 @@ export function useSkills(options: UseSkillsOptions = {}): UseSkillsResult {
   const [categories, setCategories] = useState<Category[]>([]);
   const [skills, setSkills] = useState<Skill[]>([]);
   const [query, setQueryState] = useState("");
+  const [debouncedQuery, setDebouncedQuery] = useState("");
   const [categoryId, setCategoryIdState] = useState("all");
   const [cursor, setCursor] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -47,8 +48,8 @@ export function useSkills(options: UseSkillsOptions = {}): UseSkillsResult {
         const [categoryItems, page] = await Promise.all([
           getCategories(),
           options.mine
-            ? getMySkills({ q: query, categoryId, cursor: nextCursor ?? undefined, limit: 20 })
-            : getSkills({ q: query, categoryId, cursor: nextCursor ?? undefined, limit: 20 }),
+            ? getMySkills({ q: debouncedQuery, categoryId, cursor: nextCursor ?? undefined, limit: 20 })
+            : getSkills({ q: debouncedQuery, categoryId, cursor: nextCursor ?? undefined, limit: 20 }),
         ]);
         if (requestSeq.current !== seq) return;
         setCategories(categoryItems);
@@ -64,22 +65,32 @@ export function useSkills(options: UseSkillsOptions = {}): UseSkillsResult {
         }
       }
     },
-    [categoryId, options.mine, query],
+    [categoryId, debouncedQuery, options.mine],
   );
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
-      void fetchPage(null);
-    }, 180);
+      setDebouncedQuery(query);
+    }, 300);
     return () => window.clearTimeout(timer);
+  }, [query]);
+
+  useEffect(() => {
+    void fetchPage(null);
   }, [fetchPage]);
 
   const setQuery = useCallback((value: string) => {
     setQueryState(value);
+    setSkills([]);
+    setCursor(null);
+    setLoading(true);
   }, []);
 
   const setCategoryId = useCallback((value: string) => {
     setCategoryIdState(value);
+    setSkills([]);
+    setCursor(null);
+    setLoading(true);
   }, []);
 
   return {

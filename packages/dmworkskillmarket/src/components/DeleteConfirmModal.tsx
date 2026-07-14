@@ -40,8 +40,8 @@ export default function DeleteConfirmModal({ skill, onClose, onDeleted }: Delete
       <div className="skill-market-delete">
         <AlertTriangle size={22} />
         <div>
-          <strong>确认删除 {skill?.name}？</strong>
-          <p>删除后当前 mock 列表会立即移除该 Skill。</p>
+          <strong>确定删除「{skill?.name}」？</strong>
+          <p>删除后无法恢复</p>
         </div>
       </div>
     </WKModal>

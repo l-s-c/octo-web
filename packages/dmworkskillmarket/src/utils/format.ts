@@ -10,6 +10,18 @@ export function formatFileSize(bytes: number): string {
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }
 
+export function formatRelativeTime(iso: string, baseDate = new Date()): string {
+  const diffMs = baseDate.getTime() - new Date(iso).getTime();
+  const minute = 60 * 1000;
+  const hour = 60 * minute;
+  const day = 24 * hour;
+  if (diffMs < minute) return "刚刚";
+  if (diffMs < hour) return `${Math.max(1, Math.floor(diffMs / minute))} 分钟前`;
+  if (diffMs < day) return `${Math.max(1, Math.floor(diffMs / hour))} 小时前`;
+  if (diffMs < 30 * day) return `${Math.max(1, Math.floor(diffMs / day))} 天前`;
+  return formatDate(iso);
+}
+
 export function tagsFromInput(value: string): string[] {
   return value
     .split(/[,，\s]+/)

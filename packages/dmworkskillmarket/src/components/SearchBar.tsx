@@ -5,10 +5,10 @@ import { WKInput } from "@octo/base";
 interface SearchBarProps {
   value: string;
   onChange: (value: string) => void;
-  placeholder: string;
+  placeholder?: string;
 }
 
-export default function SearchBar({ value, onChange, placeholder }: SearchBarProps) {
+export default function SearchBar({ value, onChange, placeholder = "搜索" }: SearchBarProps) {
   return (
     <WKInput
       size="md"
