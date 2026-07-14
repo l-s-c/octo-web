@@ -4,6 +4,7 @@ import { Toast, Spin } from "@douyinfe/semi-ui";
 import { fetchMcpDetail } from "../api/mcpService";
 import { buildQuickStartTabs } from "../api/quickStartTemplates";
 import type { McpDetail, McpQuickStart } from "../types/mcp";
+import { IconGlyph } from "../utils/icon";
 
 interface McpDetailModalProps {
   /** The id of the MCP to show; null closes the modal. */
@@ -103,7 +104,9 @@ const McpDetailModal: React.FC<McpDetailModalProps> = ({ mcpId, onClose }) => {
     <WKModal
       visible={!!mcpId}
       onCancel={onClose}
-      size="lg"
+      width={900}
+      className="wk-mcp-detail-modal"
+      bodyStyle={{ height: "70vh", overflowY: "auto" }}
       title={detail ? detail.name : t("mcp.detail.title")}
       footer={null}
     >
@@ -114,7 +117,13 @@ const McpDetailModal: React.FC<McpDetailModalProps> = ({ mcpId, onClose }) => {
       ) : (
         <div className="wk-mcp-detail">
           <div className="wk-mcp-detail__meta">
-            <div className="wk-mcp-detail__icon">{detail.icon}</div>
+            <div className="wk-mcp-detail__icon">
+              <IconGlyph
+                icon={detail.icon}
+                className="wk-mcp-detail__icon-img"
+                alt={detail.name}
+              />
+            </div>
             <div className="wk-mcp-detail__meta-main">
               <div className="wk-mcp-card__tags">
                 {detail.tags.map((tag, i) => (
@@ -128,16 +137,13 @@ const McpDetailModal: React.FC<McpDetailModalProps> = ({ mcpId, onClose }) => {
                   </span>
                 ))}
               </div>
-              <div className="wk-mcp-detail__provider">
-                {detail.provider} ·{" "}
+              <div className="wk-mcp-detail__toolcount">
                 {t("mcp.card.toolCount", {
                   values: { count: detail.toolCount },
                 })}
               </div>
             </div>
           </div>
-
-          <div className="wk-mcp-detail__desc">{detail.description}</div>
 
           {/* 1. ⚡快速接入 */}
           <section className="wk-mcp-section">
@@ -162,40 +168,54 @@ const McpDetailModal: React.FC<McpDetailModalProps> = ({ mcpId, onClose }) => {
             </div>
           </section>
 
-          {/* 3. 💬使用示例 */}
-          <section className="wk-mcp-section">
-            <h4 className="wk-mcp-section__title">
-              💬 {t("mcp.detail.example")}
-            </h4>
-            <div className="wk-mcp-example">{detail.usageExample}</div>
-          </section>
+          {/* 3. 💬使用示例 — 多条 */}
+          {detail.usageExamples.length > 0 && (
+            <section className="wk-mcp-section">
+              <h4 className="wk-mcp-section__title">
+                💬 {t("mcp.detail.example")}
+              </h4>
+              <div className="wk-mcp-examples">
+                {detail.usageExamples.map((ex, i) => (
+                  <div className="wk-mcp-example" key={i}>
+                    {ex}
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
 
           {/* 4. ❓常见问题 */}
-          <section className="wk-mcp-section">
-            <h4 className="wk-mcp-section__title">❓ {t("mcp.detail.faq")}</h4>
-            <div className="wk-mcp-faq">
-              {detail.faqs.map((faq) => (
-                <div className="wk-mcp-faq__item" key={faq.question}>
-                  <div className="wk-mcp-faq__q">{faq.question}</div>
-                  <div className="wk-mcp-faq__a">{faq.answer}</div>
-                </div>
-              ))}
-            </div>
-          </section>
+          {detail.faqs.length > 0 && (
+            <section className="wk-mcp-section">
+              <h4 className="wk-mcp-section__title">
+                ❓ {t("mcp.detail.faq")}
+              </h4>
+              <div className="wk-mcp-faq">
+                {detail.faqs.map((faq) => (
+                  <div className="wk-mcp-faq__item" key={faq.question}>
+                    <div className="wk-mcp-faq__q">{faq.question}</div>
+                    <div className="wk-mcp-faq__a">{faq.answer}</div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
 
           {/* 5. ⚠️注意事项 */}
-          <section className="wk-mcp-section">
-            <h4 className="wk-mcp-section__title">
-              ⚠️ {t("mcp.detail.notes")}
-            </h4>
-            <div className="wk-mcp-notes">
-              {detail.notes.map((note, i) => (
-                <div className="wk-mcp-notes__item" key={i}>
-                  {note}
-                </div>
-              ))}
-            </div>
-          </section>
+          {detail.notes.length > 0 && (
+            <section className="wk-mcp-section">
+              <h4 className="wk-mcp-section__title">
+                ⚠️ {t("mcp.detail.notes")}
+              </h4>
+              <div className="wk-mcp-notes">
+                {detail.notes.map((note, i) => (
+                  <div className="wk-mcp-notes__item" key={i}>
+                    {note}
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
         </div>
       )}
     </WKModal>

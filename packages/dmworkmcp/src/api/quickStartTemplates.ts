@@ -3,11 +3,10 @@ import type { McpQuickStart } from "../types/mcp";
 // ═══════════════════════════════════════════════════════════════════════════
 // Quick-start template generation
 // ═══════════════════════════════════════════════════════════════════════════
-// The three quick-access tabs (提示词 / 命令行 / JSON) are ALL generated from a
-// single structured `quickStart` payload plus the client-agnostic templates
-// below. No MCP ships hand-written snippets. Per the LSC-71 conclusion:
+// The two quick-access tabs (提示词 / JSON) are ALL generated from a single
+// structured `quickStart` payload plus the client-agnostic templates below.
+// No MCP ships hand-written snippets. Per the LSC-71 conclusion:
 //   - default tab = 提示词 (natural-language instruction for agent clients)
-//   - 命令行 = `claude mcp add ...`
 //   - JSON = `mcpServers` snippet; remote servers MUST carry a `type` field
 //   - the token position always renders as the placeholder below (never a real
 //     token, never pre-filled)
@@ -19,7 +18,7 @@ import type { McpQuickStart } from "../types/mcp";
 /** The visible token placeholder. Never pre-fill a real token. */
 export const TOKEN_PLACEHOLDER = "<把这里换成你的 Token>";
 
-export type QuickStartTabKey = "prompt" | "cli" | "json";
+export type QuickStartTabKey = "prompt" | "json";
 
 export interface QuickStartTab {
   key: QuickStartTabKey;
@@ -80,33 +79,6 @@ function maskEnv(env: Record<string, string>): Record<string, string> {
   return out;
 }
 
-/** Build the `claude mcp add ...` command. */
-function buildCli(qs: McpQuickStart): string {
-  if (isRemote(qs)) {
-    const transportFlag = qs.transport === "sse" ? "sse" : "http";
-    const header =
-      qs.authType === "bearer"
-        ? ` \\\n  --header "Authorization: Bearer ${TOKEN_PLACEHOLDER}"`
-        : "";
-    return `claude mcp add --transport ${transportFlag} ${qs.serverName} ${
-      qs.url ?? ""
-    }${header}`;
-  }
-  const env = qs.env
-    ? Object.keys(qs.env)
-        .map((k) =>
-          /token|key|secret|password|pwd/i.test(k)
-            ? ` --env ${k}=${TOKEN_PLACEHOLDER}`
-            : ` --env ${k}=${qs.env?.[k] ?? ""}`
-        )
-        .join("")
-    : "";
-  const args = (qs.args ?? []).join(" ");
-  return `claude mcp add --transport stdio${env} ${qs.serverName} \\\n  -- ${
-    qs.command ?? "npx"
-  } ${args}`.trim();
-}
-
 /** Build the natural-language prompt for agent clients. */
 function buildPrompt(qs: McpQuickStart): string {
   if (isRemote(qs)) {
@@ -138,7 +110,7 @@ function buildPrompt(qs: McpQuickStart): string {
 }
 
 /**
- * Generate the three copy-ready tabs from the structured quick-start payload.
+ * Generate the two copy-ready tabs from the structured quick-start payload.
  * Order matters: 提示词 first (the default tab).
  */
 export function buildQuickStartTabs(qs: McpQuickStart): QuickStartTab[] {
@@ -149,7 +121,6 @@ export function buildQuickStartTabs(qs: McpQuickStart): QuickStartTab[] {
       content: buildPrompt(qs),
       lang: "text",
     },
-    { key: "cli", labelKey: "cli", content: buildCli(qs), lang: "bash" },
     { key: "json", labelKey: "json", content: buildJson(qs), lang: "json" },
   ];
 }

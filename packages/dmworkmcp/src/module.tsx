@@ -2,6 +2,7 @@ import React from "react";
 import type { IModule } from "@octo/base";
 import { i18n, I18nProvider, WKApp, Menus, t as translate } from "@octo/base";
 import McpMarketListPage from "./pages/McpMarketListPage";
+import MarketSidebar from "./components/MarketSidebar";
 import enUS from "./i18n/en-US.json";
 import zhCN from "./i18n/zh-CN.json";
 import "./index.css";
@@ -39,9 +40,19 @@ export class McpMarketModule implements IModule {
       "en-US": enUS,
     });
 
-    // Route for the MCP market main page (rendered full-width in the
-    // content area, no secondary sidebar).
+    // Left sidebar (renders in WKLayout.contentLeft when the "mcp-market"
+    // NavRail entry is active). Its children — MCP 市场（未来还会追加 Skills
+    // 市场等）— push their actual page into WKApp.routeRight, so the market
+    // content lives in the right pane just like chat/summary detail views.
     WKApp.route.register("/mcp-market", () => {
+      return <MarketSidebar />;
+    });
+
+    // Route mounted into WKLayout.contentRight by MarketSidebar / the menu's
+    // onPress. Kept separate from the sidebar so future markets (Skills 市场,
+    // …) can register additional /mcp-market/* routes without touching this
+    // one.
+    WKApp.route.register("/mcp-market/mcp", () => {
       return <McpMarketListPage />;
     });
 
@@ -49,17 +60,29 @@ export class McpMarketModule implements IModule {
     // 与既有 chat(1000)/contacts(4000) 图标栏共用同一注册机制
     // (WKApp.menus.register)，不新造导航体系。菜单 id "mcp-market" 与
     // McpMarketListPage 监听的 wk:nav-menu-activated(menuId==="mcp-market")
-    // 保持一致；routePath 指向 /mcp-market 列表页。
+    // 保持一致；routePath 指向 /mcp-market 侧边栏路由。
     WKApp.menus.register(
       "mcp-market",
       () => {
-        return new Menus(
+        const m = new Menus(
           "mcp-market",
           "/mcp-market",
           translate("mcp.menu.title"),
           <McpMarketIcon />,
           <McpMarketIcon active />
         );
+        // Point the right pane at the MCP market on click. Mirrors summary's
+        // onPress (apps/web/src/App/index.tsx:154) — Main/index.tsx's default
+        // click handler is bypassed when onPress is defined, so we own both
+        // the left popToRoot and the right replaceToRoot here.
+        m.onPress = () => {
+          WKApp.routeLeft.popToRoot();
+          const page = WKApp.route.get("/mcp-market/mcp");
+          if (page && React.isValidElement(page)) {
+            WKApp.routeRight.replaceToRoot(page);
+          }
+        };
+        return m;
       },
       5003
     );

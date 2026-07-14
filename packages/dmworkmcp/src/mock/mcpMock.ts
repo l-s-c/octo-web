@@ -66,12 +66,9 @@ export const MOCK_MCP_DETAILS: McpDetail[] = [
     name: "GitHub MCP",
     slogan: "读写仓库、Issue、PR，让智能体直接操作你的 GitHub。",
     category: "dev",
-    provider: "GitHub 官方",
     tags: ["官方", "热门"],
     toolCount: 8,
     icon: "🐙",
-    description:
-      "GitHub MCP Server 提供对仓库、Issue、Pull Request、Actions 的完整读写能力，智能体可基于自然语言完成代码托管平台上的日常操作。",
     quickStart: remoteQuickStart("github"),
     tools: tools([
       ["list_repositories", "列出当前账号可访问的仓库"],
@@ -83,8 +80,7 @@ export const MOCK_MCP_DETAILS: McpDetail[] = [
       ["get_file_contents", "读取仓库文件内容"],
       ["list_workflow_runs", "查询 Actions 运行记录"],
     ]),
-    usageExample:
-      "帮我在 octo-web 仓库里创建一个 Issue，标题「MCP 市场入口对齐」，正文引用本次讨论结论。",
+    usageExamples: ["帮我在 octo-web 仓库里创建一个 Issue，标题「MCP 市场入口对齐」，正文引用本次讨论结论。"],
     faqs: [
       {
         question: "需要哪些权限？",
@@ -107,12 +103,9 @@ export const MOCK_MCP_DETAILS: McpDetail[] = [
     name: "PostgreSQL MCP",
     slogan: "只读方式安全查询数据库，自动生成 SQL 并解释结果。",
     category: "data",
-    provider: "社区维护",
     tags: ["数据库"],
     toolCount: 5,
     icon: "🐘",
-    description:
-      "以只读连接接入 PostgreSQL，智能体可根据自然语言生成并执行查询，返回结构化结果与解释，适合数据分析与自助 BI 场景。",
     quickStart: stdioQuickStart("postgres", [
       "-y",
       "@modelcontextprotocol/server-postgres",
@@ -125,7 +118,7 @@ export const MOCK_MCP_DETAILS: McpDetail[] = [
       ["explain_query", "解释查询执行计划"],
       ["sample_rows", "抽样查看表数据"],
     ]),
-    usageExample: "统计上个月每个渠道的活跃用户数，按降序列出前十。",
+    usageExamples: ["统计上个月每个渠道的活跃用户数，按降序列出前十。"],
     faqs: [
       {
         question: "会不会误改数据？",
@@ -142,12 +135,9 @@ export const MOCK_MCP_DETAILS: McpDetail[] = [
     name: "Brave Search MCP",
     slogan: "接入 Brave 搜索，为智能体补充实时联网检索能力。",
     category: "search",
-    provider: "Brave 官方",
     tags: ["官方", "联网"],
     toolCount: 3,
     icon: "🦁",
-    description:
-      "通过 Brave Search API 提供网页与新闻检索，让智能体获取超出训练截止日期的实时信息。",
     quickStart: stdioQuickStart(
       "brave-search",
       ["-y", "@modelcontextprotocol/server-brave-search"],
@@ -158,7 +148,7 @@ export const MOCK_MCP_DETAILS: McpDetail[] = [
       ["news_search", "新闻搜索"],
       ["local_search", "本地商户检索"],
     ]),
-    usageExample: "查一下 2026 年 React 最新的官方文档地址，给出链接。",
+    usageExamples: ["查一下 2026 年 React 最新的官方文档地址，给出链接。"],
     faqs: [
       {
         question: "API Key 从哪申请？",
@@ -172,12 +162,9 @@ export const MOCK_MCP_DETAILS: McpDetail[] = [
     name: "Filesystem MCP",
     slogan: "让智能体在受限目录内读写文件，安全可控。",
     category: "dev",
-    provider: "官方示例",
     tags: ["官方", "基础"],
     toolCount: 6,
     icon: "📁",
-    description:
-      "在你显式授权的目录范围内，提供文件读写、目录遍历、搜索等能力，是本地自动化任务的基础组件。",
     quickStart: stdioQuickStart("filesystem", [
       "-y",
       "@modelcontextprotocol/server-filesystem",
@@ -191,7 +178,7 @@ export const MOCK_MCP_DETAILS: McpDetail[] = [
       ["move_file", "移动或重命名文件"],
       ["create_directory", "创建目录"],
     ]),
-    usageExample: "把 downloads 目录下所有 .csv 文件汇总成一个 summary.md。",
+    usageExamples: ["把 downloads 目录下所有 .csv 文件汇总成一个 summary.md。"],
     faqs: [
       {
         question: "会访问授权目录之外的文件吗？",
@@ -205,12 +192,9 @@ export const MOCK_MCP_DETAILS: McpDetail[] = [
     name: "Slack MCP",
     slogan: "收发消息、查频道、拉取历史，把 Slack 接入智能体。",
     category: "productivity",
-    provider: "社区维护",
     tags: ["协作"],
     toolCount: 4,
     icon: "💬",
-    description:
-      "提供 Slack 频道消息的读取与发送能力，适合把团队沟通接入自动化工作流。",
     quickStart: stdioQuickStart(
       "slack",
       ["-y", "@modelcontextprotocol/server-slack"],
@@ -222,7 +206,7 @@ export const MOCK_MCP_DETAILS: McpDetail[] = [
       ["get_history", "拉取频道历史消息"],
       ["reply_thread", "在消息线程内回复"],
     ]),
-    usageExample: "把今天的构建结果发到 #ci 频道，失败就 @ 值班同学。",
+    usageExamples: ["把今天的构建结果发到 #ci 频道，失败就 @ 值班同学。"],
     faqs: [
       {
         question: "需要哪种 Token？",
@@ -237,12 +221,9 @@ export const MOCK_MCP_DETAILS: McpDetail[] = [
     name: "Puppeteer MCP",
     slogan: "驱动无头浏览器抓取页面、截图、填表单。",
     category: "dev",
-    provider: "官方示例",
     tags: ["浏览器"],
     toolCount: 5,
     icon: "🎭",
-    description:
-      "基于 Puppeteer 提供网页自动化能力：导航、点击、填表、抓取内容与截图。",
     quickStart: stdioQuickStart("puppeteer", [
       "-y",
       "@modelcontextprotocol/server-puppeteer",
@@ -254,7 +235,7 @@ export const MOCK_MCP_DETAILS: McpDetail[] = [
       ["screenshot", "截取页面截图"],
       ["get_content", "抓取页面文本/HTML"],
     ]),
-    usageExample: "打开这个商品页，抓取标题、价格和主图链接。",
+    usageExamples: ["打开这个商品页，抓取标题、价格和主图链接。"],
     faqs: [
       {
         question: "能处理登录墙吗？",
@@ -268,19 +249,16 @@ export const MOCK_MCP_DETAILS: McpDetail[] = [
     name: "Google Drive MCP",
     slogan: "检索与读取 Google Drive 文档，接入你的云端资料。",
     category: "productivity",
-    provider: "社区维护",
     tags: ["云盘"],
     toolCount: 3,
     icon: "📄",
-    description:
-      "提供 Google Drive 文件搜索与内容读取，让智能体基于你的云端资料回答问题。",
     quickStart: remoteQuickStart("gdrive"),
     tools: tools([
       ["search", "搜索云盘文件"],
       ["read_file", "读取文件内容"],
       ["list_recent", "列出最近文件"],
     ]),
-    usageExample: "找到上周的产品评审文档，总结其中的待办事项。",
+    usageExamples: ["找到上周的产品评审文档，总结其中的待办事项。"],
     faqs: [
       {
         question: "首次使用需要授权吗？",
@@ -294,12 +272,9 @@ export const MOCK_MCP_DETAILS: McpDetail[] = [
     name: "Memory MCP",
     slogan: "为智能体提供跨会话的长期记忆存储。",
     category: "ai",
-    provider: "官方示例",
     tags: ["官方"],
     toolCount: 4,
     icon: "🧠",
-    description:
-      "基于知识图谱为智能体提供持久化记忆，跨会话记住实体、关系与偏好。",
     quickStart: stdioQuickStart("memory", [
       "-y",
       "@modelcontextprotocol/server-memory",
@@ -310,7 +285,7 @@ export const MOCK_MCP_DETAILS: McpDetail[] = [
       ["search_memory", "检索记忆"],
       ["delete_entity", "删除记忆实体"],
     ]),
-    usageExample: "记住我更喜欢用中文回复、代码用 4 空格缩进。",
+    usageExamples: ["记住我更喜欢用中文回复、代码用 4 空格缩进。"],
     faqs: [
       {
         question: "记忆存在哪里？",
@@ -324,14 +299,12 @@ export const MOCK_MCP_DETAILS: McpDetail[] = [
     name: "Fetch MCP",
     slogan: "抓取任意 URL 内容并转成适合模型阅读的文本。",
     category: "search",
-    provider: "官方示例",
     tags: ["官方", "联网"],
     toolCount: 1,
     icon: "🌐",
-    description: "获取网页内容并转换为 Markdown，便于智能体分析长文与文档。",
     quickStart: remoteQuickStart("fetch"),
     tools: tools([["fetch", "抓取 URL 并转为 Markdown"]]),
-    usageExample: "把这篇博客抓下来，提炼三条核心观点。",
+    usageExamples: ["把这篇博客抓下来，提炼三条核心观点。"],
     faqs: [
       {
         question: "支持鉴权页面吗？",
@@ -345,12 +318,9 @@ export const MOCK_MCP_DETAILS: McpDetail[] = [
     name: "SQLite MCP",
     slogan: "轻量本地数据库，读写查询一步到位。",
     category: "data",
-    provider: "官方示例",
     tags: ["官方", "数据库"],
     toolCount: 4,
     icon: "🗃️",
-    description:
-      "接入本地 SQLite 文件，提供表结构查看、查询与写入能力，适合原型与轻量场景。",
     quickStart: stdioQuickStart("sqlite", [
       "-y",
       "@modelcontextprotocol/server-sqlite",
@@ -362,7 +332,7 @@ export const MOCK_MCP_DETAILS: McpDetail[] = [
       ["list_tables", "列出所有表"],
       ["describe_table", "查看表结构"],
     ]),
-    usageExample: "在 notes 表里插入一条今天的备忘，再查出最近五条。",
+    usageExamples: ["在 notes 表里插入一条今天的备忘，再查出最近五条。"],
     faqs: [
       {
         question: "支持并发写入吗？",
@@ -379,7 +349,6 @@ export const MOCK_MCP_LIST: McpListItem[] = MOCK_MCP_DETAILS.map((d) => ({
   name: d.name,
   slogan: d.slogan,
   category: d.category,
-  provider: d.provider,
   tags: d.tags,
   toolCount: d.toolCount,
   icon: d.icon,

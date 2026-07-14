@@ -6,8 +6,10 @@ import type {
   ListMcpResponse,
   McpCategory,
   McpDetail,
+  McpListItem,
   McpProbeRequest,
   McpProbeResult,
+  McpQuickStart,
 } from "../types/mcp";
 import {
   MCP_CATEGORY_LABELS,
@@ -81,8 +83,7 @@ async function fetchMcpListMock(
     const matchKeyword =
       !keyword ||
       item.name.toLowerCase().includes(keyword) ||
-      item.slogan.toLowerCase().includes(keyword) ||
-      item.provider.toLowerCase().includes(keyword);
+      item.slogan.toLowerCase().includes(keyword);
     return matchCategory && matchKeyword;
   });
   return delay({ items, total: items.length, categories: buildCategories() });
@@ -129,13 +130,72 @@ async function probeMcpToolsMock(
 }
 
 async function createMcpMock(params: CreateMcpParams): Promise<{ id: string }> {
-  // Mock create: no persistence, just echo a synthetic id.
-  const id = `mock-${Date.now()}`;
-  return delay({ id }, 400).then((r) => {
-    // eslint-disable-next-line no-console
-    console.info("[mcp-market] mock create", params);
-    return r;
-  });
+  // In-memory persistence: mutate the same arrays fetchMcpList/Detail read
+  // from, so a freshly-created MCP shows up at the top of the list and its
+  // detail modal opens without a "not found" error. Session-only — a page
+  // reload resets to the built-in fixtures, which is what we want for a
+  // prototype (no leaking mock state across sessions).
+  const id = slugify(params.name) || `mock-${Date.now()}`;
+  const uniqueId = MOCK_MCP_DETAILS.some((d) => d.id === id)
+    ? `${id}-${Date.now().toString(36)}`
+    : id;
+  const detail = buildDetailFromCreate(uniqueId, params);
+  MOCK_MCP_DETAILS.unshift(detail);
+  MOCK_MCP_LIST.unshift(projectListItem(detail));
+  return delay({ id: uniqueId }, 400);
+}
+
+/** Turn a create-form payload into a fully-populated detail record. */
+function buildDetailFromCreate(
+  id: string,
+  params: CreateMcpParams
+): McpDetail {
+  const quickStart: McpQuickStart = {
+    transport: params.transport,
+    serverName: params.name.trim(),
+    url: params.url || undefined,
+    authType: params.authType,
+    command: params.command || undefined,
+    args: params.args && params.args.length ? params.args : undefined,
+    env:
+      params.env && Object.keys(params.env).length ? params.env : undefined,
+  };
+  return {
+    id,
+    name: params.name.trim(),
+    slogan: params.slogan,
+    category: params.category,
+    tags: params.tags ?? [],
+    toolCount: params.tools.length,
+    icon: params.icon || "🧩",
+    quickStart,
+    tools: params.tools,
+    usageExamples: (params.usageExamples ?? []).filter((s) => s.trim()),
+    faqs: (params.faqs ?? []).filter((f) => f.question.trim()),
+    notes: (params.notes ?? []).filter((s) => s.trim()),
+  };
+}
+
+/** Derive the list-card projection from a full detail. */
+function projectListItem(d: McpDetail): McpListItem {
+  return {
+    id: d.id,
+    name: d.name,
+    slogan: d.slogan,
+    category: d.category,
+    tags: d.tags,
+    toolCount: d.toolCount,
+    icon: d.icon,
+  };
+}
+
+/** ASCII/CJK-safe slug for the mock id. Falls back to "" so caller adds ts. */
+function slugify(s: string): string {
+  return s
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "-")
+    .replace(/[^a-z0-9一-龥-]/g, "");
 }
 
 // ─── Real implementations (placeholders — wire up when backend lands) ───────

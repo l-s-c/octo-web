@@ -52,26 +52,22 @@ export interface McpListItem {
   slogan: string;
   /** Category key used by the filter pills, e.g. "dev". */
   category: string;
-  /** Provider / publisher label. */
-  provider: string;
   /** Short tag labels shown on the card, e.g. ["官方", "热门"]. */
   tags: string[];
   /** Number of tools this server exposes (shown on the card footer). */
   toolCount: number;
-  /** Icon glyph / emoji used as the card avatar. */
+  /** Icon: single emoji/char OR image URL / data URL. */
   icon: string;
 }
 
 /** Full detail payload shown in the centered detail modal. */
 export interface McpDetail extends McpListItem {
-  /** Long description shown under the title. */
-  description: string;
   /** Structured quick-access data — the 3 tabs are generated from this. */
   quickStart: McpQuickStart;
   /** The tools grid (2 columns) in the detail modal. */
   tools: McpTool[];
-  /** A usage example (rendered as a quote block). */
-  usageExample: string;
+  /** Usage examples — each item rendered as its own quote block. */
+  usageExamples: string[];
   /** Common questions. */
   faqs: McpFaq[];
   /** Cautions / notes (rendered as a warning block, one string per line). */
@@ -130,25 +126,43 @@ export interface McpProbeResult {
 }
 
 /**
- * Payload for creating a new MCP server entry. The fields here map 1:1 onto
- * the fields surfaced in the detail modal, per the product spec.
+ * Payload for creating a new MCP server entry. Fields map 1:1 onto the
+ * fields surfaced in the detail modal — anything the detail page renders
+ * must have a matching entry here so the create → detail round-trip has
+ * no blanks.
  */
 export interface CreateMcpParams {
   name: string;
-  provider: string;
   category: string;
+  /** Icon: single emoji/char OR uploaded image (data URL). */
+  icon: string;
+  /** Card + detail tag chips, e.g. ["官方", "热门"]. */
+  tags: string[];
   slogan: string;
-  description: string;
   /** Transport kind (drives which connection fields apply). */
   transport: McpTransport;
   /** Remote endpoint (streamable-http / sse). */
   url?: string;
-  /** stdio command line. */
+  /** stdio command (executable). */
   command?: string;
+  /** stdio command args (positional, e.g. ["-y", "@x/y"]). */
+  args?: string[];
+  /** stdio process env (KEY=VAL). */
+  env?: Record<string, string>;
+  /** Remote request headers (streamable-http / sse). */
+  headers?: Record<string, string>;
+  /** Auth style for the remote transport ("bearer" enables token snippet). */
+  authType?: "bearer" | "none";
   /** The tool list — probed or hand-filled. */
   tools: McpTool[];
+  /** Usage examples — each one rendered as its own quote block. */
+  usageExamples?: string[];
+  /** Common questions rendered under ❓ on the detail page. */
+  faqs?: McpFaq[];
+  /** Cautions / notes rendered under ⚠️ on the detail page. */
+  notes?: string[];
   /** Visibility scope. */
   visibility: McpVisibility;
 }
 
-export type McpVisibility = "public" | "space" | "private";
+export type McpVisibility = "public" | "private";
