@@ -45,7 +45,7 @@ const McpCard: React.FC<McpCardProps> = ({ item, onClick }) => {
         <span>
           {t("mcp.card.toolCount", { values: { count: item.toolCount } })}
         </span>
-        <span className="wk-mcp-card__link">{t("mcp.card.viewDetail")}</span>
+        <span className="wk-mcp-card__link">{t("mcp.card.viewDetail")} →</span>
       </div>
     </div>
   );

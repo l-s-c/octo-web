@@ -13,12 +13,18 @@
     "empty": "没有匹配的 MCP 服务"
   },
   "card": {
-    "toolCount": "{{count}} 个工具",
+    "toolCount": "工具数量: {{count}} 个",
     "viewDetail": "查看详情"
   },
   "detail": {
     "title": "MCP 详情",
     "quickAccess": "快速接入",
+    "qsTab": {
+      "prompt": "提示词",
+      "cli": "命令行",
+      "json": "JSON"
+    },
+    "tokenHint": "配置里的 <把这里换成你的 Token> 请替换成你自己的 Token 后再使用。",
     "copy": "复制",
     "copied": "已复制到剪贴板",
     "copyFailed": "复制失败",
@@ -35,6 +41,12 @@
     "provider": "提供方",
     "providerPlaceholder": "例如 GitHub 官方",
     "category": "分类",
+    "transportLabel": "传输方式",
+    "transport": {
+      "stdio": "本地命令 (stdio)",
+      "streamable-http": "远程 HTTP (streamable-http)",
+      "sse": "远程 SSE (sse)"
+    },
     "visibility": "可见范围",
     "visPublic": "公开",
     "visSpace": "本空间",
@@ -43,9 +55,22 @@
     "sloganPlaceholder": "一句话描述这个 MCP 能做什么",
     "description": "详细说明",
     "descriptionPlaceholder": "介绍能力、适用场景等",
-    "config": "连接配置",
-    "configPlaceholder": "粘贴 mcpServers 配置 JSON",
-    "configHint": "接入真实后端前，提交仅走本地 Mock，不会实际持久化。",
+    "url": "服务地址",
+    "urlPlaceholder": "例如 https://mcp.example.com/xxx/mcp",
+    "command": "启动命令",
+    "commandPlaceholder": "例如 npx -y @modelcontextprotocol/server-xxx",
+    "tools": "工具清单",
+    "probe": "试连 / 获取工具列表",
+    "probeSuccess": "已获取 {{count}} 个工具",
+    "probeFailed": "探测失败",
+    "probeError": {
+      "command_not_found": "找不到启动命令，请检查命令是否正确。",
+      "timeout": "探测超时，请稍后重试。",
+      "init_failed": "连接配置不完整，无法探测工具列表。",
+      "no_tools_capability": "该 MCP 未提供工具列表能力。"
+    },
+    "toolsEmpty": "尚未获取工具，可点击「试连 / 获取工具列表」自动探测，或手动补充。",
+    "toolsHint": "接入真实后端前，探测走本地 Mock，返回一组示例工具。",
     "submit": "提交",
     "success": "创建成功（Mock）",
     "failed": "创建失败"

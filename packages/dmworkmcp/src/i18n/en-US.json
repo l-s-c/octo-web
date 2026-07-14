@@ -13,12 +13,18 @@
     "empty": "No matching MCP servers"
   },
   "card": {
-    "toolCount": "{{count}} tools",
+    "toolCount": "Tools: {{count}}",
     "viewDetail": "View details"
   },
   "detail": {
     "title": "MCP Details",
     "quickAccess": "Quick access",
+    "qsTab": {
+      "prompt": "Prompt",
+      "cli": "CLI",
+      "json": "JSON"
+    },
+    "tokenHint": "Replace the <把这里换成你的 Token> placeholder in the config with your own token before use.",
     "copy": "Copy",
     "copied": "Copied to clipboard",
     "copyFailed": "Copy failed",
@@ -35,6 +41,12 @@
     "provider": "Provider",
     "providerPlaceholder": "e.g. GitHub Official",
     "category": "Category",
+    "transportLabel": "Transport",
+    "transport": {
+      "stdio": "Local command (stdio)",
+      "streamable-http": "Remote HTTP (streamable-http)",
+      "sse": "Remote SSE (sse)"
+    },
     "visibility": "Visibility",
     "visPublic": "Public",
     "visSpace": "This space",
@@ -43,9 +55,22 @@
     "sloganPlaceholder": "One line describing what this MCP does",
     "description": "Description",
     "descriptionPlaceholder": "Capabilities, use cases, etc.",
-    "config": "Connection config",
-    "configPlaceholder": "Paste the mcpServers JSON config",
-    "configHint": "Before the real backend is wired up, submitting only hits the local mock and does not persist.",
+    "url": "Server URL",
+    "urlPlaceholder": "e.g. https://mcp.example.com/xxx/mcp",
+    "command": "Launch command",
+    "commandPlaceholder": "e.g. npx -y @modelcontextprotocol/server-xxx",
+    "tools": "Tools",
+    "probe": "Test / fetch tools",
+    "probeSuccess": "Fetched {{count}} tools",
+    "probeFailed": "Probe failed",
+    "probeError": {
+      "command_not_found": "Launch command not found. Please check the command.",
+      "timeout": "Probe timed out. Please try again later.",
+      "init_failed": "Connection config is incomplete; cannot fetch the tool list.",
+      "no_tools_capability": "This MCP does not expose a tool list."
+    },
+    "toolsEmpty": "No tools yet. Click \"Test / fetch tools\" to probe automatically, or add them manually.",
+    "toolsHint": "Before the real backend is wired up, probing hits the local mock and returns a sample tool set.",
     "submit": "Submit",
     "success": "Created (mock)",
     "failed": "Create failed"

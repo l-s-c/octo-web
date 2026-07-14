@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { WKModal, WKButton, t } from "@octo/base";
 import { Toast, Spin } from "@douyinfe/semi-ui";
-import { getMcpDetail } from "../api/mcpService";
-import type { McpDetail } from "../types/mcp";
+import { fetchMcpDetail } from "../api/mcpService";
+import { buildQuickStartTabs } from "../api/quickStartTemplates";
+import type { McpDetail, McpQuickStart } from "../types/mcp";
 
 interface McpDetailModalProps {
   /** The id of the MCP to show; null closes the modal. */
@@ -11,8 +12,62 @@ interface McpDetailModalProps {
 }
 
 /**
+ * The ⚡快速接入 block. Three tabs (提示词 / 命令行 / JSON) are all generated
+ * from the structured `quickStart` payload; the token position always renders
+ * as the `<把这里换成你的 Token>` placeholder. Default tab = 提示词.
+ */
+const QuickAccess: React.FC<{ quickStart: McpQuickStart }> = ({
+  quickStart,
+}) => {
+  const tabs = useMemo(() => buildQuickStartTabs(quickStart), [quickStart]);
+  const [active, setActive] = useState(tabs[0]?.key ?? "prompt");
+  const current = tabs.find((tab) => tab.key === active) ?? tabs[0];
+
+  const handleCopy = async () => {
+    if (!current) return;
+    try {
+      await navigator.clipboard.writeText(current.content);
+      Toast.success(t("mcp.detail.copied"));
+    } catch {
+      Toast.error(t("mcp.detail.copyFailed"));
+    }
+  };
+
+  return (
+    <div className="wk-mcp-qa">
+      <div className="wk-mcp-qa__tabs">
+        {tabs.map((tab) => (
+          <button
+            key={tab.key}
+            type="button"
+            className={
+              tab.key === active
+                ? "wk-mcp-qa__tab wk-mcp-qa__tab--active"
+                : "wk-mcp-qa__tab"
+            }
+            onClick={() => setActive(tab.key)}
+          >
+            {t(`mcp.detail.qsTab.${tab.labelKey}`)}
+          </button>
+        ))}
+      </div>
+      <div className="wk-mcp-code">
+        <div className="wk-mcp-code__copy">
+          <WKButton size="sm" variant="ghost" onClick={handleCopy}>
+            {t("mcp.detail.copy")}
+          </WKButton>
+        </div>
+        <pre className="wk-mcp-code__pre">{current?.content}</pre>
+      </div>
+      <div className="wk-mcp-qa__hint">{t("mcp.detail.tokenHint")}</div>
+    </div>
+  );
+};
+
+/**
  * Centered detail modal for an MCP server.
- * Section order (per product spec): 快速接入 → 工具清单 → 使用示例 → 常见问题 → 注意事项.
+ * Section order (per product spec):
+ * ⚡快速接入 → 🔧工具清单 → 💬使用示例 → ❓常见问题 → ⚠️注意事项.
  */
 const McpDetailModal: React.FC<McpDetailModalProps> = ({ mcpId, onClose }) => {
   const [detail, setDetail] = useState<McpDetail | null>(null);
@@ -25,7 +80,7 @@ const McpDetailModal: React.FC<McpDetailModalProps> = ({ mcpId, onClose }) => {
     }
     let cancelled = false;
     setLoading(true);
-    getMcpDetail(mcpId)
+    fetchMcpDetail(mcpId)
       .then((d) => {
         if (!cancelled) setDetail(d);
       })
@@ -43,16 +98,6 @@ const McpDetailModal: React.FC<McpDetailModalProps> = ({ mcpId, onClose }) => {
       cancelled = true;
     };
   }, [mcpId]);
-
-  const handleCopy = async () => {
-    if (!detail) return;
-    try {
-      await navigator.clipboard.writeText(detail.quickAccessConfig);
-      Toast.success(t("mcp.detail.copied"));
-    } catch {
-      Toast.error(t("mcp.detail.copyFailed"));
-    }
-  };
 
   return (
     <WKModal
@@ -94,24 +139,19 @@ const McpDetailModal: React.FC<McpDetailModalProps> = ({ mcpId, onClose }) => {
 
           <div className="wk-mcp-detail__desc">{detail.description}</div>
 
-          {/* 1. 快速接入 */}
+          {/* 1. ⚡快速接入 */}
           <section className="wk-mcp-section">
             <h4 className="wk-mcp-section__title">
-              {t("mcp.detail.quickAccess")}
+              ⚡ {t("mcp.detail.quickAccess")}
             </h4>
-            <div className="wk-mcp-code">
-              <div className="wk-mcp-code__copy">
-                <WKButton size="sm" variant="ghost" onClick={handleCopy}>
-                  {t("mcp.detail.copy")}
-                </WKButton>
-              </div>
-              <pre className="wk-mcp-code__pre">{detail.quickAccessConfig}</pre>
-            </div>
+            <QuickAccess quickStart={detail.quickStart} />
           </section>
 
-          {/* 2. 工具清单 */}
+          {/* 2. 🔧工具清单 */}
           <section className="wk-mcp-section">
-            <h4 className="wk-mcp-section__title">{t("mcp.detail.tools")}</h4>
+            <h4 className="wk-mcp-section__title">
+              🔧 {t("mcp.detail.tools")}
+            </h4>
             <div className="wk-mcp-tools">
               {detail.tools.map((tool) => (
                 <div className="wk-mcp-tool" key={tool.name}>
@@ -122,15 +162,17 @@ const McpDetailModal: React.FC<McpDetailModalProps> = ({ mcpId, onClose }) => {
             </div>
           </section>
 
-          {/* 3. 使用示例 */}
+          {/* 3. 💬使用示例 */}
           <section className="wk-mcp-section">
-            <h4 className="wk-mcp-section__title">{t("mcp.detail.example")}</h4>
+            <h4 className="wk-mcp-section__title">
+              💬 {t("mcp.detail.example")}
+            </h4>
             <div className="wk-mcp-example">{detail.usageExample}</div>
           </section>
 
-          {/* 4. 常见问题 */}
+          {/* 4. ❓常见问题 */}
           <section className="wk-mcp-section">
-            <h4 className="wk-mcp-section__title">{t("mcp.detail.faq")}</h4>
+            <h4 className="wk-mcp-section__title">❓ {t("mcp.detail.faq")}</h4>
             <div className="wk-mcp-faq">
               {detail.faqs.map((faq) => (
                 <div className="wk-mcp-faq__item" key={faq.question}>
@@ -141,9 +183,11 @@ const McpDetailModal: React.FC<McpDetailModalProps> = ({ mcpId, onClose }) => {
             </div>
           </section>
 
-          {/* 5. 注意事项 */}
+          {/* 5. ⚠️注意事项 */}
           <section className="wk-mcp-section">
-            <h4 className="wk-mcp-section__title">{t("mcp.detail.notes")}</h4>
+            <h4 className="wk-mcp-section__title">
+              ⚠️ {t("mcp.detail.notes")}
+            </h4>
             <div className="wk-mcp-notes">
               {detail.notes.map((note, i) => (
                 <div className="wk-mcp-notes__item" key={i}>

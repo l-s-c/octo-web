@@ -1,4 +1,4 @@
-import type { McpDetail, McpListItem } from "../types/mcp";
+import type { McpDetail, McpListItem, McpQuickStart } from "../types/mcp";
 
 // ═══════════════════════════════════════════════════════════════════════════
 // MOCK DATA
@@ -35,6 +35,31 @@ function tools(
   return names.map(([name, description]) => ({ name, description }));
 }
 
+/** Helper: a hosted (remote) quick-start with bearer auth. */
+function remoteQuickStart(name: string): McpQuickStart {
+  return {
+    transport: "streamable-http",
+    serverName: name,
+    url: `https://mcp.deepminer.com.cn/${name}/mcp`,
+    authType: "bearer",
+  };
+}
+
+/** Helper: a stdio (local command) quick-start. */
+function stdioQuickStart(
+  name: string,
+  args: string[],
+  env?: Record<string, string>
+): McpQuickStart {
+  return {
+    transport: "stdio",
+    serverName: name,
+    command: "npx",
+    args,
+    env,
+  };
+}
+
 export const MOCK_MCP_DETAILS: McpDetail[] = [
   {
     id: "github",
@@ -47,15 +72,7 @@ export const MOCK_MCP_DETAILS: McpDetail[] = [
     icon: "🐙",
     description:
       "GitHub MCP Server 提供对仓库、Issue、Pull Request、Actions 的完整读写能力，智能体可基于自然语言完成代码托管平台上的日常操作。",
-    quickAccessConfig: `{
-  "mcpServers": {
-    "github": {
-      "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-github"],
-      "env": { "GITHUB_TOKEN": "<your-token>" }
-    }
-  }
-}`,
+    quickStart: remoteQuickStart("github"),
     tools: tools([
       ["list_repositories", "列出当前账号可访问的仓库"],
       ["create_issue", "在指定仓库创建 Issue"],
@@ -96,15 +113,11 @@ export const MOCK_MCP_DETAILS: McpDetail[] = [
     icon: "🐘",
     description:
       "以只读连接接入 PostgreSQL，智能体可根据自然语言生成并执行查询，返回结构化结果与解释，适合数据分析与自助 BI 场景。",
-    quickAccessConfig: `{
-  "mcpServers": {
-    "postgres": {
-      "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-postgres",
-               "postgresql://<user>:<pwd>@<host>:5432/<db>"]
-    }
-  }
-}`,
+    quickStart: stdioQuickStart("postgres", [
+      "-y",
+      "@modelcontextprotocol/server-postgres",
+      "postgresql://<user>:<pwd>@<host>:5432/<db>",
+    ]),
     tools: tools([
       ["query", "执行只读 SQL 查询"],
       ["list_tables", "列出数据库中的表"],
@@ -135,15 +148,11 @@ export const MOCK_MCP_DETAILS: McpDetail[] = [
     icon: "🦁",
     description:
       "通过 Brave Search API 提供网页与新闻检索，让智能体获取超出训练截止日期的实时信息。",
-    quickAccessConfig: `{
-  "mcpServers": {
-    "brave-search": {
-      "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-brave-search"],
-      "env": { "BRAVE_API_KEY": "<your-key>" }
-    }
-  }
-}`,
+    quickStart: stdioQuickStart(
+      "brave-search",
+      ["-y", "@modelcontextprotocol/server-brave-search"],
+      { BRAVE_API_KEY: "<your-key>" }
+    ),
     tools: tools([
       ["web_search", "网页搜索"],
       ["news_search", "新闻搜索"],
@@ -169,15 +178,11 @@ export const MOCK_MCP_DETAILS: McpDetail[] = [
     icon: "📁",
     description:
       "在你显式授权的目录范围内，提供文件读写、目录遍历、搜索等能力，是本地自动化任务的基础组件。",
-    quickAccessConfig: `{
-  "mcpServers": {
-    "filesystem": {
-      "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-filesystem",
-               "/path/to/allowed/dir"]
-    }
-  }
-}`,
+    quickStart: stdioQuickStart("filesystem", [
+      "-y",
+      "@modelcontextprotocol/server-filesystem",
+      "/path/to/allowed/dir",
+    ]),
     tools: tools([
       ["read_file", "读取文件内容"],
       ["write_file", "写入文件"],
@@ -206,15 +211,11 @@ export const MOCK_MCP_DETAILS: McpDetail[] = [
     icon: "💬",
     description:
       "提供 Slack 频道消息的读取与发送能力，适合把团队沟通接入自动化工作流。",
-    quickAccessConfig: `{
-  "mcpServers": {
-    "slack": {
-      "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-slack"],
-      "env": { "SLACK_BOT_TOKEN": "<xoxb-...>" }
-    }
-  }
-}`,
+    quickStart: stdioQuickStart(
+      "slack",
+      ["-y", "@modelcontextprotocol/server-slack"],
+      { SLACK_BOT_TOKEN: "<xoxb-...>" }
+    ),
     tools: tools([
       ["post_message", "向频道发送消息"],
       ["list_channels", "列出可访问频道"],
@@ -242,14 +243,10 @@ export const MOCK_MCP_DETAILS: McpDetail[] = [
     icon: "🎭",
     description:
       "基于 Puppeteer 提供网页自动化能力：导航、点击、填表、抓取内容与截图。",
-    quickAccessConfig: `{
-  "mcpServers": {
-    "puppeteer": {
-      "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-puppeteer"]
-    }
-  }
-}`,
+    quickStart: stdioQuickStart("puppeteer", [
+      "-y",
+      "@modelcontextprotocol/server-puppeteer",
+    ]),
     tools: tools([
       ["navigate", "打开指定 URL"],
       ["click", "点击页面元素"],
@@ -277,14 +274,7 @@ export const MOCK_MCP_DETAILS: McpDetail[] = [
     icon: "📄",
     description:
       "提供 Google Drive 文件搜索与内容读取，让智能体基于你的云端资料回答问题。",
-    quickAccessConfig: `{
-  "mcpServers": {
-    "gdrive": {
-      "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-gdrive"]
-    }
-  }
-}`,
+    quickStart: remoteQuickStart("gdrive"),
     tools: tools([
       ["search", "搜索云盘文件"],
       ["read_file", "读取文件内容"],
@@ -310,14 +300,10 @@ export const MOCK_MCP_DETAILS: McpDetail[] = [
     icon: "🧠",
     description:
       "基于知识图谱为智能体提供持久化记忆，跨会话记住实体、关系与偏好。",
-    quickAccessConfig: `{
-  "mcpServers": {
-    "memory": {
-      "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-memory"]
-    }
-  }
-}`,
+    quickStart: stdioQuickStart("memory", [
+      "-y",
+      "@modelcontextprotocol/server-memory",
+    ]),
     tools: tools([
       ["create_entity", "创建记忆实体"],
       ["add_relation", "建立实体关系"],
@@ -343,14 +329,7 @@ export const MOCK_MCP_DETAILS: McpDetail[] = [
     toolCount: 1,
     icon: "🌐",
     description: "获取网页内容并转换为 Markdown，便于智能体分析长文与文档。",
-    quickAccessConfig: `{
-  "mcpServers": {
-    "fetch": {
-      "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-fetch"]
-    }
-  }
-}`,
+    quickStart: remoteQuickStart("fetch"),
     tools: tools([["fetch", "抓取 URL 并转为 Markdown"]]),
     usageExample: "把这篇博客抓下来，提炼三条核心观点。",
     faqs: [
@@ -372,14 +351,11 @@ export const MOCK_MCP_DETAILS: McpDetail[] = [
     icon: "🗃️",
     description:
       "接入本地 SQLite 文件，提供表结构查看、查询与写入能力，适合原型与轻量场景。",
-    quickAccessConfig: `{
-  "mcpServers": {
-    "sqlite": {
-      "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-sqlite", "/path/to/db.sqlite"]
-    }
-  }
-}`,
+    quickStart: stdioQuickStart("sqlite", [
+      "-y",
+      "@modelcontextprotocol/server-sqlite",
+      "/path/to/db.sqlite",
+    ]),
     tools: tools([
       ["query", "执行 SQL 查询"],
       ["execute", "执行写入语句"],
@@ -408,3 +384,16 @@ export const MOCK_MCP_LIST: McpListItem[] = MOCK_MCP_DETAILS.map((d) => ({
   toolCount: d.toolCount,
   icon: d.icon,
 }));
+
+/**
+ * Fake tool set returned by the mock probe (试连/获取工具列表).
+ * TODO: 后端提供真实探测接口 — replace with the Electron main-process
+ * `mcp:probeTools` result (see LSC-70).
+ */
+export const MOCK_PROBED_TOOLS = tools([
+  ["list_resources", "列出可访问的资源"],
+  ["get_resource", "读取单个资源内容"],
+  ["search", "按关键词检索"],
+  ["create_item", "创建一条记录"],
+  ["update_item", "更新指定记录"],
+]);

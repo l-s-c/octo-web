@@ -6,12 +6,15 @@ import type {
   ListMcpResponse,
   McpCategory,
   McpDetail,
+  McpProbeRequest,
+  McpProbeResult,
 } from "../types/mcp";
 import {
   MCP_CATEGORY_LABELS,
   MCP_CATEGORY_ORDER,
   MOCK_MCP_DETAILS,
   MOCK_MCP_LIST,
+  MOCK_PROBED_TOOLS,
 } from "../mock/mcpMock";
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -26,6 +29,12 @@ import {
 //   ┌─────────────┐     ┌──────────────────┐     ┌─────────────┐
 //   │  Pages/UI   │ ──▶ │  this service    │ ──▶ │ mock OR api │
 //   └─────────────┘     └──────────────────┘     └─────────────┘
+//
+// Public surface (stable signatures — backend only replaces the impls):
+//   fetchMcpList(params)   → list + categories
+//   fetchMcpDetail(id)     → full detail
+//   probeMcpTools(req)     → "try connect / fetch tool list" (see LSC-70)
+//   createMcp(params)      → create a new MCP entry
 //
 // TODO(backend): when the real MCP-market API is ready, flip USE_MOCK to
 // false (or wire it to an env flag) and implement the `*Real` functions
@@ -62,7 +71,9 @@ function buildCategories(): McpCategory[] {
   }));
 }
 
-async function listMcpMock(params: ListMcpParams): Promise<ListMcpResponse> {
+async function fetchMcpListMock(
+  params: ListMcpParams
+): Promise<ListMcpResponse> {
   const keyword = (params.keyword ?? "").trim().toLowerCase();
   const category = params.category ?? "all";
   const items = MOCK_MCP_LIST.filter((item) => {
@@ -77,12 +88,44 @@ async function listMcpMock(params: ListMcpParams): Promise<ListMcpResponse> {
   return delay({ items, total: items.length, categories: buildCategories() });
 }
 
-async function getMcpDetailMock(id: string): Promise<McpDetail> {
+async function fetchMcpDetailMock(id: string): Promise<McpDetail> {
   const detail = MOCK_MCP_DETAILS.find((d) => d.id === id);
   if (!detail) {
     throw new Error(`MCP not found: ${id}`);
   }
   return delay(detail);
+}
+
+async function probeMcpToolsMock(
+  req: McpProbeRequest
+): Promise<McpProbeResult> {
+  // Mock probe: pretend to connect and fetch tools/list. Longer delay so the
+  // loading state is visible. Real probing (esp. stdio) must be done by the
+  // Electron main process — see LSC-70.
+  // TODO: 后端提供真实探测接口
+  const hasTarget = req.transport === "stdio" ? !!req.command : !!req.url;
+  if (!hasTarget) {
+    return delay(
+      {
+        ok: false,
+        tools: [],
+        // The UI translates by `code`; the service layer stays i18n-agnostic.
+        error: {
+          code: "init_failed" as const,
+          message: "",
+        },
+      },
+      600
+    );
+  }
+  return delay(
+    {
+      ok: true,
+      tools: MOCK_PROBED_TOOLS,
+      serverInfo: { name: req.transport, version: "mock" },
+    },
+    800
+  );
 }
 
 async function createMcpMock(params: CreateMcpParams): Promise<{ id: string }> {
@@ -142,14 +185,25 @@ async function post<T>(path: string, data?: unknown): Promise<T> {
   return resp.data?.data ?? resp.data;
 }
 
-async function listMcpReal(params: ListMcpParams): Promise<ListMcpResponse> {
+async function fetchMcpListReal(
+  params: ListMcpParams
+): Promise<ListMcpResponse> {
   // TODO(backend): adjust to the real response shape.
   return get<ListMcpResponse>("/servers", params as Record<string, unknown>);
 }
 
-async function getMcpDetailReal(id: string): Promise<McpDetail> {
+async function fetchMcpDetailReal(id: string): Promise<McpDetail> {
   // TODO(backend): adjust to the real response shape.
   return get<McpDetail>(`/servers/${encodeURIComponent(id)}`);
+}
+
+async function probeMcpToolsReal(
+  req: McpProbeRequest
+): Promise<McpProbeResult> {
+  // TODO(backend): stdio probing must run in the Electron main process
+  // (see LSC-70). This will call the `mcp:probeTools` IPC / local HTTP route
+  // rather than this remote axios path once that lands.
+  return post<McpProbeResult>("/probe", req);
 }
 
 async function createMcpReal(params: CreateMcpParams): Promise<{ id: string }> {
@@ -159,12 +213,23 @@ async function createMcpReal(params: CreateMcpParams): Promise<{ id: string }> {
 
 // ─── Public API (the only surface the UI imports) ──────────────────────────
 
-export function listMcp(params: ListMcpParams = {}): Promise<ListMcpResponse> {
-  return USE_MOCK ? listMcpMock(params) : listMcpReal(params);
+export function fetchMcpList(
+  params: ListMcpParams = {}
+): Promise<ListMcpResponse> {
+  return USE_MOCK ? fetchMcpListMock(params) : fetchMcpListReal(params);
 }
 
-export function getMcpDetail(id: string): Promise<McpDetail> {
-  return USE_MOCK ? getMcpDetailMock(id) : getMcpDetailReal(id);
+export function fetchMcpDetail(id: string): Promise<McpDetail> {
+  return USE_MOCK ? fetchMcpDetailMock(id) : fetchMcpDetailReal(id);
+}
+
+/**
+ * Try-connect + fetch tool list. Mock returns a fake tool set after a delay;
+ * the real implementation is provided by the Electron main process.
+ * TODO: 后端提供真实探测接口
+ */
+export function probeMcpTools(req: McpProbeRequest): Promise<McpProbeResult> {
+  return USE_MOCK ? probeMcpToolsMock(req) : probeMcpToolsReal(req);
 }
 
 export function createMcp(params: CreateMcpParams): Promise<{ id: string }> {

@@ -2,7 +2,7 @@ import React, { Component } from "react";
 import { Spin, Toast } from "@douyinfe/semi-ui";
 import { IconSearch, IconPlus } from "@douyinfe/semi-icons";
 import { I18nContext, t, WKApp, WKInput, WKButton } from "@octo/base";
-import { listMcp } from "../api/mcpService";
+import { fetchMcpList } from "../api/mcpService";
 import type { McpCategory, McpListItem } from "../types/mcp";
 import McpCard from "../components/McpCard";
 import McpDetailModal from "../components/McpDetailModal";
@@ -65,7 +65,7 @@ export default class McpMarketListPage extends Component<
   async loadData() {
     this.setState({ loading: true });
     try {
-      const resp = await listMcp({
+      const resp = await fetchMcpList({
         keyword: this.state.keyword,
         category: this.state.category,
       });

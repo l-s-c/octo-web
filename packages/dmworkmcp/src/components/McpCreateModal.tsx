@@ -1,9 +1,14 @@
 import React, { useState } from "react";
-import { WKModal, WKInput, t } from "@octo/base";
+import { WKModal, WKInput, WKButton, t } from "@octo/base";
 import { Select, TextArea, Toast } from "@douyinfe/semi-ui";
-import { createMcp } from "../api/mcpService";
+import { createMcp, probeMcpTools } from "../api/mcpService";
 import { MCP_CATEGORY_LABELS, MCP_CATEGORY_ORDER } from "../mock/mcpMock";
-import type { CreateMcpParams, McpVisibility } from "../types/mcp";
+import type {
+  CreateMcpParams,
+  McpProbeRequest,
+  McpTransport,
+  McpVisibility,
+} from "../types/mcp";
 
 interface McpCreateModalProps {
   visible: boolean;
@@ -17,13 +22,26 @@ const EMPTY: CreateMcpParams = {
   category: "dev",
   slogan: "",
   description: "",
-  quickAccessConfig: "",
+  transport: "stdio",
+  url: "",
+  command: "",
+  tools: [],
   visibility: "space",
 };
+
+const TRANSPORT_OPTIONS: McpTransport[] = ["stdio", "streamable-http", "sse"];
+
+/** Whether the chosen transport is a remote (network) one. */
+function isRemote(transport: McpTransport): boolean {
+  return transport === "streamable-http" || transport === "sse";
+}
 
 /**
  * Create-MCP modal. Fields map 1:1 onto the detail modal's display fields.
  * Two-column compact layout so the form fits one screen without scrolling.
+ *
+ * The 「试连/获取工具列表」button calls `probeMcpTools` (mock this round) and
+ * backfills the tool list from the result. TODO: 后端提供真实探测接口.
  */
 const McpCreateModal: React.FC<McpCreateModalProps> = ({
   visible,
@@ -32,12 +50,47 @@ const McpCreateModal: React.FC<McpCreateModalProps> = ({
 }) => {
   const [form, setForm] = useState<CreateMcpParams>(EMPTY);
   const [submitting, setSubmitting] = useState(false);
+  const [probing, setProbing] = useState(false);
 
   const update = <K extends keyof CreateMcpParams>(
     key: K,
     value: CreateMcpParams[K]
   ) => {
     setForm((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const handleProbe = async () => {
+    // Build the probe request from the current connection config. Real probing
+    // (esp. stdio) will run in the Electron main process — see LSC-70.
+    // TODO: 后端提供真实探测接口
+    const req: McpProbeRequest = isRemote(form.transport)
+      ? { transport: form.transport, url: form.url }
+      : { transport: form.transport, command: form.command };
+    setProbing(true);
+    try {
+      const result = await probeMcpTools(req);
+      if (!result.ok) {
+        const code = result.error?.code;
+        Toast.error(
+          code
+            ? t(`mcp.create.probeError.${code}`)
+            : t("mcp.create.probeFailed")
+        );
+        return;
+      }
+      update("tools", result.tools);
+      Toast.success(
+        t("mcp.create.probeSuccess", {
+          values: { count: result.tools.length },
+        })
+      );
+    } catch (err: unknown) {
+      Toast.error(
+        err instanceof Error ? err.message : t("mcp.create.probeFailed")
+      );
+    } finally {
+      setProbing(false);
+    }
   };
 
   const handleSubmit = async () => {
@@ -65,6 +118,11 @@ const McpCreateModal: React.FC<McpCreateModalProps> = ({
       label: MCP_CATEGORY_LABELS[k],
     })
   );
+
+  const transportOptions = TRANSPORT_OPTIONS.map((tr) => ({
+    value: tr,
+    label: t(`mcp.create.transport.${tr}`),
+  }));
 
   const visibilityOptions: { value: McpVisibility; label: string }[] = [
     { value: "public", label: t("mcp.create.visPublic") },
@@ -121,23 +179,14 @@ const McpCreateModal: React.FC<McpCreateModalProps> = ({
 
         <div className="wk-mcp-form__field">
           <label className="wk-mcp-form__label">
-            {t("mcp.create.visibility")}
+            {t("mcp.create.transportLabel")}
           </label>
-          <div className="wk-mcp-form__radios">
-            {visibilityOptions.map((opt) => (
-              <div
-                key={opt.value}
-                className={
-                  form.visibility === opt.value
-                    ? "wk-mcp-form__radio wk-mcp-form__radio--active"
-                    : "wk-mcp-form__radio"
-                }
-                onClick={() => update("visibility", opt.value)}
-              >
-                {opt.label}
-              </div>
-            ))}
-          </div>
+          <Select
+            style={{ width: "100%" }}
+            value={form.transport}
+            optionList={transportOptions}
+            onChange={(v) => update("transport", v as McpTransport)}
+          />
         </div>
 
         <div className="wk-mcp-form__field wk-mcp-form__field--full">
@@ -162,16 +211,78 @@ const McpCreateModal: React.FC<McpCreateModalProps> = ({
         </div>
 
         <div className="wk-mcp-form__field wk-mcp-form__field--full">
-          <label className="wk-mcp-form__label">{t("mcp.create.config")}</label>
-          <TextArea
-            value={form.quickAccessConfig}
-            onChange={(v) => update("quickAccessConfig", v)}
-            rows={3}
-            placeholder={t("mcp.create.configPlaceholder")}
-          />
-          <span className="wk-mcp-form__hint">
-            {t("mcp.create.configHint")}
-          </span>
+          <label className="wk-mcp-form__label">
+            {isRemote(form.transport)
+              ? t("mcp.create.url")
+              : t("mcp.create.command")}
+          </label>
+          {isRemote(form.transport) ? (
+            <WKInput
+              value={form.url ?? ""}
+              onChange={(v) => update("url", v)}
+              placeholder={t("mcp.create.urlPlaceholder")}
+            />
+          ) : (
+            <WKInput
+              value={form.command ?? ""}
+              onChange={(v) => update("command", v)}
+              placeholder={t("mcp.create.commandPlaceholder")}
+            />
+          )}
+        </div>
+
+        <div className="wk-mcp-form__field wk-mcp-form__field--full">
+          <div className="wk-mcp-form__tools-head">
+            <label className="wk-mcp-form__label">
+              {t("mcp.create.tools")}
+            </label>
+            <WKButton
+              size="sm"
+              variant="secondary"
+              loading={probing}
+              onClick={handleProbe}
+            >
+              {t("mcp.create.probe")}
+            </WKButton>
+          </div>
+          {form.tools.length === 0 ? (
+            <div className="wk-mcp-form__tools-empty">
+              {t("mcp.create.toolsEmpty")}
+            </div>
+          ) : (
+            <div className="wk-mcp-form__tools">
+              {form.tools.map((tool) => (
+                <div className="wk-mcp-form__tool" key={tool.name}>
+                  <span className="wk-mcp-form__tool-name">{tool.name}</span>
+                  <span className="wk-mcp-form__tool-desc">
+                    {tool.description}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+          <span className="wk-mcp-form__hint">{t("mcp.create.toolsHint")}</span>
+        </div>
+
+        <div className="wk-mcp-form__field wk-mcp-form__field--full">
+          <label className="wk-mcp-form__label">
+            {t("mcp.create.visibility")}
+          </label>
+          <div className="wk-mcp-form__radios">
+            {visibilityOptions.map((opt) => (
+              <div
+                key={opt.value}
+                className={
+                  form.visibility === opt.value
+                    ? "wk-mcp-form__radio wk-mcp-form__radio--active"
+                    : "wk-mcp-form__radio"
+                }
+                onClick={() => update("visibility", opt.value)}
+              >
+                {opt.label}
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </WKModal>
