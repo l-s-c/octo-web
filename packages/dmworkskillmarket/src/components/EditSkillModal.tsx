@@ -181,6 +181,7 @@ export default function EditSkillModal({ skill, categories, onClose, onUpdated }
       return;
     }
     setUploadStage("error");
+    setUploadedFile(null);
     setError(parseErrors[Math.floor(Math.random() * parseErrors.length)]);
   }
 
@@ -233,7 +234,7 @@ export default function EditSkillModal({ skill, categories, onClose, onUpdated }
               variant="primary"
               onClick={() => void submit()}
               loading={saving}
-              disabled={busy || !name.trim() || !description.trim()}
+              disabled={busy || uploadStage === "error" || !name.trim() || !description.trim()}
             >
               保存
             </WKButton>

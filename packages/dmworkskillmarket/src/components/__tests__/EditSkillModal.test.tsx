@@ -117,4 +117,29 @@ describe("EditSkillModal", () => {
       readmeContent: expect.stringContaining("updated-skill"),
     }));
   });
+
+  it("does not save file metadata when re-upload parsing fails", async () => {
+    vi.useFakeTimers();
+    vi.mocked(Math.random).mockReturnValue(0.95);
+    render(<EditSkillModal skill={skill} categories={categories} onClose={vi.fn()} onUpdated={vi.fn()} />);
+
+    fireEvent.click(screen.getByText("重新上传 zip 包"));
+    fireEvent.change(screen.getByLabelText("选择新的 Skill zip 文件"), {
+      target: { files: [new File(["bad"], "broken-skill.zip", { type: "application/zip" })] },
+    });
+
+    await act(async () => {
+      vi.advanceTimersByTime(2000);
+      await vi.runOnlyPendingTimersAsync();
+    });
+    await act(async () => {
+      vi.advanceTimersByTime(1500);
+      await vi.runOnlyPendingTimersAsync();
+    });
+
+    expect(screen.getByText(/zip 包中未找到 SKILL.md|文件格式不正确|压缩包已损坏/)).toBeInTheDocument();
+    expect(screen.getByText("meeting-note-cleaner.zip")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "保存" })).toBeDisabled();
+    expect(api.updateSkill).not.toHaveBeenCalled();
+  });
 });
