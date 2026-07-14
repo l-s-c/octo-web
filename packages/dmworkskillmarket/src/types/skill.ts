@@ -1,5 +1,7 @@
 export type Visibility = "public" | "space" | "private";
 
+// ─── Frontend (camelCase) types ────────────────────────────────────────────
+
 export interface Category {
   id: string;
   name: string;
@@ -23,6 +25,7 @@ export interface Skill {
   fileName: string;
   fileUrl: string;
   fileSize: number;
+  fileSha256?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -41,8 +44,8 @@ export interface PagedResult<T> {
 }
 
 export interface ApiResponse<T> {
-  code: number;
-  message: string;
+  code: number | string;
+  message?: string;
   data: T;
 }
 
@@ -59,3 +62,40 @@ export interface NewSkillForm {
 }
 
 export type UpdateSkillForm = Partial<NewSkillForm>;
+
+// ─── Backend (snake_case) raw response types ───────────────────────────────
+
+/** Raw category as returned by GET /api/v1/skill/categories */
+export interface RawCategory {
+  id: string;
+  name: string;
+  icon_key: string;
+  skill_count: number;
+}
+
+/** Raw skill as returned by GET /api/v1/skill and GET /api/v1/skill/:id */
+export interface RawSkill {
+  id: string;
+  name: string;
+  description: string;
+  category_id: string;
+  tags: string[];
+  owner_id: string;
+  owner_name: string;
+  space_id: string;
+  visibility: Visibility;
+  version: string;
+  readme_content: string;
+  file_name: string;
+  file_url: string;
+  file_size: number;
+  file_sha256: string;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Raw paged response from list endpoints */
+export interface RawPagedResult<T> {
+  items: T[];
+  next_cursor: string | null;
+}
