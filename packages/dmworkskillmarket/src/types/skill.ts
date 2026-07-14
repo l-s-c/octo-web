@@ -52,6 +52,7 @@ export interface NewSkillForm {
   categoryId: string;
   tags: string[];
   visibility: Visibility;
+  version?: string;
   readmeContent: string;
   fileName: string;
   fileSize: number;

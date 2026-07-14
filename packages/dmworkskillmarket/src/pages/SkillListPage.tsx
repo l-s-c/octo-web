@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { AlertCircle, PackageOpen, Plus, RefreshCw } from "lucide-react";
-import { WKButton } from "@octo/base";
+import { WKApp, WKButton } from "@octo/base";
 import type { Skill } from "../types/skill";
 import { useSkills } from "../hooks/useSkills";
 import CategoryChips from "../components/CategoryChips";
@@ -44,6 +44,14 @@ export default function SkillListPage({ mine = false }: SkillListPageProps) {
   function handleDeleted() {
     setToast("已删除");
     list.refresh();
+  }
+
+  function handleCreated() {
+    setToast("创建成功");
+    list.refresh();
+    if (!mine) {
+      WKApp.routeRight.replaceToRoot(<SkillListPage mine />);
+    }
   }
 
   return (
@@ -139,7 +147,7 @@ export default function SkillListPage({ mine = false }: SkillListPageProps) {
         visible={createVisible}
         categories={list.categories}
         onClose={() => setCreateVisible(false)}
-        onCreated={list.refresh}
+        onCreated={handleCreated}
       />
       <EditSkillModal
         skill={editing}

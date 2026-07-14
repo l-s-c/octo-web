@@ -115,7 +115,7 @@ export function createSkill(form: NewSkillForm): Promise<Skill> {
     ownerName: CURRENT_USER_NAME,
     spaceId: CURRENT_SPACE_ID,
     visibility: form.visibility,
-    version: "1.0.0",
+    version: form.version ?? "1.0.0",
     readmeContent: form.readmeContent,
     fileName: form.fileName,
     fileUrl: `mock://skills/${id}.zip`,
@@ -133,6 +133,7 @@ export function updateSkill(id: string, form: UpdateSkillForm): Promise<Skill> {
   const updated: Skill = {
     ...skill,
     ...form,
+    version: form.version ?? skill.version,
     tags: form.tags ? [...form.tags] : [...skill.tags],
     updatedAt: new Date().toISOString(),
   };
