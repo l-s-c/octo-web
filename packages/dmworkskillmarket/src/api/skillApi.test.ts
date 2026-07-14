@@ -62,6 +62,16 @@ describe("skillApi mock contract", () => {
     expect(mine.items.every((skill) => skill.ownerId === "me")).toBe(true);
   });
 
+  it("search matches category name so users can find skills by visible category label", async () => {
+    const devTools = await getSkills({ q: "开发工具", limit: 50 });
+    const office = await getSkills({ q: "办公协作", limit: 50 });
+
+    expect(devTools.items.length).toBeGreaterThan(0);
+    expect(devTools.items.every((skill) => skill.categoryId === "dev-tools")).toBe(true);
+    expect(office.items.length).toBeGreaterThan(0);
+    expect(office.items.every((skill) => skill.categoryId === "office")).toBe(true);
+  });
+
   it("creates, updates, loads, and deletes a skill in the mock store", async () => {
     const created = await createSkill({
       name: "workflow-note-builder",

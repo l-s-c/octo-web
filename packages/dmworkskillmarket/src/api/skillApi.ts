@@ -36,6 +36,10 @@ function normalizeQuery(query?: string): string {
   return (query ?? "").trim().toLowerCase();
 }
 
+function getCategoryName(categoryId: string): string {
+  return CATEGORY_SEEDS.find((c) => c.id === categoryId)?.name ?? "";
+}
+
 function matchesQuery(skill: Skill, q: string): boolean {
   if (!q) return true;
   return [
@@ -44,6 +48,7 @@ function matchesQuery(skill: Skill, q: string): boolean {
     skill.ownerName,
     skill.visibility,
     skill.categoryId,
+    getCategoryName(skill.categoryId),
     ...skill.tags,
   ]
     .join(" ")

@@ -86,6 +86,22 @@ describe("SkillListPage", () => {
     await waitFor(() => expect(api.deleteSkill).toHaveBeenCalledWith("meeting-note-cleaner"));
   });
 
+  it("closes the detail modal when deleting a skill from within it", async () => {
+    render(<SkillListPage mine />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "meeting-note-cleaner @我" }));
+    expect(await screen.findByText(skill.description)).toBeInTheDocument();
+    expect(await screen.findByText(skill.fileName)).toBeInTheDocument();
+
+    fireEvent.click(screen.getAllByRole("button", { name: "删除 meeting-note-cleaner" })[1]);
+    expect(screen.getByText("确定删除「meeting-note-cleaner」？")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "删除" }));
+    await waitFor(() => expect(api.deleteSkill).toHaveBeenCalledWith("meeting-note-cleaner"));
+
+    await waitFor(() => expect(screen.queryByText(skill.fileName)).not.toBeInTheDocument());
+  });
+
   it("offers a clear-filter action when search returns no results", async () => {
     vi.mocked(api.getSkills).mockResolvedValue({ items: [], nextCursor: null });
     render(<SkillListPage />);

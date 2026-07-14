@@ -63,6 +63,9 @@ export default function SkillListPage({ mine = false }: SkillListPageProps) {
     : "浏览团队 Skill 市场，按分类和关键词快速找到可复用能力。";
 
   function handleDeleted() {
+    setDetailId(null);
+    setEditing(null);
+    setDeleting(null);
     showToast("已删除");
     list.refresh();
   }
