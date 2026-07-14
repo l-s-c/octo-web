@@ -155,6 +155,10 @@ function buildDetailFromCreate(
     serverName: params.name.trim(),
     url: params.url || undefined,
     authType: params.authType,
+    headers:
+      params.headers && Object.keys(params.headers).length
+        ? params.headers
+        : undefined,
     command: params.command || undefined,
     args: params.args && params.args.length ? params.args : undefined,
     env:
@@ -167,7 +171,7 @@ function buildDetailFromCreate(
     category: params.category,
     tags: params.tags ?? [],
     toolCount: params.tools.length,
-    icon: params.icon || "🧩",
+    icon: params.icon,
     quickStart,
     tools: params.tools,
     usageExamples: (params.usageExamples ?? []).filter((s) => s.trim()),

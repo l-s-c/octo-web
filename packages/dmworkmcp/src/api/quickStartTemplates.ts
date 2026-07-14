@@ -49,13 +49,15 @@ function jsonTypeField(qs: McpQuickStart): string {
 function buildJson(qs: McpQuickStart): string {
   const type = jsonTypeField(qs);
   if (isRemote(qs)) {
-    const headers =
-      qs.authType === "bearer"
-        ? {
-            headers: { Authorization: `Bearer ${TOKEN_PLACEHOLDER}` },
-          }
-        : {};
-    const server = { type, url: qs.url ?? "", ...headers };
+    // User-supplied headers first, so the auth line (if any) wins on collision.
+    const merged: Record<string, string> = { ...(qs.headers ?? {}) };
+    if (qs.authType === "bearer") {
+      merged.Authorization = `Bearer ${TOKEN_PLACEHOLDER}`;
+    }
+    const server: Record<string, unknown> = { type, url: qs.url ?? "" };
+    if (Object.keys(merged).length > 0) {
+      server.headers = merged;
+    }
     return JSON.stringify({ mcpServers: { [qs.serverName]: server } }, null, 2);
   }
   // stdio
@@ -86,10 +88,17 @@ function buildPrompt(qs: McpQuickStart): string {
       qs.authType === "bearer"
         ? `\n鉴权：请求头 Authorization: Bearer ${TOKEN_PLACEHOLDER}`
         : "";
+    const extraHeaders =
+      qs.headers && Object.keys(qs.headers).length > 0
+        ? "\n请求头：" +
+          Object.entries(qs.headers)
+            .map(([k, v]) => `${k}: ${v}`)
+            .join("，")
+        : "";
     return `帮我接入一个 MCP server：
 - 名称：${qs.serverName}
 - 传输方式：${qs.transport}
-- 地址：${qs.url ?? ""}${auth}
+- 地址：${qs.url ?? ""}${extraHeaders}${auth}
 请把它加到我的 MCP 配置里并确认连接可用。`;
   }
   const args = (qs.args ?? []).join(" ");

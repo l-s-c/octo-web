@@ -30,13 +30,8 @@ const McpCard: React.FC<McpCardProps> = ({ item, onClick }) => {
         <div className="wk-mcp-card__heading">
           <div className="wk-mcp-card__name">{item.name}</div>
           <div className="wk-mcp-card__tags">
-            {item.tags.map((tag, i) => (
-              <span
-                key={tag}
-                className={
-                  i === 0 ? "wk-mcp-tag wk-mcp-tag--accent" : "wk-mcp-tag"
-                }
-              >
+            {item.tags.map((tag) => (
+              <span key={tag} className="wk-mcp-tag wk-mcp-tag--accent">
                 {tag}
               </span>
             ))}

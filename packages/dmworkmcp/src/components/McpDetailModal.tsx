@@ -126,13 +126,8 @@ const McpDetailModal: React.FC<McpDetailModalProps> = ({ mcpId, onClose }) => {
             </div>
             <div className="wk-mcp-detail__meta-main">
               <div className="wk-mcp-card__tags">
-                {detail.tags.map((tag, i) => (
-                  <span
-                    key={tag}
-                    className={
-                      i === 0 ? "wk-mcp-tag wk-mcp-tag--accent" : "wk-mcp-tag"
-                    }
-                  >
+                {detail.tags.map((tag) => (
+                  <span key={tag} className="wk-mcp-tag wk-mcp-tag--accent">
                     {tag}
                   </span>
                 ))}

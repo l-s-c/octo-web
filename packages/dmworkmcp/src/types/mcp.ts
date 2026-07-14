@@ -37,6 +37,9 @@ export interface McpQuickStart {
   url?: string;
   /** Whether the remote endpoint needs a bearer token. */
   authType?: "bearer" | "none";
+  /** Extra request headers for the remote transport (merged into the JSON
+   *  snippet; the Bearer header from authType is appended on top). */
+  headers?: Record<string, string>;
   /** stdio command + args + env (stdio transport only). */
   command?: string;
   args?: string[];

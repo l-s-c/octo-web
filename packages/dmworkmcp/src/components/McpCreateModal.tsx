@@ -18,13 +18,12 @@ interface McpCreateModalProps {
   onCreated: () => void;
 }
 
-const DEFAULT_ICON = "🧩";
 const ICON_MAX_BYTES = 2 * 1024 * 1024;
 
 const EMPTY: CreateMcpParams = {
   name: "",
   category: "dev",
-  icon: DEFAULT_ICON,
+  icon: "",
   tags: [],
   slogan: "",
   transport: "streamable-http",
@@ -275,6 +274,16 @@ const McpCreateModal: React.FC<McpCreateModalProps> = ({
     setStep(0);
   };
 
+  /** Close = also wipe local form state so re-opening always starts fresh
+   *  (avoids leaked draft from a previous cancelled create). Blocked while
+   *  the create request is in flight so an accidental Esc doesn't strand
+   *  the user with a half-submitted payload. */
+  const handleClose = () => {
+    if (submitting) return;
+    resetAll();
+    onClose();
+  };
+
   // ── Step navigation ────────────────────────────────────────────────────
   const goNext = () => {
     if (step === 0 && !form.name.trim()) {
@@ -310,7 +319,7 @@ const McpCreateModal: React.FC<McpCreateModalProps> = ({
 
   const handleIconRemove = (e: React.MouseEvent) => {
     e.stopPropagation();
-    update("icon", DEFAULT_ICON);
+    update("icon", "");
   };
 
   // ── Probe ──────────────────────────────────────────────────────────────
@@ -467,7 +476,7 @@ const McpCreateModal: React.FC<McpCreateModalProps> = ({
   return (
     <WKModal
       visible={visible}
-      onCancel={onClose}
+      onCancel={handleClose}
       width={720}
       className="wk-mcp-create-modal"
       bodyStyle={{ maxHeight: "78vh", overflowY: "auto" }}
@@ -531,7 +540,11 @@ const McpCreateModal: React.FC<McpCreateModalProps> = ({
         >
           <div className="wk-mcp-field-row">
             <div
-              className="wk-mcp-icon-picker"
+              className={
+                iconIsImage
+                  ? "wk-mcp-icon-picker"
+                  : "wk-mcp-icon-picker wk-mcp-icon-picker--empty"
+              }
               onClick={handleIconPick}
               tabIndex={0}
               role="button"
@@ -544,8 +557,8 @@ const McpCreateModal: React.FC<McpCreateModalProps> = ({
                   alt=""
                 />
               ) : (
-                <span className="wk-mcp-icon-picker__glyph">
-                  {form.icon || DEFAULT_ICON}
+                <span className="wk-mcp-icon-picker__placeholder">
+                  {t("mcp.create.iconEmpty")}
                 </span>
               )}
               <div className="wk-mcp-icon-picker__overlay">

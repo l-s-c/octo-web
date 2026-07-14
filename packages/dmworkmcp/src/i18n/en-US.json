@@ -94,6 +94,7 @@
     "authTypeBearer": "Bearer Token",
     "authTypeNone": "None",
     "icon": "Icon",
+    "iconEmpty": "Upload",
     "iconUpload": "Upload image",
     "iconChange": "Change",
     "iconRemove": "Remove",
