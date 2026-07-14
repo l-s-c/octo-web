@@ -1,0 +1,53 @@
+{
+  "menu": {
+    "title": "MCP 市场"
+  },
+  "common": {
+    "loadFailed": "加载失败"
+  },
+  "list": {
+    "desc": "浏览并接入 MCP 服务，为你的智能体扩展工具能力。以下为演示数据（Mock）。",
+    "notice": "当前展示的是本地 Mock 数据，接入真实后端后此提示将移除。",
+    "create": "新建 MCP",
+    "searchPlaceholder": "搜索 MCP 名称 / 简介 / 提供方",
+    "empty": "没有匹配的 MCP 服务"
+  },
+  "card": {
+    "toolCount": "{{count}} 个工具",
+    "viewDetail": "查看详情"
+  },
+  "detail": {
+    "title": "MCP 详情",
+    "quickAccess": "快速接入",
+    "copy": "复制",
+    "copied": "已复制到剪贴板",
+    "copyFailed": "复制失败",
+    "tools": "工具清单",
+    "example": "使用示例",
+    "faq": "常见问题",
+    "notes": "注意事项"
+  },
+  "create": {
+    "title": "新建 MCP",
+    "name": "名称",
+    "namePlaceholder": "例如 GitHub MCP",
+    "nameRequired": "请填写名称",
+    "provider": "提供方",
+    "providerPlaceholder": "例如 GitHub 官方",
+    "category": "分类",
+    "visibility": "可见范围",
+    "visPublic": "公开",
+    "visSpace": "本空间",
+    "visPrivate": "仅自己",
+    "slogan": "简介",
+    "sloganPlaceholder": "一句话描述这个 MCP 能做什么",
+    "description": "详细说明",
+    "descriptionPlaceholder": "介绍能力、适用场景等",
+    "config": "连接配置",
+    "configPlaceholder": "粘贴 mcpServers 配置 JSON",
+    "configHint": "接入真实后端前，提交仅走本地 Mock，不会实际持久化。",
+    "submit": "提交",
+    "success": "创建成功（Mock）",
+    "failed": "创建失败"
+  }
+}

@@ -53,6 +53,7 @@
   },
   "dependencies": {
     "@dmwork/appbot": "workspace:*",
+    "@dmwork/mcp": "workspace:*",
     "@dmwork/summary": "workspace:*",
     "@douyinfe/semi-icons": "^2.93.0",
     "@douyinfe/semi-ui": "^2.93.0",

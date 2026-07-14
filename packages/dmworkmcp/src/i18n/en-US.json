@@ -1,0 +1,53 @@
+{
+  "menu": {
+    "title": "MCP Market"
+  },
+  "common": {
+    "loadFailed": "Failed to load"
+  },
+  "list": {
+    "desc": "Browse and connect MCP servers to extend your agent's tools. The data below is mock data.",
+    "notice": "Showing local mock data. This banner will be removed once the real backend is connected.",
+    "create": "New MCP",
+    "searchPlaceholder": "Search by name / summary / provider",
+    "empty": "No matching MCP servers"
+  },
+  "card": {
+    "toolCount": "{{count}} tools",
+    "viewDetail": "View details"
+  },
+  "detail": {
+    "title": "MCP Details",
+    "quickAccess": "Quick access",
+    "copy": "Copy",
+    "copied": "Copied to clipboard",
+    "copyFailed": "Copy failed",
+    "tools": "Tools",
+    "example": "Usage example",
+    "faq": "FAQ",
+    "notes": "Notes"
+  },
+  "create": {
+    "title": "New MCP",
+    "name": "Name",
+    "namePlaceholder": "e.g. GitHub MCP",
+    "nameRequired": "Name is required",
+    "provider": "Provider",
+    "providerPlaceholder": "e.g. GitHub Official",
+    "category": "Category",
+    "visibility": "Visibility",
+    "visPublic": "Public",
+    "visSpace": "This space",
+    "visPrivate": "Only me",
+    "slogan": "Summary",
+    "sloganPlaceholder": "One line describing what this MCP does",
+    "description": "Description",
+    "descriptionPlaceholder": "Capabilities, use cases, etc.",
+    "config": "Connection config",
+    "configPlaceholder": "Paste the mcpServers JSON config",
+    "configHint": "Before the real backend is wired up, submitting only hits the local mock and does not persist.",
+    "submit": "Submit",
+    "success": "Created (mock)",
+    "failed": "Create failed"
+  }
+}

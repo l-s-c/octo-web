@@ -158,6 +158,9 @@ importers:
       '@dmwork/appbot':
         specifier: workspace:*
         version: link:../../packages/dmworkappbot
+      '@dmwork/mcp':
+        specifier: workspace:*
+        version: link:../../packages/dmworkmcp
       '@dmwork/summary':
         specifier: workspace:*
         version: link:../../packages/dmworksummary
@@ -699,6 +702,37 @@ importers:
       vitest:
         specifier: ^4.1.5
         version: 4.1.5(@types/node@25.9.5)(@vitest/browser-playwright@4.1.5)(jsdom@29.0.2(@noble/hashes@2.2.0))(msw@2.15.0(@types/node@25.9.5)(typescript@5.9.3))(vite@8.0.7(@types/node@25.9.5)(esbuild@0.27.7)(jiti@2.6.1))
+
+  packages/dmworkmcp:
+    dependencies:
+      '@douyinfe/semi-icons':
+        specifier: ^2.93.0
+        version: 2.93.0(react@17.0.2)
+      '@douyinfe/semi-ui':
+        specifier: ^2.93.0
+        version: 2.93.0(@tiptap/suggestion@3.22.2(@tiptap/core@3.22.2(@tiptap/pm@3.22.2))(@tiptap/pm@3.22.2))(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@17.0.2(react@17.0.2))(react@17.0.2)
+      '@octo/base':
+        specifier: workspace:*
+        version: link:../dmworkbase
+      axios:
+        specifier: ^0.25.0
+        version: 0.25.0
+      classnames:
+        specifier: ^2.3.1
+        version: 2.5.1
+    devDependencies:
+      '@testing-library/jest-dom':
+        specifier: ^6.9.1
+        version: 6.9.1
+      '@testing-library/react':
+        specifier: ^13.4.0
+        version: 13.4.0(@types/react@19.2.14)(react-dom@17.0.2(react@17.0.2))(react@17.0.2)
+      react:
+        specifier: ^17.0.2
+        version: 17.0.2
+      react-dom:
+        specifier: ^17.0.2
+        version: 17.0.2(react@17.0.2)
 
   packages/dmworksummary:
     dependencies:
