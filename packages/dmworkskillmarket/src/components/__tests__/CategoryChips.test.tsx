@@ -20,6 +20,7 @@ describe("CategoryChips", () => {
     const list = screen.getByLabelText("Skill 分类");
     const buttons = within(list).getAllByRole("button");
     expect(buttons[0]).toHaveTextContent("全部");
+    expect(within(list).getByRole("button", { name: /洞察研究/ })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /代码质检/ })).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByRole("button", { name: /更多/ })).toBeInTheDocument();
   });

@@ -1,6 +1,13 @@
 import React from "react";
 
-export function WKButton({ children, icon, iconOnly, loading, disabled, ...props }: any) {
+interface WKButtonMockProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  icon?: React.ReactNode;
+  iconOnly?: boolean;
+  loading?: boolean;
+  variant?: string;
+}
+
+export function WKButton({ children, icon, iconOnly, loading, disabled, ...props }: WKButtonMockProps) {
   return (
     <button disabled={disabled || loading} {...props}>
       {loading ? "loading" : icon}
@@ -9,21 +16,39 @@ export function WKButton({ children, icon, iconOnly, loading, disabled, ...props
   );
 }
 
-export function WKInput({ value, onChange, prefix, placeholder, ...props }: any) {
+interface WKInputMockProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, "onChange" | "size"> {
+  prefix?: React.ReactNode;
+  size?: string;
+  onChange?: (value: string) => void;
+}
+
+export function WKInput({ value, onChange, prefix, placeholder, ...props }: WKInputMockProps) {
   return (
     <label>
       {prefix}
       <input
         value={value}
         placeholder={placeholder}
-        onChange={(event) => onChange(event.target.value)}
+        onChange={(event) => onChange?.(event.target.value)}
         {...props}
       />
     </label>
   );
 }
 
-export function WKModal({ visible, title, header, footer, children, onCancel }: any) {
+interface WKModalMockProps {
+  visible: boolean;
+  title?: React.ReactNode;
+  header?: React.ReactNode;
+  footer?: React.ReactNode;
+  children?: React.ReactNode;
+  onCancel?: () => void;
+  className?: string;
+  size?: string;
+  bodyStyle?: React.CSSProperties;
+}
+
+export function WKModal({ visible, title, header, footer, children, onCancel }: WKModalMockProps) {
   if (!visible) return null;
   return (
     <section role="dialog" aria-label={typeof title === "string" ? title : "modal"}>
@@ -40,3 +65,43 @@ export const Toast = {
   success: () => undefined,
   error: () => undefined,
 };
+
+export const WKApp = {
+  routeRight: {
+    replaceToRoot: () => undefined,
+  },
+  routeLeft: {
+    popToRoot: () => undefined,
+  },
+  route: {
+    register: () => undefined,
+  },
+  menus: {
+    register: () => undefined,
+  },
+};
+
+export const i18n = {
+  registerNamespace: () => undefined,
+};
+
+export function t(value: string) {
+  return value;
+}
+
+export class Menus {
+  id: string;
+  route: string;
+  title: string;
+  icon: React.ReactNode;
+  activeIcon: React.ReactNode;
+  onPress?: () => void;
+
+  constructor(id: string, route: string, title: string, icon: React.ReactNode, activeIcon: React.ReactNode) {
+    this.id = id;
+    this.route = route;
+    this.title = title;
+    this.icon = icon;
+    this.activeIcon = activeIcon;
+  }
+}

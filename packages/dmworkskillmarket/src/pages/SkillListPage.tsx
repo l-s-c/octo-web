@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { AlertCircle, PackageOpen, Plus, RefreshCw } from "lucide-react";
 import { WKApp, WKButton } from "@octo/base";
 import type { Skill } from "../types/skill";
@@ -9,11 +9,14 @@ import EditSkillModal from "../components/EditSkillModal";
 import NewSkillModal from "../components/NewSkillModal";
 import SearchBar from "../components/SearchBar";
 import SkillCard from "../components/SkillCard";
+import SkillCardSkeleton from "../components/SkillCardSkeleton";
 import SkillDetailModal from "../components/SkillDetailModal";
 
 interface SkillListPageProps {
   mine?: boolean;
 }
+
+const TOAST_DURATION = 3000;
 
 export default function SkillListPage({ mine = false }: SkillListPageProps) {
   const list = useSkills({ mine });
@@ -24,6 +27,23 @@ export default function SkillListPage({ mine = false }: SkillListPageProps) {
   const [toast, setToast] = useState<string | null>(null);
   const [detailRefreshKey, setDetailRefreshKey] = useState(0);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
+  const toastTimerRef = useRef<number | null>(null);
+
+  const showToast = useCallback((message: string) => {
+    if (toastTimerRef.current) window.clearTimeout(toastTimerRef.current);
+    setToast(message);
+    toastTimerRef.current = window.setTimeout(() => {
+      setToast(null);
+      toastTimerRef.current = null;
+    }, TOAST_DURATION);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current) window.clearTimeout(toastTimerRef.current);
+    };
+  }, []);
 
   useEffect(() => {
     const node = sentinelRef.current;
@@ -43,23 +63,42 @@ export default function SkillListPage({ mine = false }: SkillListPageProps) {
     : "浏览团队 Skill 市场，按分类和关键词快速找到可复用能力。";
 
   function handleDeleted() {
-    setToast("已删除");
+    showToast("已删除");
     list.refresh();
   }
 
   function handleCreated() {
-    setToast("创建成功");
+    showToast("创建成功");
     list.refresh();
     if (!mine) {
+      window.location.hash = "mine";
       WKApp.routeRight.replaceToRoot(<SkillListPage mine />);
     }
   }
 
   function handleUpdated() {
-    setToast("已保存");
+    showToast("已保存");
     list.refresh();
     setDetailRefreshKey((current) => current + 1);
   }
+
+  function clearFilters() {
+    list.setQuery("");
+    list.setCategoryId("all");
+    searchInputRef.current?.focus();
+  }
+
+  function clearSearch() {
+    list.setQuery("");
+    searchInputRef.current?.focus();
+  }
+
+  const hasQuery = list.query.trim().length > 0;
+  const hasCategoryFilter = !mine && list.categoryId !== "all";
+  const emptyTitle = hasCategoryFilter && !hasQuery ? "该分类暂无 Skill" : "没有找到匹配的 Skill";
+  const emptyDescription = hasCategoryFilter && !hasQuery
+    ? "可以切换到其他分类，或新建一个 Skill。"
+    : "换个关键词或分类后再试，也可以清空筛选条件";
 
   return (
     <div className="skill-market-page">
@@ -80,9 +119,11 @@ export default function SkillListPage({ mine = false }: SkillListPageProps) {
 
       <section className={mine ? "skill-market-toolbar skill-market-toolbar--mine" : "skill-market-toolbar"}>
         <SearchBar
+          ref={searchInputRef}
           value={list.query}
           onChange={list.setQuery}
           placeholder="搜索"
+          autoFocus
         />
         {!mine && (
           <CategoryChips
@@ -103,7 +144,7 @@ export default function SkillListPage({ mine = false }: SkillListPageProps) {
         {list.loading && (
           <div className="skill-market-grid" aria-label="Skill 加载中">
             {Array.from({ length: 6 }).map((_, index) => (
-              <div key={index} className="skill-market-card-skeleton" />
+              <SkillCardSkeleton key={index} />
             ))}
           </div>
         )}
@@ -120,8 +161,17 @@ export default function SkillListPage({ mine = false }: SkillListPageProps) {
         {!list.loading && !list.error && list.skills.length === 0 && (
           <div className="skill-market-state">
             <PackageOpen size={32} />
-            <strong>没有找到匹配的 Skill</strong>
-            <span>换个关键词或分类后再试</span>
+            <strong>{emptyTitle}</strong>
+            <span>{emptyDescription}</span>
+            {hasQuery ? (
+              <WKButton variant="secondary" onClick={clearSearch}>
+                清空搜索
+              </WKButton>
+            ) : (
+              <WKButton variant="secondary" onClick={clearFilters}>
+                清空筛选
+              </WKButton>
+            )}
           </div>
         )}
         {!list.loading && !list.error && list.skills.length > 0 && (
@@ -139,7 +189,12 @@ export default function SkillListPage({ mine = false }: SkillListPageProps) {
           </div>
         )}
         <div ref={sentinelRef} className="skill-market-sentinel">
-          {list.loadingMore ? "继续加载..." : list.hasMore ? "滚动加载更多" : "已加载全部"}
+          {list.loadingMore ? (
+            <span className="skill-market-sentinel__loading">
+              <RefreshCw size={13} />
+              继续加载...
+            </span>
+          ) : list.hasMore ? "滚动加载更多" : "已加载全部"}
         </div>
       </main>
 
@@ -150,6 +205,7 @@ export default function SkillListPage({ mine = false }: SkillListPageProps) {
         onClose={() => setDetailId(null)}
         onEdit={mine ? setEditing : undefined}
         onDelete={mine ? setDeleting : undefined}
+        onFeedback={showToast}
       />
       <NewSkillModal
         visible={createVisible}

@@ -15,6 +15,7 @@ interface SkillDetailModalProps {
   onClose: () => void;
   onEdit?: (skill: Skill) => void;
   onDelete?: (skill: Skill) => void;
+  onFeedback?: (message: string) => void;
 }
 
 function visibilityText(value: Skill["visibility"]): string {
@@ -23,10 +24,19 @@ function visibilityText(value: Skill["visibility"]): string {
   return "公开";
 }
 
-export default function SkillDetailModal({ skillId, categories, refreshKey = 0, onClose, onEdit, onDelete }: SkillDetailModalProps) {
+export default function SkillDetailModal({
+  skillId,
+  categories,
+  refreshKey = 0,
+  onClose,
+  onEdit,
+  onDelete,
+  onFeedback,
+}: SkillDetailModalProps) {
   const [skill, setSkill] = useState<Skill | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [installFeedback, setInstallFeedback] = useState<"copied" | "download" | null>(null);
 
   useEffect(() => {
     if (!skillId) {
@@ -36,6 +46,7 @@ export default function SkillDetailModal({ skillId, categories, refreshKey = 0, 
     let alive = true;
     setLoading(true);
     setError(null);
+    setInstallFeedback(null);
     getSkill(skillId)
       .then((item) => {
         if (alive) setSkill(item);
@@ -57,8 +68,19 @@ export default function SkillDetailModal({ skillId, categories, refreshKey = 0, 
   function copyDownloadLink() {
     if (!skill) return;
     if (navigator.clipboard?.writeText) {
-      void navigator.clipboard.writeText(skill.fileUrl);
+      void navigator.clipboard.writeText(skill.fileUrl).then(() => {
+        setInstallFeedback("copied");
+        onFeedback?.("已复制");
+      });
+      return;
     }
+    setInstallFeedback(null);
+    onFeedback?.("复制失败");
+  }
+
+  function downloadSkillPackage() {
+    setInstallFeedback("download");
+    onFeedback?.("功能开发中");
   }
 
   return (
@@ -130,13 +152,28 @@ export default function SkillDetailModal({ skillId, categories, refreshKey = 0, 
                 <strong>{formatFileSize(skill.fileSize)}</strong>
               </div>
               <div className="skill-market-install__actions">
-                <WKButton variant="primary" icon={<Download size={15} />}>
+                <WKButton variant="primary" icon={<Download size={15} />} onClick={downloadSkillPackage}>
                   下载 Skill 包
                 </WKButton>
                 <WKButton variant="secondary" icon={<Copy size={15} />} onClick={copyDownloadLink}>
                   复制下载链接
                 </WKButton>
               </div>
+              {installFeedback && (
+                <div className="skill-market-install__feedback" role="status">
+                  {installFeedback === "copied" ? (
+                    <>
+                      <strong>已复制</strong>
+                      <span>已复制下载链接</span>
+                    </>
+                  ) : (
+                    <>
+                      <strong>功能开发中</strong>
+                      <span>下载功能为 mock 演示</span>
+                    </>
+                  )}
+                </div>
+              )}
             </aside>
           </div>
         </div>

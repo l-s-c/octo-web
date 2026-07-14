@@ -50,6 +50,7 @@ describe("SkillListPage", () => {
     render(<SkillListPage mine />);
 
     expect(screen.queryByLabelText("Skill 分类")).not.toBeInTheDocument();
+    expect(screen.getByPlaceholderText("搜索")).toHaveFocus();
     expect(await screen.findByText("meeting-note-cleaner")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "编辑 meeting-note-cleaner" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "删除 meeting-note-cleaner" })).toBeInTheDocument();
@@ -85,6 +86,19 @@ describe("SkillListPage", () => {
     await waitFor(() => expect(api.deleteSkill).toHaveBeenCalledWith("meeting-note-cleaner"));
   });
 
+  it("offers a clear-filter action when search returns no results", async () => {
+    vi.mocked(api.getSkills).mockResolvedValue({ items: [], nextCursor: null });
+    render(<SkillListPage />);
+
+    await waitFor(() => expect(screen.getByText("没有找到匹配的 Skill")).toBeInTheDocument());
+    expect(screen.getByText("换个关键词或分类后再试，也可以清空筛选条件")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "清空筛选" }));
+
+    expect(screen.getByPlaceholderText("搜索")).toHaveValue("");
+    expect(api.getSkills).toHaveBeenCalled();
+  });
+
   it("refreshes an open detail modal after saving from detail edit", async () => {
     const updatedSkill: Skill = {
       ...skill,
@@ -110,5 +124,49 @@ describe("SkillListPage", () => {
     })));
     expect(await screen.findByText(updatedSkill.description)).toBeInTheDocument();
     expect(api.getSkill).toHaveBeenCalledTimes(2);
+  });
+
+  it("shows a search-specific empty state with a clear-search action", async () => {
+    vi.mocked(api.getSkills).mockResolvedValue({ items: [], nextCursor: null });
+
+    render(<SkillListPage />);
+
+    fireEvent.change(screen.getByPlaceholderText("搜索"), { target: { value: "missing" } });
+
+    expect(await screen.findByText("没有找到匹配的 Skill")).toBeInTheDocument();
+    expect(screen.getByText("清空搜索")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "清空搜索" }));
+
+    expect(screen.getByPlaceholderText("搜索")).toHaveValue("");
+  });
+
+  it("shows a category-specific empty state when the selected category has no skills", async () => {
+    vi.mocked(api.getSkills).mockResolvedValue({ items: [], nextCursor: null });
+
+    render(<SkillListPage />);
+
+    fireEvent.click(await screen.findByRole("button", { name: /办公协作/ }));
+
+    expect(await screen.findByText("该分类暂无 Skill")).toBeInTheDocument();
+    expect(screen.getByText("可以切换到其他分类，或新建一个 Skill。")).toBeInTheDocument();
+  });
+
+  it("shows mock feedback for detail download and copy actions", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: { writeText },
+    });
+
+    render(<SkillListPage />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "meeting-note-cleaner @我" }));
+    fireEvent.click(await screen.findByRole("button", { name: "复制下载链接" }));
+    expect(writeText).toHaveBeenCalledWith(skill.fileUrl);
+    expect(await screen.findAllByText("已复制")).toHaveLength(2);
+
+    fireEvent.click(screen.getByRole("button", { name: "下载 Skill 包" }));
+    expect(await screen.findAllByText("功能开发中")).toHaveLength(2);
   });
 });

@@ -80,6 +80,30 @@ describe("NewSkillModal", () => {
     expect(onClose).toHaveBeenCalled();
   });
 
+  it("disables create until required fields are filled", async () => {
+    render(<NewSkillModal visible categories={categories} onClose={vi.fn()} onCreated={vi.fn()} />);
+
+    fireEvent.change(screen.getByLabelText("选择 Skill zip 文件"), {
+      target: { files: [zipFile()] },
+    });
+
+    await act(async () => {
+      vi.advanceTimersByTime(2000);
+      await vi.runOnlyPendingTimersAsync();
+    });
+
+    await act(async () => {
+      vi.advanceTimersByTime(1500);
+      await vi.runOnlyPendingTimersAsync();
+    });
+
+    expect(screen.getByRole("button", { name: "创建" })).toBeDisabled();
+
+    fireEvent.change(screen.getByLabelText("分类"), { target: { value: "office" } });
+
+    expect(screen.getByRole("button", { name: "创建" })).not.toBeDisabled();
+  });
+
   it("shows a leave confirmation while upload work is in progress", () => {
     const onClose = vi.fn();
     render(<NewSkillModal visible categories={categories} onClose={onClose} onCreated={vi.fn()} />);

@@ -10,8 +10,8 @@ interface SkillCardProps {
   onDelete?: (skill: Skill) => void;
 }
 
-export default function SkillCard({ skill, categories, onOpen, onEdit, onDelete }: SkillCardProps) {
-  void categories;
+export default function SkillCard({ skill, categories: _categories, onOpen, onEdit, onDelete }: SkillCardProps) {
+  void _categories;
   const visibleTags = skill.tags.slice(0, 3);
   const hiddenTagCount = Math.max(0, skill.tags.length - visibleTags.length);
   const isOwnerCard = Boolean(onEdit || onDelete);

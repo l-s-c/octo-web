@@ -71,6 +71,7 @@ export default function NewSkillModal({ visible, categories, onClose, onCreated 
 
   const busy = stage === "uploading" || stage === "parsing";
   const dirty = Boolean(file || name.trim() || description.trim() || tags.length || categoryId);
+  const canCreate = Boolean(file && name.trim() && description.trim() && categoryId && !saving);
 
   useEffect(() => () => {
     if (progressTimerRef.current) window.clearInterval(progressTimerRef.current);
@@ -220,7 +221,7 @@ export default function NewSkillModal({ visible, categories, onClose, onCreated 
         footer={stage === "form" ? (
           <>
             <WKButton variant="secondary" onClick={requestClose} disabled={saving}>取消</WKButton>
-            <WKButton variant="primary" onClick={() => void submit()} loading={saving}>创建</WKButton>
+            <WKButton variant="primary" onClick={() => void submit()} loading={saving} disabled={!canCreate}>创建</WKButton>
           </>
         ) : (
           <WKButton variant="secondary" onClick={requestClose}>取消</WKButton>

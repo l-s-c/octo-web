@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Blocks, UserRound } from "lucide-react";
 import { WKApp } from "@octo/base";
 import SkillListPage from "../pages/SkillListPage";
@@ -19,8 +19,27 @@ const items = [
   },
 ];
 
+type SkillMarketTab = "skills" | "mine";
+
+function tabFromHash(): SkillMarketTab {
+  return window.location.hash === "#mine" ? "mine" : "skills";
+}
+
 export default function SkillMarketSidebar() {
-  const [activeId, setActiveId] = useState(items[0].id);
+  const [activeId, setActiveId] = useState<SkillMarketTab>(() => tabFromHash());
+
+  useEffect(() => {
+    const activeItem = items.find((item) => item.id === activeId) ?? items[0];
+    WKApp.routeRight.replaceToRoot(activeItem.render());
+  }, []);
+
+  useEffect(() => {
+    function syncFromHash() {
+      setActiveId(tabFromHash());
+    }
+    window.addEventListener("hashchange", syncFromHash);
+    return () => window.removeEventListener("hashchange", syncFromHash);
+  }, []);
 
   return (
     <aside className="skill-market-sidebar">
@@ -32,7 +51,8 @@ export default function SkillMarketSidebar() {
             type="button"
             className={item.id === activeId ? "is-active" : ""}
             onClick={() => {
-              setActiveId(item.id);
+              setActiveId(item.id as SkillMarketTab);
+              window.location.hash = item.id === "mine" ? "mine" : "skills";
               WKApp.routeRight.replaceToRoot(item.render());
             }}
           >

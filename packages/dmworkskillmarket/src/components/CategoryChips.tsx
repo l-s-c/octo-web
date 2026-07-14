@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Box,
   ChartColumn,
@@ -26,7 +26,7 @@ interface CategoryChipsProps {
   onChange: (categoryId: string) => void;
 }
 
-const DESKTOP_VISIBLE_LIMIT = 4;
+const MEDIUM_VISIBLE_LIMIT = 4;
 
 const iconMap = {
   Box,
@@ -54,6 +54,27 @@ function CategoryIcon({ iconKey }: { iconKey: string }) {
 
 export default function CategoryChips({ categories, activeId, onChange }: CategoryChipsProps) {
   const [moreOpen, setMoreOpen] = useState(false);
+  const moreRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!moreOpen) return undefined;
+    function handleClick(event: MouseEvent) {
+      if (moreRef.current && !moreRef.current.contains(event.target as Node)) {
+        setMoreOpen(false);
+      }
+    }
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setMoreOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", handleClick);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [moreOpen]);
   const ordered = useMemo(() => {
     return [...categories].sort((a, b) => {
       if (a.id === "all") return -1;
@@ -64,18 +85,13 @@ export default function CategoryChips({ categories, activeId, onChange }: Catego
     });
   }, [categories]);
 
-  const activeCategory = ordered.find((category) => category.id === activeId);
-  const desktopBase = ordered.slice(0, DESKTOP_VISIBLE_LIMIT);
-  const desktopVisible = activeCategory && !desktopBase.some((category) => category.id === activeCategory.id)
-    ? [...desktopBase, activeCategory]
-    : desktopBase;
-  const desktopVisibleIds = new Set(desktopVisible.map((category) => category.id));
-  const overflow = ordered.filter((category) => !desktopVisibleIds.has(category.id));
+  const mediumBase = ordered.slice(0, MEDIUM_VISIBLE_LIMIT);
+  const mediumVisibleIds = new Set(mediumBase.map((category) => category.id));
+  const mediumOverflow = ordered.filter((category) => !mediumVisibleIds.has(category.id));
   const mobileOnlyMenuItems = ordered.filter(
-    (category) => category.id !== "all" && desktopVisibleIds.has(category.id),
+    (category) => category.id !== "all" && mediumVisibleIds.has(category.id),
   );
-  const hasDesktopOverflow = overflow.length > 0;
-  const showMore = hasDesktopOverflow || mobileOnlyMenuItems.length > 0;
+  const showMore = mediumOverflow.length > 0 || mobileOnlyMenuItems.length > 0;
 
   function choose(categoryId: string) {
     onChange(categoryId);
@@ -105,24 +121,29 @@ export default function CategoryChips({ categories, activeId, onChange }: Catego
 
   return (
     <div className="skill-market-category-strip" aria-label="Skill 分类">
-      {desktopVisible.map((category) => renderChip(category))}
+      {ordered.map((category) => renderChip(
+        category,
+        mediumVisibleIds.has(category.id) || category.id === activeId
+          ? "skill-market-category-chip"
+          : "skill-market-category-chip skill-market-category-chip--medium-overflow",
+      ))}
       {ordered.slice(0, 1).map((category) => renderChip(category, "skill-market-category-chip skill-market-category-chip--mobile-primary"))}
       {showMore && (
-        <div className={hasDesktopOverflow ? "skill-market-category-more" : "skill-market-category-more skill-market-category-more--mobile-only"}>
-        <button
-          type="button"
-          className="skill-market-category-chip skill-market-category-more__button"
-          aria-expanded={moreOpen}
-          aria-haspopup="menu"
-          onClick={() => setMoreOpen((open) => !open)}
-        >
-          <MoreHorizontal size={14} aria-hidden="true" />
-          <span className="skill-market-category-label">更多</span>
-          <ChevronDown size={13} aria-hidden="true" />
-        </button>
+        <div className="skill-market-category-more" ref={moreRef}>
+          <button
+            type="button"
+            className="skill-market-category-chip skill-market-category-more__button"
+            aria-expanded={moreOpen}
+            aria-haspopup="menu"
+            onClick={() => setMoreOpen((open) => !open)}
+          >
+            <MoreHorizontal size={14} aria-hidden="true" />
+            <span className="skill-market-category-label">更多</span>
+            <ChevronDown size={13} aria-hidden="true" />
+          </button>
           {moreOpen && (
             <div className="skill-market-category-menu" role="menu">
-              {overflow.map((category) => (
+              {mediumOverflow.map((category) => (
                 <button
                   key={category.id}
                   type="button"
