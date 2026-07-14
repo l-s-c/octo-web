@@ -9,9 +9,16 @@
   "common": {
     "loadFailed": "Failed to load"
   },
+  "category": {
+    "all": "All",
+    "dev": "Dev tools",
+    "data": "Data services",
+    "search": "Search",
+    "productivity": "Productivity",
+    "ai": "AI"
+  },
   "list": {
-    "desc": "Browse and connect MCP servers to extend your agent's tools. The data below is mock data.",
-    "notice": "Showing local mock data. This banner will be removed once the real backend is connected.",
+    "desc": "Browse and connect MCP servers to extend your agent's tools.",
     "create": "New MCP",
     "searchPlaceholder": "Search by name / summary",
     "empty": "No matching MCP servers"

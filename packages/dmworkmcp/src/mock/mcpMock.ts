@@ -63,6 +63,7 @@ function stdioQuickStart(
 export const MOCK_MCP_DETAILS: McpDetail[] = [
   {
     id: "github",
+    creatorName: "GitHub Bot",
     name: "GitHub MCP",
     slogan: "读写仓库、Issue、PR，让智能体直接操作你的 GitHub。",
     category: "dev",
@@ -80,7 +81,9 @@ export const MOCK_MCP_DETAILS: McpDetail[] = [
       ["get_file_contents", "读取仓库文件内容"],
       ["list_workflow_runs", "查询 Actions 运行记录"],
     ]),
-    usageExamples: ["帮我在 octo-web 仓库里创建一个 Issue，标题「MCP 市场入口对齐」，正文引用本次讨论结论。"],
+    usageExamples: [
+      "帮我在 octo-web 仓库里创建一个 Issue，标题「MCP 市场入口对齐」，正文引用本次讨论结论。",
+    ],
     faqs: [
       {
         question: "需要哪些权限？",
@@ -100,6 +103,7 @@ export const MOCK_MCP_DETAILS: McpDetail[] = [
   },
   {
     id: "postgres",
+    creatorName: "数据平台组",
     name: "PostgreSQL MCP",
     slogan: "只读方式安全查询数据库，自动生成 SQL 并解释结果。",
     category: "data",
@@ -132,6 +136,7 @@ export const MOCK_MCP_DETAILS: McpDetail[] = [
   },
   {
     id: "brave-search",
+    creatorName: "Brave Team",
     name: "Brave Search MCP",
     slogan: "接入 Brave 搜索，为智能体补充实时联网检索能力。",
     category: "search",
@@ -159,6 +164,7 @@ export const MOCK_MCP_DETAILS: McpDetail[] = [
   },
   {
     id: "filesystem",
+    creatorName: "MCP 官方",
     name: "Filesystem MCP",
     slogan: "让智能体在受限目录内读写文件，安全可控。",
     category: "dev",
@@ -189,6 +195,7 @@ export const MOCK_MCP_DETAILS: McpDetail[] = [
   },
   {
     id: "slack",
+    creatorName: "李世超",
     name: "Slack MCP",
     slogan: "收发消息、查频道、拉取历史，把 Slack 接入智能体。",
     category: "productivity",
@@ -218,6 +225,7 @@ export const MOCK_MCP_DETAILS: McpDetail[] = [
   },
   {
     id: "puppeteer",
+    creatorName: "MCP 官方",
     name: "Puppeteer MCP",
     slogan: "驱动无头浏览器抓取页面、截图、填表单。",
     category: "dev",
@@ -246,6 +254,7 @@ export const MOCK_MCP_DETAILS: McpDetail[] = [
   },
   {
     id: "gdrive",
+    creatorName: "云端集成组",
     name: "Google Drive MCP",
     slogan: "检索与读取 Google Drive 文档，接入你的云端资料。",
     category: "productivity",
@@ -269,6 +278,7 @@ export const MOCK_MCP_DETAILS: McpDetail[] = [
   },
   {
     id: "memory",
+    creatorName: "MCP 官方",
     name: "Memory MCP",
     slogan: "为智能体提供跨会话的长期记忆存储。",
     category: "ai",
@@ -296,6 +306,7 @@ export const MOCK_MCP_DETAILS: McpDetail[] = [
   },
   {
     id: "fetch",
+    creatorName: "MCP 官方",
     name: "Fetch MCP",
     slogan: "抓取任意 URL 内容并转成适合模型阅读的文本。",
     category: "search",
@@ -315,6 +326,7 @@ export const MOCK_MCP_DETAILS: McpDetail[] = [
   },
   {
     id: "sqlite",
+    creatorName: "MCP 官方",
     name: "SQLite MCP",
     slogan: "轻量本地数据库，读写查询一步到位。",
     category: "data",

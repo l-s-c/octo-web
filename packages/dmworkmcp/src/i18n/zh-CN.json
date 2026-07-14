@@ -9,9 +9,16 @@
   "common": {
     "loadFailed": "加载失败"
   },
+  "category": {
+    "all": "全部",
+    "dev": "开发工具",
+    "data": "数据服务",
+    "search": "搜索检索",
+    "productivity": "效率协作",
+    "ai": "AI 能力"
+  },
   "list": {
-    "desc": "浏览并接入 MCP 服务，为你的智能体扩展工具能力。以下为演示数据（Mock）。",
-    "notice": "当前展示的是本地 Mock 数据，接入真实后端后此提示将移除。",
+    "desc": "浏览并接入 MCP 服务，为你的智能体扩展工具能力。",
     "create": "新建 MCP",
     "searchPlaceholder": "搜索 MCP 名称 / 简介",
     "empty": "没有匹配的 MCP 服务"

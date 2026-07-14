@@ -118,12 +118,6 @@ export default class McpMarketListPage extends Component<
 
         <div className="wk-mcp__body">
           <div className="wk-mcp__inner">
-            <div className="wk-mcp__notice">
-              <span className="wk-mcp__notice-text">
-                {t("mcp.list.notice")}
-              </span>
-            </div>
-
             <div className="wk-mcp__head">
               <h1 className="wk-mcp__head-title">{t("mcp.menu.title")}</h1>
               <p className="wk-mcp__head-desc">{t("mcp.list.desc")}</p>

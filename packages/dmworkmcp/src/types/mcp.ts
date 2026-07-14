@@ -61,10 +61,18 @@ export interface McpListItem {
   toolCount: number;
   /** Icon: single emoji/char OR image URL / data URL. */
   icon: string;
+  /** Visibility scope, echoed by the wire (mcp-v1.md §0). Optional so legacy
+   *  fixtures without the field still type-check; list cards may promote it to
+   *  a badge. */
+  visibility?: McpVisibility;
 }
 
 /** Full detail payload shown in the centered detail modal. */
 export interface McpDetail extends McpListItem {
+  /** Nickname of the user who created / published this MCP. Rendered as
+   *  `@name` next to the tool count. Optional so legacy fixtures without
+   *  the field still type-check. */
+  creatorName?: string;
   /** Structured quick-access data — the 3 tabs are generated from this. */
   quickStart: McpQuickStart;
   /** The tools grid (2 columns) in the detail modal. */
@@ -75,6 +83,10 @@ export interface McpDetail extends McpListItem {
   faqs: McpFaq[];
   /** Cautions / notes (rendered as a warning block, one string per line). */
   notes: string[];
+  /** RFC 3339 timestamps echoed by the wire (mcp-v1.md §0). Wire-only extras;
+   *  optional so mock fixtures without them still type-check. */
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 /** A category filter option with its live count. */

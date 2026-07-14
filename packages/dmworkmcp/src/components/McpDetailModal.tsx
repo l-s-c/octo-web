@@ -133,6 +133,7 @@ const McpDetailModal: React.FC<McpDetailModalProps> = ({ mcpId, onClose }) => {
                 ))}
               </div>
               <div className="wk-mcp-detail__toolcount">
+                {detail.creatorName ? `@${detail.creatorName} · ` : ""}
                 {t("mcp.card.toolCount", {
                   values: { count: detail.toolCount },
                 })}

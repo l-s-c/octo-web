@@ -1,5 +1,5 @@
 import axios, { AxiosRequestConfig } from "axios";
-import { WKApp, buildAcceptLanguage } from "@octo/base";
+import { WKApp, buildAcceptLanguage, t } from "@octo/base";
 import type {
   CreateMcpParams,
   ListMcpParams,
@@ -18,6 +18,7 @@ import {
   MOCK_MCP_LIST,
   MOCK_PROBED_TOOLS,
 } from "../mock/mcpMock";
+import { CATEGORY_KEY_ALL } from "../utils/constants";
 
 // ═══════════════════════════════════════════════════════════════════════════
 // MCP Market service layer
@@ -32,25 +33,25 @@ import {
 //   │  Pages/UI   │ ──▶ │  this service    │ ──▶ │ mock OR api │
 //   └─────────────┘     └──────────────────┘     └─────────────┘
 //
-// Public surface (stable signatures — backend only replaces the impls):
+// Public surface (stable signatures — the UI never sees mock vs real):
 //   fetchMcpList(params)   → list + categories
 //   fetchMcpDetail(id)     → full detail
 //   probeMcpTools(req)     → "try connect / fetch tool list" (see LSC-70)
 //   createMcp(params)      → create a new MCP entry
 //
-// TODO(backend): when the real MCP-market API is ready, flip USE_MOCK to
-// false (or wire it to an env flag) and implement the `*Real` functions
-// against the actual endpoints. Nothing in the UI layer changes.
-// The real request plumbing (axios instance + interceptors) mirrors the
-// summary module (packages/dmworksummary/src/api/summaryApi.ts) so auth /
-// space-id / language headers stay consistent across the app.
+// The real implementations target the octo-marketplace MCP catalog v1
+// (octo-marketplace/docs/api/mcp-v1.md). USE_MOCK toggles the whole surface;
+// browse + create now run against the real backend. The request plumbing
+// (axios instance + interceptors) mirrors the summary module
+// (packages/dmworksummary/src/api/summaryApi.ts) so auth / space-id / language
+// headers stay consistent across the app.
 // ═══════════════════════════════════════════════════════════════════════════
 
 /**
  * Single switch between mock and real implementations.
  * Keep as a const so the bundler tree-shakes the unused branch in prod.
  */
-const USE_MOCK = true;
+const USE_MOCK = false;
 
 // Simulate network latency so loading states are exercised during dev.
 const MOCK_DELAY_MS = 300;
@@ -146,10 +147,7 @@ async function createMcpMock(params: CreateMcpParams): Promise<{ id: string }> {
 }
 
 /** Turn a create-form payload into a fully-populated detail record. */
-function buildDetailFromCreate(
-  id: string,
-  params: CreateMcpParams
-): McpDetail {
+function buildDetailFromCreate(id: string, params: CreateMcpParams): McpDetail {
   const quickStart: McpQuickStart = {
     transport: params.transport,
     serverName: params.name.trim(),
@@ -161,8 +159,7 @@ function buildDetailFromCreate(
         : undefined,
     command: params.command || undefined,
     args: params.args && params.args.length ? params.args : undefined,
-    env:
-      params.env && Object.keys(params.env).length ? params.env : undefined,
+    env: params.env && Object.keys(params.env).length ? params.env : undefined,
   };
   return {
     id,
@@ -172,6 +169,7 @@ function buildDetailFromCreate(
     tags: params.tags ?? [],
     toolCount: params.tools.length,
     icon: params.icon,
+    creatorName: WKApp.loginInfo?.name || "",
     quickStart,
     tools: params.tools,
     usageExamples: (params.usageExamples ?? []).filter((s) => s.trim()),
@@ -202,18 +200,20 @@ function slugify(s: string): string {
     .replace(/[^a-z0-9一-龥-]/g, "");
 }
 
-// ─── Real implementations (placeholders — wire up when backend lands) ───────
+// ─── Real implementations (octo-marketplace MCP catalog v1) ─────────────────
+// Wire contract: octo-marketplace/docs/api/mcp-v1.md. The catalog is mounted at
+// <origin>/market/api/v1 (nginx / vite proxy strips the /market prefix to the
+// service's own /api/v1), mirroring the summary + matter service convention.
 
 const mcpAxios = axios.create({ baseURL: "" });
 
-// TODO(backend): confirm the real mount path. Assumed nginx-proxied at
-// <origin>/mcp/api/v1, mirroring the summary service convention.
-const BASE = "/mcp/api/v1";
+const BASE = "/market/api/v1";
 
 function resolveBaseURL(): string {
   const apiURL = WKApp.apiClient?.config?.apiURL;
   if (!apiURL) return "";
   try {
+    // Relative apiURL (Web) has no parsable origin → stay same-origin.
     return new URL(apiURL).origin;
   } catch {
     return "";
@@ -235,44 +235,121 @@ mcpAxios.interceptors.request.use((config) => {
   return config;
 });
 
+mcpAxios.interceptors.response.use(
+  (resp) => resp,
+  (err) => {
+    if (err?.response?.status === 401) {
+      WKApp.shared.logout();
+    }
+    return Promise.reject(err);
+  }
+);
+
+/**
+ * Marketplace error envelope is `{err:{code,message,details}}` (mcp-v1.md §2) —
+ * distinct from the summary/matter `{code,message,data}` shape. Surface the
+ * human-readable `message` for a toast; callers switch on `code` if they need
+ * to. Falls back to the axios error string when the body is missing.
+ */
+function extractErrorMessage(err: unknown): string {
+  const axiosErr = err as {
+    response?: { data?: { err?: { message?: string; code?: string } } };
+  };
+  const wire = axiosErr?.response?.data?.err;
+  const raw =
+    wire?.message ||
+    wire?.code ||
+    (err instanceof Error ? err.message : "Request failed");
+  return raw.length > 200 ? raw.slice(0, 200) + "…" : raw;
+}
+
+/**
+ * Marketplace success bodies are the resource object directly (no
+ * `{code,message,data}` wrapper — mcp-v1.md §3/§4). Return `resp.data` as-is.
+ */
 async function get<T>(
   path: string,
   params?: Record<string, unknown>,
   config?: AxiosRequestConfig
 ): Promise<T> {
-  const resp = await mcpAxios.get(`${BASE}${path}`, { params, ...config });
-  return resp.data?.data ?? resp.data;
+  try {
+    const resp = await mcpAxios.get(`${BASE}${path}`, { params, ...config });
+    return resp.data as T;
+  } catch (err) {
+    if (axios.isCancel(err)) throw err;
+    throw new Error(extractErrorMessage(err));
+  }
 }
 
 async function post<T>(path: string, data?: unknown): Promise<T> {
-  const resp = await mcpAxios.post(`${BASE}${path}`, data);
-  return resp.data?.data ?? resp.data;
+  try {
+    const resp = await mcpAxios.post(`${BASE}${path}`, data);
+    return resp.data as T;
+  } catch (err) {
+    if (axios.isCancel(err)) throw err;
+    throw new Error(extractErrorMessage(err));
+  }
+}
+
+/**
+ * Resolve a category label from the frontend i18n bundle. The backend returns
+ * `{key,count}` only (mcp-v1.md §4.2); labels are the frontend's job so locales
+ * evolve without a service redeploy. Falls back to the static map, then the raw
+ * key, so an unknown key still renders something sensible.
+ */
+function categoryLabel(key: string): string {
+  const translated = t(`mcp.category.${key}`);
+  // i18n returns the key path back on a miss — treat that as "no translation".
+  if (translated && translated !== `mcp.category.${key}`) return translated;
+  return MCP_CATEGORY_LABELS[key] ?? key;
+}
+
+/** Wire shape of the list response before frontend label enrichment. */
+interface McpListResponseWire {
+  items: McpListItem[];
+  total: number;
+  categories: { key: string; count: number }[];
 }
 
 async function fetchMcpListReal(
   params: ListMcpParams
 ): Promise<ListMcpResponse> {
-  // TODO(backend): adjust to the real response shape.
-  return get<ListMcpResponse>("/servers", params as Record<string, unknown>);
+  const query: Record<string, unknown> = {};
+  const keyword = params.keyword?.trim();
+  if (keyword) query.keyword = keyword;
+  // `all` disables the filter server-side; send it verbatim per §0.
+  query.category = params.category ?? CATEGORY_KEY_ALL;
+  const resp = await get<McpListResponseWire>("/mcps", query);
+  const categories: McpCategory[] = (resp.categories ?? []).map((c) => ({
+    key: c.key,
+    label: categoryLabel(c.key),
+    count: c.count,
+  }));
+  return { items: resp.items ?? [], total: resp.total ?? 0, categories };
 }
 
 async function fetchMcpDetailReal(id: string): Promise<McpDetail> {
-  // TODO(backend): adjust to the real response shape.
-  return get<McpDetail>(`/servers/${encodeURIComponent(id)}`);
+  return get<McpDetail>(`/mcps/${encodeURIComponent(id)}`);
 }
 
 async function probeMcpToolsReal(
   req: McpProbeRequest
 ): Promise<McpProbeResult> {
-  // TODO(backend): stdio probing must run in the Electron main process
-  // (see LSC-70). This will call the `mcp:probeTools` IPC / local HTTP route
-  // rather than this remote axios path once that lands.
+  // stdio probing must run in the Electron main process (LSC-70); the
+  // marketplace REST surface does not expose a probe. This placeholder keeps
+  // the signature stable and is not reached by the browse+create flow — the
+  // create wizard's probe still hits the mock until the IPC path lands.
+  // TODO(LSC-70): route to the `mcp:probeTools` IPC instead of this endpoint.
   return post<McpProbeResult>("/probe", req);
 }
 
 async function createMcpReal(params: CreateMcpParams): Promise<{ id: string }> {
-  // TODO(backend): adjust to the real request/response shape.
-  return post<{ id: string }>("/servers", params);
+  // POST /mcps returns 201 with the full McpDetail; the frontend picks up `id`
+  // from the response (mcp-v1.md §4.1). Server derives id / creatorName /
+  // toolCount / timestamps and ignores any client-supplied values for them, so
+  // the flat create body is sent as-is (§3.3).
+  const detail = await post<McpDetail>("/mcps", params);
+  return { id: detail.id };
 }
 
 // ─── Public API (the only surface the UI imports) ──────────────────────────

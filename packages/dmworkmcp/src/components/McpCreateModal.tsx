@@ -3,6 +3,7 @@ import { WKModal, WKInput, WKButton, t } from "@octo/base";
 import { Select, TextArea, Toast } from "@douyinfe/semi-ui";
 import { createMcp, probeMcpTools } from "../api/mcpService";
 import { MCP_CATEGORY_LABELS, MCP_CATEGORY_ORDER } from "../mock/mcpMock";
+import { applySecretSentinel } from "../utils/constants";
 import type {
   CreateMcpParams,
   McpFaq,
@@ -146,7 +147,11 @@ function Segments<T extends string>({
   full?: boolean;
 }) {
   return (
-    <div className={full ? "wk-mcp-segments wk-mcp-segments--full" : "wk-mcp-segments"}>
+    <div
+      className={
+        full ? "wk-mcp-segments wk-mcp-segments--full" : "wk-mcp-segments"
+      }
+    >
       {options.map((opt) => (
         <button
           key={opt.value}
@@ -192,10 +197,7 @@ function TagsInput({
   const remove = (idx: number) => onChange(value.filter((_, i) => i !== idx));
 
   return (
-    <div
-      className="wk-mcp-tags"
-      onClick={() => inputRef.current?.focus()}
-    >
+    <div className="wk-mcp-tags" onClick={() => inputRef.current?.focus()}>
       {value.map((tag, i) => (
         <span className="wk-mcp-tags__chip" key={`${tag}-${i}`}>
           {tag}
@@ -370,8 +372,12 @@ const McpCreateModal: React.FC<McpCreateModalProps> = ({
     const payload: CreateMcpParams = {
       ...form,
       args: argsRaw.trim() ? argsRaw.trim().split(/\s+/) : [],
-      env: parseKV(envRaw, "="),
-      headers: parseKV(headersRaw, ":"),
+      // Substitute the shared sentinel for any blank token-like env / header so
+      // an empty secret is accepted instead of tripping `secret_leaked` on the
+      // backend (mcp-v1.md §5). A user-typed real token is left as-is and the
+      // backend surfaces the mistake.
+      env: applySecretSentinel(parseKV(envRaw, "=")) ?? {},
+      headers: applySecretSentinel(parseKV(headersRaw, ":")) ?? {},
       tools: form.tools.filter((t) => t.name.trim()),
       usageExamples: (form.usageExamples ?? []).filter((s) => s.trim()),
       faqs: (form.faqs ?? []).filter((f) => f.question.trim()),
@@ -407,14 +413,23 @@ const McpCreateModal: React.FC<McpCreateModalProps> = ({
 
   const addNote = () => update("notes", [...(form.notes ?? []), ""]);
   const removeNote = (idx: number) =>
-    update("notes", (form.notes ?? []).filter((_, i) => i !== idx));
+    update(
+      "notes",
+      (form.notes ?? []).filter((_, i) => i !== idx)
+    );
   const updateNote = (idx: number, v: string) =>
-    update("notes", (form.notes ?? []).map((s, i) => (i === idx ? v : s)));
+    update(
+      "notes",
+      (form.notes ?? []).map((s, i) => (i === idx ? v : s))
+    );
 
   const addFaq = () =>
     update("faqs", [...(form.faqs ?? []), { question: "", answer: "" }]);
   const removeFaq = (idx: number) =>
-    update("faqs", (form.faqs ?? []).filter((_, i) => i !== idx));
+    update(
+      "faqs",
+      (form.faqs ?? []).filter((_, i) => i !== idx)
+    );
   const updateFaq = (idx: number, patch: Partial<McpFaq>) =>
     update(
       "faqs",
@@ -424,7 +439,10 @@ const McpCreateModal: React.FC<McpCreateModalProps> = ({
   const addTool = () =>
     update("tools", [...form.tools, { name: "", description: "" }]);
   const removeTool = (idx: number) =>
-    update("tools", form.tools.filter((_, i) => i !== idx));
+    update(
+      "tools",
+      form.tools.filter((_, i) => i !== idx)
+    );
   const updateTool = (
     idx: number,
     patch: { name?: string; description?: string }
@@ -532,392 +550,397 @@ const McpCreateModal: React.FC<McpCreateModalProps> = ({
         </div>
 
         {step === 0 && (
-        <>
-        {/* 1. 基本信息 */}
-        <Section
-          title={t("mcp.create.sectionBasics")}
-          desc={t("mcp.create.sectionBasicsDesc")}
-        >
-          <div className="wk-mcp-field-row">
-            <div
-              className={
-                iconIsImage
-                  ? "wk-mcp-icon-picker"
-                  : "wk-mcp-icon-picker wk-mcp-icon-picker--empty"
-              }
-              onClick={handleIconPick}
-              tabIndex={0}
-              role="button"
-              aria-label={t("mcp.create.icon")}
+          <>
+            {/* 1. 基本信息 */}
+            <Section
+              title={t("mcp.create.sectionBasics")}
+              desc={t("mcp.create.sectionBasicsDesc")}
             >
-              {iconIsImage ? (
-                <img
-                  className="wk-mcp-icon-picker__img"
-                  src={form.icon}
-                  alt=""
-                />
-              ) : (
-                <span className="wk-mcp-icon-picker__placeholder">
-                  {t("mcp.create.iconEmpty")}
-                </span>
-              )}
-              <div className="wk-mcp-icon-picker__overlay">
-                <span className="wk-mcp-icon-picker__action">
-                  {iconIsImage
-                    ? t("mcp.create.iconChange")
-                    : t("mcp.create.iconUpload")}
-                </span>
-                {iconIsImage && (
-                  <span
-                    className="wk-mcp-icon-picker__action"
-                    onClick={handleIconRemove}
-                  >
-                    {t("mcp.create.iconRemove")}
-                  </span>
-                )}
-              </div>
-              <input
-                ref={iconInputRef}
-                type="file"
-                accept="image/*"
-                style={{ display: "none" }}
-                onChange={handleIconChange}
-              />
-            </div>
+              <div className="wk-mcp-field-row">
+                <div
+                  className={
+                    iconIsImage
+                      ? "wk-mcp-icon-picker"
+                      : "wk-mcp-icon-picker wk-mcp-icon-picker--empty"
+                  }
+                  onClick={handleIconPick}
+                  tabIndex={0}
+                  role="button"
+                  aria-label={t("mcp.create.icon")}
+                >
+                  {iconIsImage ? (
+                    <img
+                      className="wk-mcp-icon-picker__img"
+                      src={form.icon}
+                      alt=""
+                    />
+                  ) : (
+                    <span className="wk-mcp-icon-picker__placeholder">
+                      {t("mcp.create.iconEmpty")}
+                    </span>
+                  )}
+                  <div className="wk-mcp-icon-picker__overlay">
+                    <span className="wk-mcp-icon-picker__action">
+                      {iconIsImage
+                        ? t("mcp.create.iconChange")
+                        : t("mcp.create.iconUpload")}
+                    </span>
+                    {iconIsImage && (
+                      <span
+                        className="wk-mcp-icon-picker__action"
+                        onClick={handleIconRemove}
+                      >
+                        {t("mcp.create.iconRemove")}
+                      </span>
+                    )}
+                  </div>
+                  <input
+                    ref={iconInputRef}
+                    type="file"
+                    accept="image/*"
+                    style={{ display: "none" }}
+                    onChange={handleIconChange}
+                  />
+                </div>
 
-            <div className="wk-mcp-field-row__grow">
-              <Field label={t("mcp.create.name")} required>
+                <div className="wk-mcp-field-row__grow">
+                  <Field label={t("mcp.create.name")} required>
+                    <WKInput
+                      value={form.name}
+                      onChange={(v) => update("name", v)}
+                      placeholder={t("mcp.create.namePlaceholder")}
+                    />
+                  </Field>
+                </div>
+              </div>
+
+              <div className="wk-mcp-field-grid">
+                <Field label={t("mcp.create.category")}>
+                  <Select
+                    style={{ width: "100%" }}
+                    value={form.category}
+                    optionList={categoryOptions}
+                    onChange={(v) => update("category", v as string)}
+                  />
+                </Field>
+                <Field label={t("mcp.create.tags")}>
+                  <TagsInput
+                    value={form.tags}
+                    onChange={(next) => update("tags", next)}
+                    placeholder={t("mcp.create.tagsInputPlaceholder")}
+                  />
+                </Field>
+              </div>
+
+              <Field label={t("mcp.create.slogan")}>
                 <WKInput
-                  value={form.name}
-                  onChange={(v) => update("name", v)}
-                  placeholder={t("mcp.create.namePlaceholder")}
+                  value={form.slogan}
+                  onChange={(v) => update("slogan", v)}
+                  placeholder={t("mcp.create.sloganPlaceholder")}
                 />
               </Field>
-            </div>
-          </div>
-
-          <div className="wk-mcp-field-grid">
-            <Field label={t("mcp.create.category")}>
-              <Select
-                style={{ width: "100%" }}
-                value={form.category}
-                optionList={categoryOptions}
-                onChange={(v) => update("category", v as string)}
-              />
-            </Field>
-            <Field label={t("mcp.create.tags")}>
-              <TagsInput
-                value={form.tags}
-                onChange={(next) => update("tags", next)}
-                placeholder={t("mcp.create.tagsInputPlaceholder")}
-              />
-            </Field>
-          </div>
-
-          <Field label={t("mcp.create.slogan")}>
-            <WKInput
-              value={form.slogan}
-              onChange={(v) => update("slogan", v)}
-              placeholder={t("mcp.create.sloganPlaceholder")}
-            />
-          </Field>
-        </Section>
-        </>
+            </Section>
+          </>
         )}
 
         {step === 1 && (
-        <>
-        {/* 2. 接入方式 */}
-        <Section
-          title={t("mcp.create.sectionConnect")}
-          desc={t("mcp.create.sectionConnectDesc")}
-        >
-          <Field label={t("mcp.create.transportLabel")}>
-            <Select
-              style={{ width: "100%" }}
-              value={form.transport}
-              optionList={transportOptions}
-              onChange={(v) => update("transport", v as McpTransport)}
-            />
-          </Field>
-
-          {isRemote(form.transport) ? (
-            <>
-              <Field label={t("mcp.create.url")}>
-                <WKInput
-                  value={form.url ?? ""}
-                  onChange={(v) => update("url", v)}
-                  placeholder={t("mcp.create.urlPlaceholder")}
-                />
-              </Field>
-              <Field label={t("mcp.create.authType")}>
-                <Segments
-                  value={form.authType ?? "none"}
-                  options={authSegments}
-                  onChange={(v) => update("authType", v)}
-                />
-              </Field>
-            </>
-          ) : (
-            <>
-              <Field label={t("mcp.create.command")}>
-                <WKInput
-                  value={form.command ?? ""}
-                  onChange={(v) => update("command", v)}
-                  placeholder={t("mcp.create.commandPlaceholder")}
-                />
-              </Field>
-              <Field label={t("mcp.create.args")} hint={t("mcp.create.argsHint")}>
-                <WKInput
-                  value={argsRaw}
-                  onChange={setArgsRaw}
-                  placeholder={t("mcp.create.argsPlaceholder")}
-                />
-              </Field>
-            </>
-          )}
-
-          <div className="wk-mcp-advanced">
-            <button
-              type="button"
-              className="wk-mcp-advanced__toggle"
-              onClick={() => setAdvancedOpen((v) => !v)}
+          <>
+            {/* 2. 接入方式 */}
+            <Section
+              title={t("mcp.create.sectionConnect")}
+              desc={t("mcp.create.sectionConnectDesc")}
             >
-              <span
-                className={
-                  advancedOpen
-                    ? "wk-mcp-advanced__caret wk-mcp-advanced__caret--open"
-                    : "wk-mcp-advanced__caret"
-                }
-              >
-                ▸
-              </span>
-              {advancedOpen
-                ? t("mcp.create.advancedHide")
-                : t("mcp.create.advancedShow")}
-            </button>
-            {advancedOpen && (
-              <div className="wk-mcp-advanced__body">
-                {isRemote(form.transport) ? (
-                  <Field
-                    label={t("mcp.create.headers")}
-                    hint={t("mcp.create.headersHint")}
-                  >
-                    <TextArea
-                      value={headersRaw}
-                      onChange={setHeadersRaw}
-                      rows={3}
-                      placeholder={t("mcp.create.headersPlaceholder")}
+              <Field label={t("mcp.create.transportLabel")}>
+                <Select
+                  style={{ width: "100%" }}
+                  value={form.transport}
+                  optionList={transportOptions}
+                  onChange={(v) => update("transport", v as McpTransport)}
+                />
+              </Field>
+
+              {isRemote(form.transport) ? (
+                <>
+                  <Field label={t("mcp.create.url")}>
+                    <WKInput
+                      value={form.url ?? ""}
+                      onChange={(v) => update("url", v)}
+                      placeholder={t("mcp.create.urlPlaceholder")}
                     />
                   </Field>
-                ) : (
-                  <Field
-                    label={t("mcp.create.env")}
-                    hint={t("mcp.create.envHint")}
-                  >
-                    <TextArea
-                      value={envRaw}
-                      onChange={setEnvRaw}
-                      rows={3}
-                      placeholder={t("mcp.create.envPlaceholder")}
+                  <Field label={t("mcp.create.authType")}>
+                    <Segments
+                      value={form.authType ?? "none"}
+                      options={authSegments}
+                      onChange={(v) => update("authType", v)}
                     />
                   </Field>
+                </>
+              ) : (
+                <>
+                  <Field label={t("mcp.create.command")}>
+                    <WKInput
+                      value={form.command ?? ""}
+                      onChange={(v) => update("command", v)}
+                      placeholder={t("mcp.create.commandPlaceholder")}
+                    />
+                  </Field>
+                  <Field
+                    label={t("mcp.create.args")}
+                    hint={t("mcp.create.argsHint")}
+                  >
+                    <WKInput
+                      value={argsRaw}
+                      onChange={setArgsRaw}
+                      placeholder={t("mcp.create.argsPlaceholder")}
+                    />
+                  </Field>
+                </>
+              )}
+
+              <div className="wk-mcp-advanced">
+                <button
+                  type="button"
+                  className="wk-mcp-advanced__toggle"
+                  onClick={() => setAdvancedOpen((v) => !v)}
+                >
+                  <span
+                    className={
+                      advancedOpen
+                        ? "wk-mcp-advanced__caret wk-mcp-advanced__caret--open"
+                        : "wk-mcp-advanced__caret"
+                    }
+                  >
+                    ▸
+                  </span>
+                  {advancedOpen
+                    ? t("mcp.create.advancedHide")
+                    : t("mcp.create.advancedShow")}
+                </button>
+                {advancedOpen && (
+                  <div className="wk-mcp-advanced__body">
+                    {isRemote(form.transport) ? (
+                      <Field
+                        label={t("mcp.create.headers")}
+                        hint={t("mcp.create.headersHint")}
+                      >
+                        <TextArea
+                          value={headersRaw}
+                          onChange={setHeadersRaw}
+                          rows={3}
+                          placeholder={t("mcp.create.headersPlaceholder")}
+                        />
+                      </Field>
+                    ) : (
+                      <Field
+                        label={t("mcp.create.env")}
+                        hint={t("mcp.create.envHint")}
+                      >
+                        <TextArea
+                          value={envRaw}
+                          onChange={setEnvRaw}
+                          rows={3}
+                          placeholder={t("mcp.create.envPlaceholder")}
+                        />
+                      </Field>
+                    )}
+                  </div>
                 )}
               </div>
-            )}
-          </div>
-        </Section>
+            </Section>
 
-        {/* 3. 工具清单 */}
-        <Section
-          title={t("mcp.create.sectionTools")}
-          desc={t("mcp.create.sectionToolsDesc")}
-          action={
-            <div style={{ display: "flex", gap: "8px" }}>
-              <WKButton size="sm" variant="secondary" onClick={addTool}>
-                + {t("mcp.create.toolAdd")}
-              </WKButton>
-              <WKButton
-                size="sm"
-                variant="secondary"
-                loading={probing}
-                onClick={handleProbe}
-              >
-                {t("mcp.create.probe")}
-              </WKButton>
-            </div>
-          }
-        >
-          {form.tools.length === 0 ? (
-            <div className="wk-mcp-rows__empty">
-              {t("mcp.create.toolsEmpty")}
-            </div>
-          ) : (
-            <div className="wk-mcp-rows">
-              {form.tools.map((tool, idx) => (
-                <div className="wk-mcp-tool-editor" key={idx}>
-                  <div className="wk-mcp-tool-editor__head">
-                    <span className="wk-mcp-row__index">#{idx + 1}</span>
-                    <WKButton
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => removeTool(idx)}
-                    >
-                      {t("mcp.create.toolRemove")}
-                    </WKButton>
-                  </div>
-                  <WKInput
-                    value={tool.name}
-                    onChange={(v) => updateTool(idx, { name: v })}
-                    placeholder={t("mcp.create.toolNamePlaceholder")}
-                  />
-                  <WKInput
-                    value={tool.description}
-                    onChange={(v) => updateTool(idx, { description: v })}
-                    placeholder={t("mcp.create.toolDescPlaceholder")}
-                  />
+            {/* 3. 工具清单 */}
+            <Section
+              title={t("mcp.create.sectionTools")}
+              desc={t("mcp.create.sectionToolsDesc")}
+              action={
+                <div style={{ display: "flex", gap: "8px" }}>
+                  <WKButton size="sm" variant="secondary" onClick={addTool}>
+                    + {t("mcp.create.toolAdd")}
+                  </WKButton>
+                  <WKButton
+                    size="sm"
+                    variant="secondary"
+                    loading={probing}
+                    onClick={handleProbe}
+                  >
+                    {t("mcp.create.probe")}
+                  </WKButton>
                 </div>
-              ))}
-            </div>
-          )}
-          <div className="wk-mcp-field__hint">
-            {t("mcp.create.toolsHint")}
-          </div>
-        </Section>
-        </>
+              }
+            >
+              {form.tools.length === 0 ? (
+                <div className="wk-mcp-rows__empty">
+                  {t("mcp.create.toolsEmpty")}
+                </div>
+              ) : (
+                <div className="wk-mcp-rows">
+                  {form.tools.map((tool, idx) => (
+                    <div className="wk-mcp-tool-editor" key={idx}>
+                      <div className="wk-mcp-tool-editor__head">
+                        <span className="wk-mcp-row__index">#{idx + 1}</span>
+                        <WKButton
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => removeTool(idx)}
+                        >
+                          {t("mcp.create.toolRemove")}
+                        </WKButton>
+                      </div>
+                      <WKInput
+                        value={tool.name}
+                        onChange={(v) => updateTool(idx, { name: v })}
+                        placeholder={t("mcp.create.toolNamePlaceholder")}
+                      />
+                      <WKInput
+                        value={tool.description}
+                        onChange={(v) => updateTool(idx, { description: v })}
+                        placeholder={t("mcp.create.toolDescPlaceholder")}
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div className="wk-mcp-field__hint">
+                {t("mcp.create.toolsHint")}
+              </div>
+            </Section>
+          </>
         )}
 
         {step === 2 && (
-        <>
-        {/* 4. 使用示例 */}
-        <Section
-          title={t("mcp.create.sectionExamples")}
-          desc={t("mcp.create.sectionExamplesDesc")}
-          action={<AddBtn onClick={addExample} />}
-        >
-          {(form.usageExamples ?? []).length === 0 ? (
-            <div className="wk-mcp-rows__empty">
-              {t("mcp.create.emptyExamples")}
-            </div>
-          ) : (
-            <div className="wk-mcp-rows">
-              {(form.usageExamples ?? []).map((ex, idx) => (
-                <div className="wk-mcp-row" key={idx}>
-                  <span className="wk-mcp-row__index">#{idx + 1}</span>
-                  <div className="wk-mcp-row__grow">
-                    <WKInput
-                      value={ex}
-                      onChange={(v) => updateExample(idx, v)}
-                      placeholder={t("mcp.create.usageExamplePlaceholder")}
-                    />
-                  </div>
-                  <WKButton
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => removeExample(idx)}
-                  >
-                    {t("mcp.create.usageExampleRemove")}
-                  </WKButton>
+          <>
+            {/* 4. 使用示例 */}
+            <Section
+              title={t("mcp.create.sectionExamples")}
+              desc={t("mcp.create.sectionExamplesDesc")}
+              action={<AddBtn onClick={addExample} />}
+            >
+              {(form.usageExamples ?? []).length === 0 ? (
+                <div className="wk-mcp-rows__empty">
+                  {t("mcp.create.emptyExamples")}
                 </div>
-              ))}
-            </div>
-          )}
-        </Section>
-
-        {/* 5. 常见问题 */}
-        <Section
-          title={t("mcp.create.sectionFaqs")}
-          desc={t("mcp.create.sectionFaqsDesc")}
-          action={
-            <WKButton size="sm" variant="secondary" onClick={addFaq}>
-              + {t("mcp.create.faqAdd")}
-            </WKButton>
-          }
-        >
-          {(form.faqs ?? []).length === 0 ? (
-            <div className="wk-mcp-rows__empty">
-              {t("mcp.create.emptyFaqs")}
-            </div>
-          ) : (
-            <div className="wk-mcp-rows">
-              {(form.faqs ?? []).map((faq, idx) => (
-                <div className="wk-mcp-faq-card" key={idx}>
-                  <div className="wk-mcp-faq-card__head">
-                    <span className="wk-mcp-faq-card__index">#{idx + 1}</span>
-                    <WKButton
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => removeFaq(idx)}
-                    >
-                      {t("mcp.create.faqRemove")}
-                    </WKButton>
-                  </div>
-                  <WKInput
-                    value={faq.question}
-                    onChange={(v) => updateFaq(idx, { question: v })}
-                    placeholder={t("mcp.create.faqQuestionPlaceholder")}
-                  />
-                  <TextArea
-                    value={faq.answer}
-                    onChange={(v) => updateFaq(idx, { answer: v })}
-                    rows={2}
-                    placeholder={t("mcp.create.faqAnswerPlaceholder")}
-                  />
+              ) : (
+                <div className="wk-mcp-rows">
+                  {(form.usageExamples ?? []).map((ex, idx) => (
+                    <div className="wk-mcp-row" key={idx}>
+                      <span className="wk-mcp-row__index">#{idx + 1}</span>
+                      <div className="wk-mcp-row__grow">
+                        <WKInput
+                          value={ex}
+                          onChange={(v) => updateExample(idx, v)}
+                          placeholder={t("mcp.create.usageExamplePlaceholder")}
+                        />
+                      </div>
+                      <WKButton
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => removeExample(idx)}
+                      >
+                        {t("mcp.create.usageExampleRemove")}
+                      </WKButton>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-          )}
-        </Section>
+              )}
+            </Section>
 
-        {/* 6. 注意事项 */}
-        <Section
-          title={t("mcp.create.sectionNotes")}
-          desc={t("mcp.create.sectionNotesDesc")}
-          action={
-            <WKButton size="sm" variant="secondary" onClick={addNote}>
-              + {t("mcp.create.notesAdd")}
-            </WKButton>
-          }
-        >
-          {(form.notes ?? []).length === 0 ? (
-            <div className="wk-mcp-rows__empty">
-              {t("mcp.create.emptyNotes")}
-            </div>
-          ) : (
-            <div className="wk-mcp-rows">
-              {(form.notes ?? []).map((note, idx) => (
-                <div className="wk-mcp-row" key={idx}>
-                  <span className="wk-mcp-row__index">#{idx + 1}</span>
-                  <div className="wk-mcp-row__grow">
-                    <WKInput
-                      value={note}
-                      onChange={(v) => updateNote(idx, v)}
-                      placeholder={t("mcp.create.notesPlaceholder")}
-                    />
-                  </div>
-                  <WKButton
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => removeNote(idx)}
-                  >
-                    {t("mcp.create.notesRemove")}
-                  </WKButton>
+            {/* 5. 常见问题 */}
+            <Section
+              title={t("mcp.create.sectionFaqs")}
+              desc={t("mcp.create.sectionFaqsDesc")}
+              action={
+                <WKButton size="sm" variant="secondary" onClick={addFaq}>
+                  + {t("mcp.create.faqAdd")}
+                </WKButton>
+              }
+            >
+              {(form.faqs ?? []).length === 0 ? (
+                <div className="wk-mcp-rows__empty">
+                  {t("mcp.create.emptyFaqs")}
                 </div>
-              ))}
-            </div>
-          )}
-        </Section>
+              ) : (
+                <div className="wk-mcp-rows">
+                  {(form.faqs ?? []).map((faq, idx) => (
+                    <div className="wk-mcp-faq-card" key={idx}>
+                      <div className="wk-mcp-faq-card__head">
+                        <span className="wk-mcp-faq-card__index">
+                          #{idx + 1}
+                        </span>
+                        <WKButton
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => removeFaq(idx)}
+                        >
+                          {t("mcp.create.faqRemove")}
+                        </WKButton>
+                      </div>
+                      <WKInput
+                        value={faq.question}
+                        onChange={(v) => updateFaq(idx, { question: v })}
+                        placeholder={t("mcp.create.faqQuestionPlaceholder")}
+                      />
+                      <TextArea
+                        value={faq.answer}
+                        onChange={(v) => updateFaq(idx, { answer: v })}
+                        rows={2}
+                        placeholder={t("mcp.create.faqAnswerPlaceholder")}
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Section>
 
-        {/* 7. 可见范围 */}
-        <Section full title={t("mcp.create.sectionVisibility")}>
-          <Segments
-            full
-            value={form.visibility}
-            options={visibilitySegments}
-            onChange={(v) => update("visibility", v)}
-          />
-        </Section>
-        </>
+            {/* 6. 注意事项 */}
+            <Section
+              title={t("mcp.create.sectionNotes")}
+              desc={t("mcp.create.sectionNotesDesc")}
+              action={
+                <WKButton size="sm" variant="secondary" onClick={addNote}>
+                  + {t("mcp.create.notesAdd")}
+                </WKButton>
+              }
+            >
+              {(form.notes ?? []).length === 0 ? (
+                <div className="wk-mcp-rows__empty">
+                  {t("mcp.create.emptyNotes")}
+                </div>
+              ) : (
+                <div className="wk-mcp-rows">
+                  {(form.notes ?? []).map((note, idx) => (
+                    <div className="wk-mcp-row" key={idx}>
+                      <span className="wk-mcp-row__index">#{idx + 1}</span>
+                      <div className="wk-mcp-row__grow">
+                        <WKInput
+                          value={note}
+                          onChange={(v) => updateNote(idx, v)}
+                          placeholder={t("mcp.create.notesPlaceholder")}
+                        />
+                      </div>
+                      <WKButton
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => removeNote(idx)}
+                      >
+                        {t("mcp.create.notesRemove")}
+                      </WKButton>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Section>
+
+            {/* 7. 可见范围 */}
+            <Section full title={t("mcp.create.sectionVisibility")}>
+              <Segments
+                full
+                value={form.visibility}
+                options={visibilitySegments}
+                onChange={(v) => update("visibility", v)}
+              />
+            </Section>
+          </>
         )}
       </div>
     </WKModal>
