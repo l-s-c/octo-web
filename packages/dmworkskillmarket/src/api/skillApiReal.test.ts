@@ -5,6 +5,9 @@ import {
   getMySkills,
   getSkill,
   deleteSkill,
+  initUpload,
+  initReupload,
+  pollParse,
 } from "./skillApiReal";
 
 // Mock global fetch
@@ -155,5 +158,125 @@ describe("skillApiReal", () => {
     );
 
     await expect(getSkill("nonexistent")).rejects.toThrow("not found");
+  });
+
+  it("initUpload maps backend presigned upload fields", async () => {
+    mockFetch.mockReturnValueOnce(
+      jsonResponse({
+        upload_id: "upload-123",
+        presigned_url: "http://127.0.0.1:9000/bucket/upload-123.zip",
+        method: "PUT",
+        headers: { "Content-Type": "application/zip" },
+        expires_in: 3600,
+      }),
+    );
+
+    const result = await initUpload("skill-pack.zip", 2048);
+
+    expect(result).toEqual({
+      uploadId: "upload-123",
+      presignedUrl: "http://127.0.0.1:9000/bucket/upload-123.zip",
+      method: "PUT",
+      headers: { "Content-Type": "application/zip" },
+      expiresIn: 3600,
+    });
+    expect(mockFetch).toHaveBeenCalledWith(
+      "/market/api/v1/skill/upload/init",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ file_name: "skill-pack.zip", file_size: 2048 }),
+      }),
+    );
+  });
+
+  it("initReupload maps backend presigned upload fields", async () => {
+    mockFetch.mockReturnValueOnce(
+      jsonResponse({
+        upload_id: "reupload-456",
+        presigned_url: "http://127.0.0.1:9000/bucket/reupload-456.zip",
+        method: "PUT",
+        headers: { "Content-Type": "application/zip", "X-Amz-Acl": "private" },
+        expires_in: 1800,
+      }),
+    );
+
+    const result = await initReupload("skill-1", "updated.zip", 4096);
+
+    expect(result).toEqual({
+      uploadId: "reupload-456",
+      presignedUrl: "http://127.0.0.1:9000/bucket/reupload-456.zip",
+      method: "PUT",
+      headers: { "Content-Type": "application/zip", "X-Amz-Acl": "private" },
+      expiresIn: 1800,
+    });
+    expect(mockFetch).toHaveBeenCalledWith(
+      "/market/api/v1/skill/skill-1/reupload/init",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ file_name: "updated.zip", file_size: 4096 }),
+      }),
+    );
+  });
+
+  it("pollParse maps nested success result from backend", async () => {
+    mockFetch.mockReturnValueOnce(
+      jsonResponse({
+        status: "success",
+        task_id: "task-123",
+        result: {
+          name: "ci-failure-map",
+          description: "Analyze CI logs",
+          tags: ["CI", "debug"],
+          version: "1.2.3",
+          readme_content: "# ci-failure-map",
+          file_name: "ci-failure-map.zip",
+          file_size: 8192,
+          file_sha256: "abc123",
+        },
+      }),
+    );
+
+    const result = await pollParse("task-123");
+
+    expect(result).toEqual({
+      status: "success",
+      result: {
+        name: "ci-failure-map",
+        description: "Analyze CI logs",
+        tags: ["CI", "debug"],
+        version: "1.2.3",
+        readmeContent: "# ci-failure-map",
+        fileName: "ci-failure-map.zip",
+        fileSize: 8192,
+        fileSha256: "abc123",
+      },
+    });
+    expect(mockFetch).toHaveBeenCalledWith(
+      "/market/api/v1/skill/parse/task-123",
+      expect.anything(),
+    );
+  });
+
+  it("pollParse maps nested failure error from backend", async () => {
+    mockFetch.mockReturnValueOnce(
+      jsonResponse({
+        status: "failed",
+        task_id: "task-404",
+        error: {
+          code: "err.marketplace.parse.invalid_zip",
+          message: "invalid zip",
+        },
+      }),
+    );
+
+    const result = await pollParse("task-404");
+
+    expect(result).toEqual({
+      status: "failed",
+      error: {
+        code: "err.marketplace.parse.invalid_zip",
+        message: "invalid zip",
+      },
+    });
   });
 });

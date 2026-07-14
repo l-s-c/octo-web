@@ -142,7 +142,7 @@ export default defineConfig(({ mode }) => {
         // docs/api/mcp-v1.md §0.
         "/market/api/v1": {
           target:
-            env.VITE_MARKET_API_URL || apiOrigin || "http://localhost:8080",
+            env.VITE_MARKET_API_URL || "http://127.0.0.1:8092",
           changeOrigin: true,
           secure: false,
           rewrite: (path: string) => path.replace(/^\/market/, ""),
