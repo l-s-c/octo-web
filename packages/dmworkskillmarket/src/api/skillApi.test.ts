@@ -7,7 +7,7 @@ import {
   getSkill,
   getSkills,
   updateSkill,
-} from "./skillApi";
+} from "./skillApiMock";
 
 describe("skillApi mock contract", () => {
   it("exposes 16 PRD categories with skill counts", async () => {

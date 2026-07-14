@@ -3,21 +3,21 @@
  *
  * This module communicates with the octo-marketplace backend. It maps
  * snake_case responses to camelCase frontend types.
- *
- * To switch from mock to real API, change the import in consuming code
- * from `./skillApi` (mock) to `./skillApiReal`.
  */
 import { API_BASE_URL } from "./constants";
 import type {
   Category,
   NewSkillForm,
   PagedResult,
+  ParseStatusResult,
   RawCategory,
   RawPagedResult,
   RawSkill,
   Skill,
   SkillListQuery,
+  TriggerParseResult,
   UpdateSkillForm,
+  UploadInitResult,
   ApiResponse,
 } from "../types/skill";
 
@@ -133,30 +133,26 @@ export function createSkill(form: NewSkillForm): Promise<Skill> {
   return request<RawSkill>("/skill", {
     method: "POST",
     body: JSON.stringify({
+      parse_task_id: form.parseTaskId,
       name: form.name,
       description: form.description,
       category_id: form.categoryId,
       tags: form.tags,
       visibility: form.visibility,
       version: form.version,
-      readme_content: form.readmeContent,
-      file_name: form.fileName,
-      file_size: form.fileSize,
     }),
   }).then(mapSkill);
 }
 
 export function updateSkill(id: string, form: UpdateSkillForm): Promise<Skill> {
   const body: Record<string, unknown> = {};
+  if (form.parseTaskId !== undefined) body.parse_task_id = form.parseTaskId;
   if (form.name !== undefined) body.name = form.name;
   if (form.description !== undefined) body.description = form.description;
   if (form.categoryId !== undefined) body.category_id = form.categoryId;
   if (form.tags !== undefined) body.tags = form.tags;
   if (form.visibility !== undefined) body.visibility = form.visibility;
   if (form.version !== undefined) body.version = form.version;
-  if (form.readmeContent !== undefined) body.readme_content = form.readmeContent;
-  if (form.fileName !== undefined) body.file_name = form.fileName;
-  if (form.fileSize !== undefined) body.file_size = form.fileSize;
 
   return request<RawSkill>(`/skill/${encodeURIComponent(id)}`, {
     method: "PUT",
@@ -168,4 +164,104 @@ export function deleteSkill(id: string): Promise<void> {
   return request<void>(`/skill/${encodeURIComponent(id)}`, {
     method: "DELETE",
   });
+}
+
+// ─── Upload / Parse flow ───────────────────────────────────────────────────
+
+/** Step 1: Get a pre-signed upload URL from the backend. */
+export function initUpload(fileName: string, fileSize: number): Promise<UploadInitResult> {
+  return request<{ upload_id: string; upload_url: string }>("/skill/upload/init", {
+    method: "POST",
+    body: JSON.stringify({ file_name: fileName, file_size: fileSize }),
+  }).then((raw) => ({
+    uploadId: raw.upload_id,
+    uploadUrl: raw.upload_url,
+  }));
+}
+
+/** Step 2: Upload the file to the pre-signed URL (PUT). */
+export async function uploadFile(uploadUrl: string, file: File, onProgress?: (percent: number) => void): Promise<void> {
+  // Use XMLHttpRequest for progress support
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("PUT", uploadUrl);
+    xhr.upload.addEventListener("progress", (event) => {
+      if (event.lengthComputable && onProgress) {
+        onProgress(Math.round((event.loaded / event.total) * 100));
+      }
+    });
+    xhr.addEventListener("load", () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        resolve();
+      } else {
+        reject(new Error(`Upload failed: HTTP ${xhr.status}`));
+      }
+    });
+    xhr.addEventListener("error", () => reject(new Error("Upload network error")));
+    xhr.addEventListener("abort", () => reject(new Error("Upload aborted")));
+    xhr.send(file);
+  });
+}
+
+/** Step 3: Trigger server-side parsing of the uploaded zip. */
+export function triggerParse(uploadId: string): Promise<TriggerParseResult> {
+  return request<{ task_id: string }>(`/skill/upload/${encodeURIComponent(uploadId)}/parse`, {
+    method: "POST",
+  }).then((raw) => ({
+    taskId: raw.task_id,
+  }));
+}
+
+/** Step 4: Poll parse status until success or failure. */
+export function pollParse(taskId: string): Promise<ParseStatusResult> {
+  return request<{
+    status: string;
+    result_name?: string;
+    result_description?: string;
+    result_tags?: string[];
+    result_version?: string;
+    result_readme?: string;
+    file_name?: string;
+    file_size?: number;
+    file_sha256?: string;
+    error_code?: string;
+    error_message?: string;
+  }>(`/skill/parse/${encodeURIComponent(taskId)}`).then((raw) => {
+    const result: ParseStatusResult = {
+      status: raw.status as ParseStatusResult["status"],
+    };
+    if (raw.status === "success") {
+      result.result = {
+        name: raw.result_name ?? "",
+        description: raw.result_description ?? "",
+        tags: raw.result_tags ?? [],
+        version: raw.result_version ?? "1.0.0",
+        readmeContent: raw.result_readme ?? "",
+        fileName: raw.file_name ?? "",
+        fileSize: raw.file_size ?? 0,
+        fileSha256: raw.file_sha256 ?? "",
+      };
+    }
+    if (raw.status === "failed") {
+      result.error = {
+        code: raw.error_code ?? "unknown",
+        message: raw.error_message ?? "解析失败",
+      };
+    }
+    return result;
+  });
+}
+
+/** Reupload init for an existing skill. */
+export function initReupload(skillId: string, fileName: string, fileSize: number): Promise<UploadInitResult> {
+  return request<{ upload_id: string; upload_url: string }>(
+    `/skill/${encodeURIComponent(skillId)}/reupload/init`,
+    {
+      method: "POST",
+      body: JSON.stringify({ file_name: fileName, file_size: fileSize }),
+    },
+  ).then((raw) => ({
+    uploadId: raw.upload_id,
+    uploadUrl: raw.upload_url,
+  }));
 }

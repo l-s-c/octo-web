@@ -50,6 +50,7 @@ export interface ApiResponse<T> {
 }
 
 export interface NewSkillForm {
+  parseTaskId?: string;
   name: string;
   description: string;
   categoryId: string;
@@ -61,7 +62,52 @@ export interface NewSkillForm {
   fileSize: number;
 }
 
-export type UpdateSkillForm = Partial<NewSkillForm>;
+export interface UpdateSkillForm {
+  parseTaskId?: string;
+  name?: string;
+  description?: string;
+  categoryId?: string;
+  tags?: string[];
+  visibility?: Visibility;
+  version?: string;
+  readmeContent?: string;
+  fileName?: string;
+  fileSize?: number;
+}
+
+// ─── Upload/Parse flow types ─────────────────────────────────────────────
+
+/** Response from POST /api/v1/skill/upload/init */
+export interface UploadInitResult {
+  uploadId: string;
+  uploadUrl: string;
+}
+
+/** Response from POST /api/v1/skill/upload/:uploadId/parse */
+export interface TriggerParseResult {
+  taskId: string;
+}
+
+export type ParseStatus = "pending" | "parsing" | "success" | "failed";
+
+/** Response from GET /api/v1/skill/parse/:taskId */
+export interface ParseStatusResult {
+  status: ParseStatus;
+  result?: {
+    name: string;
+    description: string;
+    tags: string[];
+    version: string;
+    readmeContent: string;
+    fileName: string;
+    fileSize: number;
+    fileSha256: string;
+  };
+  error?: {
+    code: string;
+    message: string;
+  };
+}
 
 // ─── Backend (snake_case) raw response types ───────────────────────────────
 

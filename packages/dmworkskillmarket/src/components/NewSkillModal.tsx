@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { AlertCircle, CheckCircle2, FileArchive, Loader2, UploadCloud, XCircle } from "lucide-react";
 import { WKButton, WKInput, WKModal } from "@octo/base";
 import type { Category, NewSkillForm, Visibility } from "../types/skill";
-import { createSkill } from "../api/skillApi";
+import { createSkill, initUpload, uploadFile, triggerParse, pollParse } from "../api/skillApi";
 import { formatFileSize } from "../utils/format";
 
 interface NewSkillModalProps {
@@ -22,24 +22,9 @@ interface ParsedSkill {
 }
 
 const MAX_ZIP_SIZE = 20 * 1024 * 1024;
-const parseErrors = ["zip 包中未找到 SKILL.md", "文件格式不正确", "压缩包已损坏"];
 
 function createReadme(name: string, description: string, version: string): string {
   return `# ${name}\n\n${description}\n\n## Version\n\n${version}\n`;
-}
-
-function parseFileName(fileName: string): string {
-  return fileName.replace(/\.zip$/i, "").trim() || "new-skill";
-}
-
-function mockParsedSkill(file: File): ParsedSkill {
-  const baseName = parseFileName(file.name);
-  return {
-    name: baseName,
-    description: `${baseName} 提供可复用的自动化工作流，支持快速接入团队协作场景。`,
-    tags: ["自动化", "Skill", "协作"],
-    version: `1.${Math.floor(Math.random() * 5)}.0`,
-  };
 }
 
 function validateZipFile(file: File): string | null {
@@ -53,11 +38,11 @@ export default function NewSkillModal({ visible, categories, onClose, onCreated 
     () => categories.filter((category: Category) => category.id !== "all"),
     [categories],
   );
-  const progressTimerRef = useRef<number | null>(null);
-  const parseTimerRef = useRef<number | null>(null);
+  const abortRef = useRef(false);
   const [stage, setStage] = useState<UploadStage>("idle");
   const [progress, setProgress] = useState(0);
   const [file, setFile] = useState<File | null>(null);
+  const [parseTaskId, setParseTaskId] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [categoryId, setCategoryId] = useState("");
@@ -71,23 +56,20 @@ export default function NewSkillModal({ visible, categories, onClose, onCreated 
 
   const busy = stage === "uploading" || stage === "parsing";
   const dirty = Boolean(file || name.trim() || description.trim() || tags.length || categoryId);
-  const canCreate = Boolean(file && name.trim() && description.trim() && categoryId && !saving);
+  const canCreate = Boolean(parseTaskId && name.trim() && description.trim() && categoryId && !saving);
 
-  useEffect(() => () => {
-    if (progressTimerRef.current) window.clearInterval(progressTimerRef.current);
-    if (parseTimerRef.current) window.clearTimeout(parseTimerRef.current);
-  }, []);
+  useEffect(() => () => { abortRef.current = true; }, []);
 
   useEffect(() => {
     if (!visible) reset();
   }, [visible]);
 
   function reset() {
-    if (progressTimerRef.current) window.clearInterval(progressTimerRef.current);
-    if (parseTimerRef.current) window.clearTimeout(parseTimerRef.current);
+    abortRef.current = true;
     setStage("idle");
     setProgress(0);
     setFile(null);
+    setParseTaskId(null);
     setName("");
     setDescription("");
     setCategoryId("");
@@ -98,6 +80,8 @@ export default function NewSkillModal({ visible, categories, onClose, onCreated 
     setSaving(false);
     setError(null);
     setConfirmClose(null);
+    // Allow next upload
+    setTimeout(() => { abortRef.current = false; }, 0);
   }
 
   function requestClose() {
@@ -117,7 +101,7 @@ export default function NewSkillModal({ visible, categories, onClose, onCreated 
     onClose();
   }
 
-  function startUpload(nextFile: File) {
+  async function startUpload(nextFile: File) {
     const validationError = validateZipFile(nextFile);
     setError(validationError);
     if (validationError) {
@@ -131,41 +115,67 @@ export default function NewSkillModal({ visible, categories, onClose, onCreated 
     setStage("uploading");
     setProgress(0);
     setError(null);
+    abortRef.current = false;
 
-    if (progressTimerRef.current) window.clearInterval(progressTimerRef.current);
-    progressTimerRef.current = window.setInterval(() => {
-      setProgress((current) => {
-        const next = Math.min(current + 10, 100);
-        if (next >= 100) {
-          if (progressTimerRef.current) window.clearInterval(progressTimerRef.current);
-          setStage("parsing");
-          parseTimerRef.current = window.setTimeout(() => finishParse(nextFile), 1500);
-        }
-        return next;
+    try {
+      // Step 1: Init upload
+      const { uploadId, uploadUrl } = await initUpload(nextFile.name, nextFile.size);
+      if (abortRef.current) return;
+
+      // Step 2: Upload the file
+      await uploadFile(uploadUrl, nextFile, (percent) => {
+        if (!abortRef.current) setProgress(percent);
       });
-    }, 200);
-  }
+      if (abortRef.current) return;
 
-  function finishParse(nextFile: File) {
-    if (Math.random() < 0.8) {
-      const parsed = mockParsedSkill(nextFile);
-      setName(parsed.name);
-      setDescription(parsed.description);
-      setTags(parsed.tags);
-      setVersion(parsed.version);
-      setVisibility("space");
-      setCategoryId("");
-      setStage("form");
-      setError(null);
-      return;
+      // Step 3: Trigger parse
+      setStage("parsing");
+      const { taskId } = await triggerParse(uploadId);
+      if (abortRef.current) return;
+
+      // Step 4: Poll parse status
+      let attempts = 0;
+      const maxAttempts = 60; // 60s max
+      while (attempts < maxAttempts) {
+        if (abortRef.current) return;
+        const status = await pollParse(taskId);
+        if (abortRef.current) return;
+
+        if (status.status === "success" && status.result) {
+          setParseTaskId(taskId);
+          setName(status.result.name);
+          setDescription(status.result.description);
+          setTags(status.result.tags);
+          setVersion(status.result.version);
+          setVisibility("space");
+          setCategoryId("");
+          setStage("form");
+          setError(null);
+          return;
+        }
+        if (status.status === "failed") {
+          setStage("error");
+          setError(status.error?.message ?? "解析失败");
+          return;
+        }
+        // Still pending/parsing — wait 1s and retry
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+        attempts++;
+      }
+      // Timeout
+      setStage("error");
+      setError("解析超时，请重试");
+    } catch (err) {
+      if (!abortRef.current) {
+        setStage("error");
+        setError(err instanceof Error ? err.message : "上传失败");
+      }
     }
-    setStage("error");
-    setError(parseErrors[Math.floor(Math.random() * parseErrors.length)]);
   }
 
   function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
     const nextFile = event.target.files?.[0];
-    if (nextFile) startUpload(nextFile);
+    if (nextFile) void startUpload(nextFile);
     event.target.value = "";
   }
 
@@ -181,11 +191,12 @@ export default function NewSkillModal({ visible, categories, onClose, onCreated 
       setError("请填写名称、描述和分类");
       return;
     }
-    if (!file) {
-      setError("请先上传 Skill 压缩包");
+    if (!parseTaskId) {
+      setError("请先上传并解析 Skill 压缩包");
       return;
     }
     const form: NewSkillForm = {
+      parseTaskId,
       name,
       description,
       categoryId,
@@ -193,8 +204,8 @@ export default function NewSkillModal({ visible, categories, onClose, onCreated 
       visibility,
       version,
       readmeContent: createReadme(name, description, version),
-      fileName: file.name,
-      fileSize: file.size,
+      fileName: file?.name ?? "",
+      fileSize: file?.size ?? 0,
     };
     setSaving(true);
     setError(null);
