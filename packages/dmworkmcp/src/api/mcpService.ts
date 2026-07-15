@@ -333,14 +333,16 @@ async function fetchMcpDetailReal(id: string): Promise<McpDetail> {
 }
 
 async function probeMcpToolsReal(
-  req: McpProbeRequest
+  _req: McpProbeRequest
 ): Promise<McpProbeResult> {
   // stdio probing must run in the Electron main process (LSC-70); the
-  // marketplace REST surface does not expose a probe. This placeholder keeps
-  // the signature stable and is not reached by the browse+create flow — the
-  // create wizard's probe still hits the mock until the IPC path lands.
-  // TODO(LSC-70): route to the `mcp:probeTools` IPC instead of this endpoint.
-  return post<McpProbeResult>("/probe", req);
+  // marketplace REST surface has no `/probe` endpoint. Until the IPC path
+  // lands, real probing is unavailable — the create wizard hides its probe
+  // button (see isProbeAvailable) so this branch is never reached in the
+  // browse+create flow. Throw instead of hitting a non-existent endpoint so a
+  // stray call surfaces loudly rather than 404-ing.
+  // TODO(LSC-70): route to the `mcp:probeTools` IPC and flip isProbeAvailable.
+  throw new Error("probe_unavailable");
 }
 
 async function createMcpReal(params: CreateMcpParams): Promise<{ id: string }> {
@@ -366,12 +368,20 @@ export function fetchMcpDetail(id: string): Promise<McpDetail> {
 
 /**
  * Try-connect + fetch tool list. Mock returns a fake tool set after a delay;
- * the real implementation is provided by the Electron main process.
- * TODO: 后端提供真实探测接口
+ * the real implementation is provided by the Electron main process (LSC-70).
  */
 export function probeMcpTools(req: McpProbeRequest): Promise<McpProbeResult> {
   return USE_MOCK ? probeMcpToolsMock(req) : probeMcpToolsReal(req);
 }
+
+/**
+ * Whether "try connect / fetch tool list" is actually wired up. The marketplace
+ * REST surface has no `/probe`; real probing needs the Electron main-process IPC
+ * (LSC-70), which has not landed. So probing only works in mock mode today. The
+ * create wizard consults this to hide its probe button when it would only fail.
+ * TODO(LSC-70): return true once probeMcpToolsReal routes to `mcp:probeTools`.
+ */
+export const isProbeAvailable = USE_MOCK;
 
 export function createMcp(params: CreateMcpParams): Promise<{ id: string }> {
   return USE_MOCK ? createMcpMock(params) : createMcpReal(params);

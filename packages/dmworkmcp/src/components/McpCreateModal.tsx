@@ -1,7 +1,7 @@
 import React, { useMemo, useRef, useState } from "react";
 import { WKModal, WKInput, WKButton, t } from "@octo/base";
 import { Select, TextArea, Toast } from "@douyinfe/semi-ui";
-import { createMcp, probeMcpTools } from "../api/mcpService";
+import { createMcp, probeMcpTools, isProbeAvailable } from "../api/mcpService";
 import { MCP_CATEGORY_LABELS, MCP_CATEGORY_ORDER } from "../mock/mcpMock";
 import { applySecretSentinel } from "../utils/constants";
 import type {
@@ -758,14 +758,20 @@ const McpCreateModal: React.FC<McpCreateModalProps> = ({
                   <WKButton size="sm" variant="secondary" onClick={addTool}>
                     + {t("mcp.create.toolAdd")}
                   </WKButton>
-                  <WKButton
-                    size="sm"
-                    variant="secondary"
-                    loading={probing}
-                    onClick={handleProbe}
-                  >
-                    {t("mcp.create.probe")}
-                  </WKButton>
+                  {/* Probe only works in mock mode today; the marketplace REST
+                      surface has no /probe and the Electron IPC (LSC-70) has not
+                      landed. Hide the button when it would only fail so users
+                      fall back to adding tools manually. */}
+                  {isProbeAvailable && (
+                    <WKButton
+                      size="sm"
+                      variant="secondary"
+                      loading={probing}
+                      onClick={handleProbe}
+                    >
+                      {t("mcp.create.probe")}
+                    </WKButton>
+                  )}
                 </div>
               }
             >
