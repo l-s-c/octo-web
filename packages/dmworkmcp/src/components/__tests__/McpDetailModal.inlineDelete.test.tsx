@@ -13,7 +13,9 @@ vi.mock("../../api/mcpService", () => ({
   fetchMcpDetail: (...a: unknown[]) => fetchMcpDetail(...a),
 }));
 vi.mock("../../api/quickStartTemplates", () => ({
-  buildQuickStartTabs: () => [{ key: "prompt", labelKey: "prompt", content: "x" }],
+  buildQuickStartTabs: () => [
+    { key: "prompt", labelKey: "prompt", content: "x" },
+  ],
 }));
 vi.mock("../../utils/icon", () => ({ IconGlyph: () => null }));
 vi.mock("@douyinfe/semi-ui", () => ({
@@ -25,12 +27,32 @@ vi.mock("@douyinfe/semi-ui", () => ({
 // it (the old modal-on-modal path), the test would blow up.
 vi.mock("@octo/base", () => ({
   t: (k: string) => k,
-  WKModal: ({ footer, children }: { footer: React.ReactNode; children: React.ReactNode }) =>
-    React.createElement("div", { "data-testid": "wkmodal" }, children, React.createElement("div", { "data-testid": "footer" }, footer)),
-  WKButton: ({ children, onClick, disabled }: { children: React.ReactNode; onClick?: () => void; disabled?: boolean }) =>
-    React.createElement("button", { onClick, disabled }, children),
+  WKModal: ({
+    footer,
+    children,
+  }: {
+    footer: React.ReactNode;
+    children: React.ReactNode;
+  }) =>
+    React.createElement(
+      "div",
+      { "data-testid": "wkmodal" },
+      children,
+      React.createElement("div", { "data-testid": "footer" }, footer)
+    ),
+  WKButton: ({
+    children,
+    onClick,
+    disabled,
+  }: {
+    children: React.ReactNode;
+    onClick?: () => void;
+    disabled?: boolean;
+  }) => React.createElement("button", { onClick, disabled }, children),
   wkConfirm: () => {
-    throw new Error("wkConfirm should NOT be called after 方案A (no modal-on-modal)");
+    throw new Error(
+      "wkConfirm should NOT be called after 方案A (no modal-on-modal)"
+    );
   },
 }));
 
@@ -68,10 +90,22 @@ function clickButtonByText(root: HTMLElement, text: string) {
 describe("McpDetailModal 就地内联删除确认（方案A）", () => {
   it("点删除→footer 就地切确认态，不弹新窗；确认→调用 deleteMcp", async () => {
     fetchMcpDetail.mockResolvedValue({
-      id: "m1", name: "测试666", slogan: "", category: "dev", icon: "", tags: [],
-      toolCount: 0, visibility: "private", creatorName: "dev",
+      id: "m1",
+      name: "测试666",
+      slogan: "",
+      category: "dev",
+      icon: "",
+      tags: [],
+      toolCount: 0,
+      visibility: "private",
+      creatorName: "dev",
       quickStart: { transport: "streamable-http", serverName: "测试666" },
-      tools: [], usageExamples: [], faqs: [], notes: [], createdAt: "", updatedAt: "",
+      tools: [],
+      usageExamples: [],
+      faqs: [],
+      notes: [],
+      createdAt: "",
+      updatedAt: "",
     });
     deleteMcp.mockResolvedValue(undefined);
 
@@ -81,14 +115,20 @@ describe("McpDetailModal 就地内联删除确认（方案A）", () => {
     await act(async () => {
       root = render(
         React.createElement(McpDetailModal, {
-          mcpId: "m1", onClose, canManage: true, onEdit: vi.fn(), onDeleted,
+          mcpId: "m1",
+          onClose,
+          canManage: true,
+          onEdit: vi.fn(),
+          onDeleted,
         })
       );
       await Promise.resolve();
     });
 
     // 初始态：有「删除」和「编辑」两个按钮
-    const initialBtns = Array.from(root.querySelectorAll("button")).map((b) => b.textContent);
+    const initialBtns = Array.from(root.querySelectorAll("button")).map(
+      (b) => b.textContent
+    );
     expect(initialBtns).toContain("mcp.detail.delete");
     expect(initialBtns).toContain("mcp.detail.edit");
 
@@ -97,7 +137,9 @@ describe("McpDetailModal 就地内联删除确认（方案A）", () => {
     clickButtonByText(root, "mcp.detail.delete");
     expect(root.querySelectorAll('[data-testid="wkmodal"]').length).toBe(1);
     expect(root.textContent).toContain("mcp.delete.confirmBody");
-    const confirmBtns = Array.from(root.querySelectorAll("button")).map((b) => b.textContent);
+    const confirmBtns = Array.from(root.querySelectorAll("button")).map(
+      (b) => b.textContent
+    );
     expect(confirmBtns).toContain("mcp.delete.ok");
     expect(confirmBtns).toContain("mcp.delete.cancel");
 

@@ -525,7 +525,6 @@
   display: block;
 }
 
-
 /* ═══ Create form (redesigned) ═════════════════════════════════════════════
    Single-column, section-card layout — mirrors the density of SpaceCreate /
    WebhookEditModal but scales to a longer form via clearly demarcated cards.
@@ -542,7 +541,6 @@
 .wk-mcp-form-steps {
   display: flex;
   align-items: center;
-  justify-content: center;
   gap: var(--wk-sp-2);
   padding: var(--wk-sp-1) 0 var(--wk-sp-3);
   border-bottom: 1px solid var(--wk-border-subtle);
@@ -561,7 +559,7 @@
   background: none;
   border: none;
   transition: color var(--wk-dur-fast) var(--wk-ease),
-              background var(--wk-dur-fast) var(--wk-ease);
+    background var(--wk-dur-fast) var(--wk-ease);
 }
 
 .wk-mcp-form-step:hover {
@@ -643,7 +641,7 @@
   min-width: 0;
   margin-right: var(--wk-sp-2);
   font-size: 13px;
-  color: var(--wk-color-text-secondary, #8a8f99);
+  color: var(--wk-text-secondary);
   text-align: left;
 }
 
@@ -885,7 +883,7 @@
   color: var(--wk-text-secondary);
   cursor: pointer;
   transition: background var(--wk-dur-fast) var(--wk-ease),
-              color var(--wk-dur-fast) var(--wk-ease);
+    color var(--wk-dur-fast) var(--wk-ease);
   text-align: center;
   white-space: nowrap;
 }
@@ -1005,14 +1003,14 @@
    as ConversationList's default state. */
 .wk-mcp-create-modal .wk-modal-body,
 .wk-mcp-detail-modal .wk-modal-body {
-  scrollbar-width: none;           /* Firefox */
-  -ms-overflow-style: none;        /* legacy Edge / IE */
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* legacy Edge / IE */
 }
 .wk-mcp-create-modal .wk-modal-body::-webkit-scrollbar,
 .wk-mcp-detail-modal .wk-modal-body::-webkit-scrollbar {
   width: 0;
   height: 0;
-  display: none;                   /* WebKit */
+  display: none; /* WebKit */
 }
 
 /* ── Create form: tool editor row ────────────────────────────────────────
@@ -1057,7 +1055,7 @@
   color: var(--wk-text-secondary);
   cursor: pointer;
   transition: background var(--wk-dur-fast) var(--wk-ease),
-              color var(--wk-dur-fast) var(--wk-ease);
+    color var(--wk-dur-fast) var(--wk-ease);
   white-space: nowrap;
 }
 
