@@ -530,6 +530,7 @@
 .wk-mcp-form-steps {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: var(--wk-sp-2);
   padding: var(--wk-sp-1) 0 var(--wk-sp-3);
   border-bottom: 1px solid var(--wk-border-subtle);
