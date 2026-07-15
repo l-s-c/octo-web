@@ -31,8 +31,14 @@ export interface McpFaq {
  */
 export interface McpQuickStart {
   transport: McpTransport;
-  /** Server name used as the key in the generated config. */
+  /** Server display name (shown in the generated prompt). */
   serverName: string;
+  /** English slug used as the KEY in the generated `mcpServers` JSON. A JSON
+   *  key must be a stable ASCII identifier (Chinese display names break the
+   *  copy-paste config), so this is derived by slugifying `serverName` and may
+   *  be overridden by the user in the create form. Optional so legacy records
+   *  without it still type-check; callers fall back to slugifying serverName. */
+  slug?: string;
   /** Remote endpoint (streamable-http / sse). */
   url?: string;
   /** Whether the remote endpoint needs a bearer token. */
@@ -155,6 +161,10 @@ export interface McpProbeResult {
  */
 export interface CreateMcpParams {
   name: string;
+  /** English slug used as the KEY in the generated `mcpServers` JSON snippet.
+   *  Auto-derived from `name` (slugify) and user-overridable in the form.
+   *  Falls back to a safe default when slugifying yields an empty string. */
+  slug?: string;
   category: string;
   /** Icon: single emoji/char OR uploaded image (data URL). */
   icon: string;

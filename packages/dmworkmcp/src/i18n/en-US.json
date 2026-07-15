@@ -107,6 +107,12 @@
     "name": "Name",
     "namePlaceholder": "e.g. GitHub MCP",
     "nameRequired": "Name is required",
+    "slug": "Server slug",
+    "slugHint": "Used as the key in the generated mcpServers JSON; lowercase letters, digits and hyphens only. Leave blank to derive it from the name.",
+    "slugPlaceholder": "e.g. github-mcp",
+    "urlRequired": "Service URL is required",
+    "commandRequired": "Start command is required",
+    "iconUploadFailed": "Icon upload failed, please try again",
     "category": "Category",
     "transportLabel": "Transport",
     "transport": {
