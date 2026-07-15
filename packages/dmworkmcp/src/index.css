@@ -530,6 +530,7 @@
 .wk-mcp-form-steps {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: var(--wk-sp-2);
   padding: var(--wk-sp-1) 0 var(--wk-sp-3);
   border-bottom: 1px solid var(--wk-border-subtle);
@@ -616,6 +617,22 @@
   justify-content: flex-end;
   gap: var(--wk-sp-2);
   width: 100%;
+}
+
+/* Inline delete-confirm state: 提示文案居左、确认/取消按钮居右，
+   footer 内就地二次确认，不再叠加新的确认弹窗。 */
+.wk-mcp-detail-actions--confirm {
+  justify-content: flex-end;
+  align-items: center;
+}
+
+.wk-mcp-detail-actions__hint {
+  flex: 1;
+  min-width: 0;
+  margin-right: var(--wk-sp-2);
+  font-size: 13px;
+  color: var(--wk-color-text-secondary, #8a8f99);
+  text-align: left;
 }
 
 /* ── Section card ────────────────────────────────────────────────────────── */
