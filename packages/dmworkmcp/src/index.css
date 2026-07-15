@@ -610,6 +610,14 @@
   gap: var(--wk-sp-2);
 }
 
+/* Detail-modal footer row for owner actions (edit/delete). */
+.wk-mcp-detail-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--wk-sp-2);
+  width: 100%;
+}
+
 /* ── Section card ────────────────────────────────────────────────────────── */
 .wk-mcp-form-section {
   display: flex;

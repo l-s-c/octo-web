@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { WKModal, WKButton, t } from "@octo/base";
+import { WKModal, WKButton, wkConfirm, t } from "@octo/base";
 import { Toast, Spin } from "@douyinfe/semi-ui";
-import { fetchMcpDetail } from "../api/mcpService";
+import { deleteMcp, fetchMcpDetail } from "../api/mcpService";
 import { buildQuickStartTabs } from "../api/quickStartTemplates";
 import type { McpDetail, McpQuickStart } from "../types/mcp";
 import { IconGlyph } from "../utils/icon";
@@ -10,6 +10,14 @@ interface McpDetailModalProps {
   /** The id of the MCP to show; null closes the modal. */
   mcpId: string | null;
   onClose: () => void;
+  /** When true, show Edit + Delete buttons in the footer. Passed by the
+   *  parent when the detail was opened from a context that guarantees the
+   *  caller owns the record (the "我的" tab). */
+  canManage?: boolean;
+  /** Fired when the user clicks Edit — parent opens the edit modal. */
+  onEdit?: (detail: McpDetail) => void;
+  /** Fired after a successful delete — parent refreshes the list. */
+  onDeleted?: (id: string) => void;
 }
 
 /**
@@ -70,7 +78,13 @@ const QuickAccess: React.FC<{ quickStart: McpQuickStart }> = ({
  * Section order (per product spec):
  * ⚡快速接入 → 🔧工具清单 → 💬使用示例 → ❓常见问题 → ⚠️注意事项.
  */
-const McpDetailModal: React.FC<McpDetailModalProps> = ({ mcpId, onClose }) => {
+const McpDetailModal: React.FC<McpDetailModalProps> = ({
+  mcpId,
+  onClose,
+  canManage,
+  onEdit,
+  onDeleted,
+}) => {
   const [detail, setDetail] = useState<McpDetail | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -100,6 +114,41 @@ const McpDetailModal: React.FC<McpDetailModalProps> = ({ mcpId, onClose }) => {
     };
   }, [mcpId]);
 
+  const handleEdit = () => {
+    if (!detail || !onEdit) return;
+    onEdit(detail);
+  };
+
+  /** Confirm-then-delete. The confirm dialog awaits the network call so its
+   *  primary button shows a spinner and can't be double-clicked; on success
+   *  the parent gets notified and this modal closes. */
+  const handleDelete = () => {
+    if (!detail) return;
+    wkConfirm({
+      title: t("mcp.delete.confirmTitle"),
+      content: t("mcp.delete.confirmBody"),
+      okText: t("mcp.delete.ok"),
+      cancelText: t("mcp.delete.cancel"),
+      okType: "danger",
+      onOk: async () => {
+        try {
+          await deleteMcp(detail.id);
+          Toast.success(t("mcp.delete.success"));
+          onDeleted?.(detail.id);
+          onClose();
+        } catch (err: unknown) {
+          Toast.error(
+            err instanceof Error ? err.message : t("mcp.delete.failed")
+          );
+          // Re-throw so wkConfirm keeps the dialog open on failure.
+          throw err;
+        }
+      },
+    });
+  };
+
+  const showActions = canManage && !!detail;
+
   return (
     <WKModal
       visible={!!mcpId}
@@ -108,7 +157,18 @@ const McpDetailModal: React.FC<McpDetailModalProps> = ({ mcpId, onClose }) => {
       className="wk-mcp-detail-modal"
       bodyStyle={{ height: "70vh", overflowY: "auto" }}
       title={detail ? detail.name : t("mcp.detail.title")}
-      footer={null}
+      footer={
+        showActions ? (
+          <div className="wk-mcp-detail-actions">
+            <WKButton variant="danger" onClick={handleDelete}>
+              {t("mcp.detail.delete")}
+            </WKButton>
+            <WKButton variant="primary" onClick={handleEdit}>
+              {t("mcp.detail.edit")}
+            </WKButton>
+          </div>
+        ) : null
+      }
     >
       {loading || !detail ? (
         <div className="wk-mcp__state">

@@ -1,11 +1,12 @@
-import React, { useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { WKModal, WKInput, WKButton, t } from "@octo/base";
 import { Select, TextArea, Toast } from "@douyinfe/semi-ui";
-import { createMcp, probeMcpTools, isProbeAvailable } from "../api/mcpService";
+import { createMcp, probeMcpTools, isProbeAvailable, updateMcp } from "../api/mcpService";
 import { MCP_CATEGORY_LABELS, MCP_CATEGORY_ORDER } from "../mock/mcpMock";
-import { applySecretSentinel } from "../utils/constants";
+import { applySecretSentinel, SECRET_PLACEHOLDER_SENTINEL, isSecretKey } from "../utils/constants";
 import type {
   CreateMcpParams,
+  McpDetail,
   McpFaq,
   McpProbeRequest,
   McpTransport,
@@ -16,7 +17,16 @@ import { isImageIcon } from "../utils/icon";
 interface McpCreateModalProps {
   visible: boolean;
   onClose: () => void;
-  onCreated: () => void;
+  /** Fires on both create and edit success. For an edit save, `updated` is
+   *  the fresh detail from the server so the parent can patch the list in
+   *  place (avoids scroll-reset from a full refetch). Create passes no arg
+   *  because the new row's list position depends on the current sort/filter
+   *  and is easiest to surface via a full reload. */
+  onSaved: (updated?: McpDetail) => void;
+  /** When set, the modal becomes an EDIT modal: prefilled from `editing`,
+   *  submits via updateMcp(id), and uses the edit title/label copy. Absent =
+   *  create mode (original behavior). */
+  editing?: McpDetail | null;
 }
 
 const ICON_MAX_BYTES = 2 * 1024 * 1024;
@@ -68,6 +78,59 @@ function readFileAsDataURL(file: File): Promise<string> {
     reader.onerror = () => reject(reader.error);
     reader.readAsDataURL(file);
   });
+}
+
+/** Convert a detail record to the flat create/update form shape. Preserves
+ *  everything the wire carries; drops the redacted secret sentinel so the
+ *  user sees empty inputs (submit re-applies the sentinel via
+ *  applySecretSentinel, so a not-touched secret round-trips cleanly). */
+function detailToForm(detail: McpDetail): CreateMcpParams {
+  const qs = detail.quickStart;
+  return {
+    name: detail.name,
+    category: detail.category,
+    icon: detail.icon,
+    tags: detail.tags ?? [],
+    slogan: detail.slogan,
+    transport: qs.transport,
+    url: qs.url ?? "",
+    command: qs.command ?? "",
+    args: qs.args ?? [],
+    env: stripSecretSentinel(qs.env),
+    headers: stripSecretSentinel(qs.headers),
+    authType: qs.authType ?? "none",
+    tools: detail.tools,
+    usageExamples: detail.usageExamples,
+    faqs: detail.faqs,
+    notes: detail.notes,
+    visibility: detail.visibility ?? "public",
+  };
+}
+
+/** Replace the redacted sentinel with an empty string on secret-typed keys,
+ *  so the user sees a blank input instead of the wire literal. Non-secret
+ *  keys pass through untouched. */
+function stripSecretSentinel(
+  m: Record<string, string> | undefined
+): Record<string, string> {
+  if (!m) return {};
+  const out: Record<string, string> = {};
+  for (const [k, v] of Object.entries(m)) {
+    out[k] = isSecretKey(k) && v === SECRET_PLACEHOLDER_SENTINEL ? "" : v;
+  }
+  return out;
+}
+
+/** Serialize a KV map back to the "KEY=VALUE" or "Header: value" text buffer
+ *  used by the env/headers <TextArea>. */
+function serializeKV(
+  m: Record<string, string> | undefined,
+  separator: "=" | ": "
+): string {
+  if (!m) return "";
+  return Object.entries(m)
+    .map(([k, v]) => `${k}${separator}${v}`)
+    .join("\n");
 }
 
 // ─── Small presentational helpers kept inline (single-use, tiny) ────────────
@@ -245,7 +308,8 @@ function TagsInput({
 const McpCreateModal: React.FC<McpCreateModalProps> = ({
   visible,
   onClose,
-  onCreated,
+  onSaved,
+  editing,
 }) => {
   const [form, setForm] = useState<CreateMcpParams>(EMPTY);
   const [submitting, setSubmitting] = useState(false);
@@ -259,6 +323,34 @@ const McpCreateModal: React.FC<McpCreateModalProps> = ({
   const [headersRaw, setHeadersRaw] = useState("");
 
   const iconInputRef = useRef<HTMLInputElement>(null);
+
+  const isEdit = !!editing;
+
+  // Prefill on open. When `editing` is set, hydrate the form from the detail;
+  // otherwise reset to EMPTY so re-opening always starts fresh. Also drives
+  // the "back to step 0 on every open" behavior so a partial previous session
+  // doesn't leak into the next one.
+  useEffect(() => {
+    if (!visible) return;
+    if (editing) {
+      const seed = detailToForm(editing);
+      setForm(seed);
+      setArgsRaw((seed.args ?? []).join(" "));
+      setEnvRaw(serializeKV(seed.env, "="));
+      setHeadersRaw(serializeKV(seed.headers, ": "));
+      const hasAdvanced =
+        Object.keys(seed.env ?? {}).length > 0 ||
+        Object.keys(seed.headers ?? {}).length > 0;
+      setAdvancedOpen(hasAdvanced);
+    } else {
+      setForm(EMPTY);
+      setArgsRaw("");
+      setEnvRaw("");
+      setHeadersRaw("");
+      setAdvancedOpen(false);
+    }
+    setStep(0);
+  }, [visible, editing]);
 
   const update = <K extends keyof CreateMcpParams>(
     key: K,
@@ -385,13 +477,21 @@ const McpCreateModal: React.FC<McpCreateModalProps> = ({
     };
     setSubmitting(true);
     try {
-      await createMcp(payload);
-      Toast.success(t("mcp.create.success"));
-      resetAll();
-      onCreated();
+      if (isEdit && editing) {
+        const updated = await updateMcp(editing.id, payload);
+        Toast.success(t("mcp.edit.success"));
+        resetAll();
+        onSaved(updated);
+      } else {
+        await createMcp(payload);
+        Toast.success(t("mcp.create.success"));
+        resetAll();
+        onSaved();
+      }
       onClose();
     } catch (err: unknown) {
-      Toast.error(err instanceof Error ? err.message : t("mcp.create.failed"));
+      const fallback = isEdit ? t("mcp.edit.failed") : t("mcp.create.failed");
+      Toast.error(err instanceof Error ? err.message : fallback);
     } finally {
       setSubmitting(false);
     }
@@ -498,7 +598,7 @@ const McpCreateModal: React.FC<McpCreateModalProps> = ({
       width={720}
       className="wk-mcp-create-modal"
       bodyStyle={{ maxHeight: "78vh", overflowY: "auto" }}
-      title={t("mcp.create.title")}
+      title={isEdit ? t("mcp.edit.title") : t("mcp.create.title")}
       footer={
         <div className="wk-mcp-form-footer">
           <div>
@@ -519,7 +619,7 @@ const McpCreateModal: React.FC<McpCreateModalProps> = ({
                 loading={submitting}
                 onClick={handleSubmit}
               >
-                {t("mcp.create.submit")}
+                {isEdit ? t("mcp.edit.submit") : t("mcp.create.submit")}
               </WKButton>
             )}
           </div>

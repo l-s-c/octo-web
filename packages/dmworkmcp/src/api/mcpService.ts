@@ -10,6 +10,7 @@ import type {
   McpProbeRequest,
   McpProbeResult,
   McpQuickStart,
+  UpdateMcpParams,
 } from "../types/mcp";
 import {
   MCP_CATEGORY_LABELS,
@@ -35,9 +36,12 @@ import { CATEGORY_KEY_ALL } from "../utils/constants";
 //
 // Public surface (stable signatures — the UI never sees mock vs real):
 //   fetchMcpList(params)   → list + categories
+//   fetchMcpMine(params)   → list restricted to caller-owned records
 //   fetchMcpDetail(id)     → full detail
 //   probeMcpTools(req)     → "try connect / fetch tool list" (see LSC-70)
 //   createMcp(params)      → create a new MCP entry
+//   updateMcp(id, params)  → PATCH — owner-only partial update
+//   deleteMcp(id)          → DELETE — owner-only soft delete
 //
 // The real implementations target the octo-marketplace MCP catalog v1
 // (octo-marketplace/docs/api/mcp-v1.md). USE_MOCK toggles the whole surface;
@@ -170,6 +174,35 @@ async function createMcpMock(params: CreateMcpParams): Promise<{ id: string }> {
   MOCK_MCP_DETAILS.unshift(detail);
   MOCK_MCP_LIST.unshift(projectListItem(detail));
   return delay({ id: uniqueId }, 400);
+}
+
+/** Mock counterpart of PATCH /mcps/{id}. Full-replace semantics: the UI
+ *  always sends every field, so we rebuild the detail from the params and
+ *  swap the list projection in place. */
+async function updateMcpMock(
+  id: string,
+  params: UpdateMcpParams
+): Promise<McpDetail> {
+  const idx = MOCK_MCP_DETAILS.findIndex((d) => d.id === id);
+  if (idx === -1) throw new Error(`MCP not found: ${id}`);
+  const prev = MOCK_MCP_DETAILS[idx];
+  const next = buildDetailFromCreate(id, params);
+  // Preserve creator identity — the wire never lets the client change it.
+  next.creatorName = prev.creatorName;
+  MOCK_MCP_DETAILS[idx] = next;
+  const listIdx = MOCK_MCP_LIST.findIndex((it) => it.id === id);
+  if (listIdx !== -1) MOCK_MCP_LIST[listIdx] = projectListItem(next);
+  return delay(next, 300);
+}
+
+/** Mock counterpart of DELETE /mcps/{id}. Owner-only in the real service;
+ *  the mock has no owner model so we always allow. */
+async function deleteMcpMock(id: string): Promise<void> {
+  const dIdx = MOCK_MCP_DETAILS.findIndex((d) => d.id === id);
+  if (dIdx !== -1) MOCK_MCP_DETAILS.splice(dIdx, 1);
+  const lIdx = MOCK_MCP_LIST.findIndex((it) => it.id === id);
+  if (lIdx !== -1) MOCK_MCP_LIST.splice(lIdx, 1);
+  return delay(undefined, 300);
 }
 
 /** Turn a create-form payload into a fully-populated detail record. */
@@ -307,6 +340,7 @@ function localizedForCode(code: string): string {
     "err.marketplace.mcp.invalid_visibility": "mcp.errors.invalidVisibility",
     "err.marketplace.mcp.invalid_transport": "mcp.errors.invalidTransport",
     "err.marketplace.mcp.invalid_request": "mcp.errors.invalidRequest",
+    "err.marketplace.mcp.probe_unsupported": "mcp.errors.probeUnsupported",
     "err.marketplace.auth.unauthorized": "mcp.errors.unauthorized",
     "err.marketplace.auth.forbidden_space": "mcp.errors.forbiddenSpace",
     "err.marketplace.internal": "mcp.errors.internal",
@@ -337,6 +371,25 @@ async function post<T>(path: string, data?: unknown): Promise<T> {
   try {
     const resp = await mcpAxios.post(`${BASE}${path}`, data);
     return resp.data as T;
+  } catch (err) {
+    if (axios.isCancel(err)) throw err;
+    throw new Error(extractErrorMessage(err));
+  }
+}
+
+async function patch<T>(path: string, data?: unknown): Promise<T> {
+  try {
+    const resp = await mcpAxios.patch(`${BASE}${path}`, data);
+    return resp.data as T;
+  } catch (err) {
+    if (axios.isCancel(err)) throw err;
+    throw new Error(extractErrorMessage(err));
+  }
+}
+
+async function del(path: string): Promise<void> {
+  try {
+    await mcpAxios.delete(`${BASE}${path}`);
   } catch (err) {
     if (axios.isCancel(err)) throw err;
     throw new Error(extractErrorMessage(err));
@@ -402,16 +455,30 @@ async function fetchMcpDetailReal(id: string): Promise<McpDetail> {
 }
 
 async function probeMcpToolsReal(
-  _req: McpProbeRequest
+  req: McpProbeRequest
 ): Promise<McpProbeResult> {
-  // stdio probing must run in the Electron main process (LSC-70); the
-  // marketplace REST surface has no `/probe` endpoint. Until the IPC path
-  // lands, real probing is unavailable — the create wizard hides its probe
-  // button (see isProbeAvailable) so this branch is never reached in the
-  // browse+create flow. Throw instead of hitting a non-existent endpoint so a
-  // stray call surfaces loudly rather than 404-ing.
-  // TODO(LSC-70): route to the `mcp:probeTools` IPC and flip isProbeAvailable.
-  throw new Error("probe_unavailable");
+  // POST /mcps/probe runs an MCP initialize + tools/list handshake against a
+  // remote server and returns the wire shape below (mcp-v1.md §4.7). The
+  // endpoint returns HTTP 200 in both success and operational-failure cases
+  // (ok=false + in-body error). Only auth / malformed body / stdio transport
+  // return the standard error envelope with a non-2xx status; those become
+  // thrown Errors via post(), which the caller renders as a Toast.
+  //
+  // stdio transport is short-circuited here so we don't round-trip a request
+  // the server is guaranteed to reject with `probe_unsupported`. The wizard
+  // hides the button under `isProbeAvailable` anyway; this belt+braces path
+  // just returns a clean in-body error for any programmatic caller.
+  if (req.transport === "stdio") {
+    return {
+      ok: false,
+      tools: [],
+      error: {
+        code: "command_not_found",
+        message: "stdio probe must run in the desktop client",
+      },
+    };
+  }
+  return post<McpProbeResult>("/mcps/probe", req);
 }
 
 async function createMcpReal(params: CreateMcpParams): Promise<{ id: string }> {
@@ -421,6 +488,24 @@ async function createMcpReal(params: CreateMcpParams): Promise<{ id: string }> {
   // the flat create body is sent as-is (§3.3).
   const detail = await post<McpDetail>("/mcps", params);
   return { id: detail.id };
+}
+
+/** PATCH /mcps/{id} — owner-only partial update (mcp-v1.md §4.5). The UI
+ *  always sends the full form, so every field is present and the backend
+ *  effectively replaces all mutable fields; returns 200 with the updated
+ *  McpDetail. 403 → forbidden, 404 → not_found are surfaced by the shared
+ *  error mapper. */
+async function updateMcpReal(
+  id: string,
+  params: UpdateMcpParams
+): Promise<McpDetail> {
+  return patch<McpDetail>(`/mcps/${encodeURIComponent(id)}`, params);
+}
+
+/** DELETE /mcps/{id} — owner-only soft delete (mcp-v1.md §4.6). Returns
+ *  204 No Content on success. */
+async function deleteMcpReal(id: string): Promise<void> {
+  return del(`/mcps/${encodeURIComponent(id)}`);
 }
 
 // ─── Public API (the only surface the UI imports) ──────────────────────────
@@ -451,14 +536,28 @@ export function probeMcpTools(req: McpProbeRequest): Promise<McpProbeResult> {
 }
 
 /**
- * Whether "try connect / fetch tool list" is actually wired up. The marketplace
- * REST surface has no `/probe`; real probing needs the Electron main-process IPC
- * (LSC-70), which has not landed. So probing only works in mock mode today. The
- * create wizard consults this to hide its probe button when it would only fail.
- * TODO(LSC-70): return true once probeMcpToolsReal routes to `mcp:probeTools`.
+ * Whether "try connect / fetch tool list" is actually wired up. Real remote
+ * probing (streamable-http / sse) is served by POST /mcps/probe on the
+ * marketplace backend (mcp-v1.md §4.7). stdio probing still requires the
+ * desktop client's Electron IPC (LSC-70) and is short-circuited to an in-body
+ * `command_not_found` error inside probeMcpToolsReal — the button surfaces
+ * regardless so the user can always kick off a remote probe.
  */
-export const isProbeAvailable = USE_MOCK;
+export const isProbeAvailable = true;
 
 export function createMcp(params: CreateMcpParams): Promise<{ id: string }> {
   return USE_MOCK ? createMcpMock(params) : createMcpReal(params);
+}
+
+/** PATCH /mcps/{id} — owner-only partial update. Returns the updated detail. */
+export function updateMcp(
+  id: string,
+  params: UpdateMcpParams
+): Promise<McpDetail> {
+  return USE_MOCK ? updateMcpMock(id, params) : updateMcpReal(id, params);
+}
+
+/** DELETE /mcps/{id} — owner-only soft delete. */
+export function deleteMcp(id: string): Promise<void> {
+  return USE_MOCK ? deleteMcpMock(id) : deleteMcpReal(id);
 }

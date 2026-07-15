@@ -17,6 +17,7 @@
     "invalidVisibility": "Visibility must be Public or Only me",
     "invalidTransport": "Transport is not supported",
     "invalidRequest": "Request payload is invalid",
+    "probeUnsupported": "Server cannot probe this transport (stdio must run in the desktop client)",
     "unauthorized": "Session expired, please sign in again",
     "forbiddenSpace": "You are not a member of this space",
     "internal": "Server is busy, please try again later"
@@ -59,7 +60,23 @@
     "tools": "Tools",
     "example": "Usage examples",
     "faq": "FAQ",
-    "notes": "Notes"
+    "notes": "Notes",
+    "edit": "Edit",
+    "delete": "Delete"
+  },
+  "edit": {
+    "title": "Edit MCP",
+    "submit": "Save",
+    "success": "Saved",
+    "failed": "Save failed"
+  },
+  "delete": {
+    "confirmTitle": "Delete this MCP?",
+    "confirmBody": "It will disappear from the market. Any configs already copied out will keep working.",
+    "ok": "Delete",
+    "cancel": "Cancel",
+    "success": "Deleted",
+    "failed": "Delete failed"
   },
   "create": {
     "title": "New MCP",

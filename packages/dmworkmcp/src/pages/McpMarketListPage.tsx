@@ -3,7 +3,7 @@ import { Spin, Toast } from "@douyinfe/semi-ui";
 import { IconSearch, IconPlus } from "@douyinfe/semi-icons";
 import { I18nContext, t, WKApp, WKInput, WKButton } from "@octo/base";
 import { fetchMcpList, fetchMcpMine } from "../api/mcpService";
-import type { McpCategory, McpListItem } from "../types/mcp";
+import type { McpCategory, McpDetail, McpListItem } from "../types/mcp";
 import McpCard from "../components/McpCard";
 import McpDetailModal from "../components/McpDetailModal";
 import McpCreateModal from "../components/McpCreateModal";
@@ -29,6 +29,10 @@ interface McpMarketListPageState {
   total: number;
   detailId: string | null;
   createVisible: boolean;
+  /** When set, the create/edit modal opens in EDIT mode prefilled from this
+   *  detail. Cleared on modal close. Distinct from `createVisible` — this
+   *  drives the "editing" branch of the shared modal component. */
+  editingDetail: McpDetail | null;
 }
 
 /**
@@ -54,6 +58,7 @@ export default class McpMarketListPage extends Component<
     total: 0,
     detailId: null,
     createVisible: false,
+    editingDetail: null,
   };
 
   private searchTimer: ReturnType<typeof setTimeout> | null = null;
@@ -152,6 +157,55 @@ export default class McpMarketListPage extends Component<
     this.setState({ mode, category: "all" }, () => this.loadData());
   };
 
+  /** Patch a single row after a successful edit — keeps scroll position
+   *  intact (a full loadData() would reset offset to 0 and rebuild the grid).
+   *  Category-pill counts may go slightly stale until the next full reload,
+   *  which is an acceptable tradeoff for not losing the user's scroll spot. */
+  private handleItemUpdated = (updated: McpDetail) => {
+    this.setState((prev) => {
+      const idx = prev.items.findIndex((it) => it.id === updated.id);
+      if (idx === -1) return null;
+      const next = prev.items.slice();
+      next[idx] = {
+        ...next[idx],
+        name: updated.name,
+        slogan: updated.slogan,
+        category: updated.category,
+        tags: updated.tags,
+        toolCount: updated.toolCount,
+        icon: updated.icon,
+        visibility: updated.visibility,
+        creatorName: updated.creatorName,
+      };
+      return { items: next };
+    });
+  };
+
+  /** Drop a single row after a successful delete — same scroll-preserving
+   *  rationale as handleItemUpdated. `total` decrements so the "reached the
+   *  end" footnote and infinite-scroll gate stay accurate. */
+  private handleItemDeleted = (id: string) => {
+    this.setState((prev) => {
+      const idx = prev.items.findIndex((it) => it.id === id);
+      if (idx === -1) return null;
+      return {
+        items: prev.items.filter((it) => it.id !== id),
+        total: Math.max(0, prev.total - 1),
+        offset: Math.max(0, prev.offset - 1),
+      };
+    });
+  };
+
+  /** Post-save handler. Edit → in-place patch (no scroll reset). Create →
+   *  full reload so the new row surfaces at its natural sort position. */
+  private handleSaved = (updated?: McpDetail) => {
+    if (updated) {
+      this.handleItemUpdated(updated);
+    } else {
+      this.loadData();
+    }
+  };
+
   private handleKeyword = (value: string) => {
     this.setState({ keyword: value });
     if (this.searchTimer) clearTimeout(this.searchTimer);
@@ -174,9 +228,15 @@ export default class McpMarketListPage extends Component<
       total,
       detailId,
       createVisible,
+      editingDetail,
     } = this.state;
 
     const hasMore = items.length < total;
+    // Ownership check: the "mine" tab is defined as caller-owned records
+    // (backend enforces owner-only PATCH/DELETE — mcp-v1.md §4.5/§4.6), so
+    // we can safely expose the manage actions on any card in this mode
+    // without a per-record owner_uid comparison.
+    const canManage = mode === "mine";
 
     return (
       <div className="wk-mcp">
@@ -280,11 +340,21 @@ export default class McpMarketListPage extends Component<
         <McpDetailModal
           mcpId={detailId}
           onClose={() => this.setState({ detailId: null })}
+          canManage={canManage}
+          onEdit={(d) =>
+            // Close the detail modal and hand off to the shared create/edit
+            // modal in edit mode. State batching keeps this a single render.
+            this.setState({ detailId: null, editingDetail: d, createVisible: true })
+          }
+          onDeleted={this.handleItemDeleted}
         />
         <McpCreateModal
           visible={createVisible}
-          onClose={() => this.setState({ createVisible: false })}
-          onCreated={() => this.loadData()}
+          editing={editingDetail}
+          onClose={() =>
+            this.setState({ createVisible: false, editingDetail: null })
+          }
+          onSaved={this.handleSaved}
         />
       </div>
     );

@@ -17,6 +17,7 @@
     "invalidVisibility": "可见范围只能是「公开」或「仅自己」",
     "invalidTransport": "传输方式不支持",
     "invalidRequest": "请求参数不合法",
+    "probeUnsupported": "服务器不支持此传输方式的探测（stdio 需在桌面客户端探测）",
     "unauthorized": "登录已过期，请重新登录",
     "forbiddenSpace": "当前空间无权访问",
     "internal": "服务器繁忙，请稍后重试"
@@ -59,7 +60,23 @@
     "tools": "工具清单",
     "example": "使用示例",
     "faq": "常见问题",
-    "notes": "注意事项"
+    "notes": "注意事项",
+    "edit": "编辑",
+    "delete": "删除"
+  },
+  "edit": {
+    "title": "编辑 MCP",
+    "submit": "保存修改",
+    "success": "已保存",
+    "failed": "保存失败"
+  },
+  "delete": {
+    "confirmTitle": "删除该 MCP？",
+    "confirmBody": "删除后将无法在市场中被找到，已复制的接入配置仍可使用。",
+    "ok": "删除",
+    "cancel": "取消",
+    "success": "已删除",
+    "failed": "删除失败"
   },
   "create": {
     "title": "新建 MCP",
