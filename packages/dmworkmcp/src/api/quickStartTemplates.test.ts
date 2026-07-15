@@ -47,7 +47,7 @@ describe("buildQuickStartTabs — JSON snippet", () => {
     expect("env" in server).toBe(false);
   });
 
-  it("streamable-http: type=http, merges bearer + user headers, masks secret keys", () => {
+  it("streamable-http: type=streamable_http, merges bearer + user headers, masks secret keys", () => {
     const qs: McpQuickStart = {
       transport: "streamable-http",
       serverName: "github",
@@ -56,7 +56,7 @@ describe("buildQuickStartTabs — JSON snippet", () => {
       headers: { "X-Trace": "web", "X-API-Key": "" },
     };
     const server = JSON.parse(content(qs, "json")).mcpServers.github;
-    expect(server.type).toBe("http");
+    expect(server.type).toBe("streamable_http");
     expect(server.url).toBe("https://mcp.example.com/github");
     expect(server.headers).toEqual({
       "X-Trace": "web",
@@ -84,6 +84,65 @@ describe("buildQuickStartTabs — JSON snippet", () => {
     };
     const server = JSON.parse(content(qs, "json")).mcpServers.foo;
     expect("headers" in server).toBe(false);
+  });
+
+  it("json key: slugifies a Chinese display name to an ASCII slug", () => {
+    const qs: McpQuickStart = {
+      transport: "streamable-http",
+      serverName: "获取天气 MCP",
+      url: "https://x",
+      authType: "none",
+    };
+    const keys = Object.keys(JSON.parse(content(qs, "json")).mcpServers);
+    // Chinese chars are dropped; only the ASCII token survives.
+    expect(keys).toEqual(["mcp"]);
+  });
+
+  it("json key: falls back to mcp-server when the name has no ASCII chars", () => {
+    const qs: McpQuickStart = {
+      transport: "streamable-http",
+      serverName: "获取天气",
+      url: "https://x",
+      authType: "none",
+    };
+    const keys = Object.keys(JSON.parse(content(qs, "json")).mcpServers);
+    expect(keys).toEqual(["mcp-server"]);
+  });
+
+  it("json key: an explicit slug overrides the derived one", () => {
+    const qs: McpQuickStart = {
+      transport: "streamable-http",
+      serverName: "获取天气 MCP",
+      slug: "weather",
+      url: "https://x",
+      authType: "none",
+    };
+    const keys = Object.keys(JSON.parse(content(qs, "json")).mcpServers);
+    expect(keys).toEqual(["weather"]);
+  });
+
+  it("json key: sanitizes a dirty manual slug (Chinese/upper/space/underscore)", () => {
+    const qs: McpQuickStart = {
+      transport: "streamable-http",
+      serverName: "获取天气 MCP",
+      slug: "My Weather_服务 MCP",
+      url: "https://x",
+      authType: "none",
+    };
+    const keys = Object.keys(JSON.parse(content(qs, "json")).mcpServers);
+    expect(keys).toEqual(["my-weather-mcp"]);
+  });
+
+  it("json key: falls back to safe default when a manual slug slugifies to empty", () => {
+    const qs: McpQuickStart = {
+      transport: "streamable-http",
+      serverName: "获取天气 MCP",
+      slug: "服务器",
+      url: "https://x",
+      authType: "none",
+    };
+    const keys = Object.keys(JSON.parse(content(qs, "json")).mcpServers);
+    expect(keys).toEqual(["mcp-server"]);
   });
 });
 

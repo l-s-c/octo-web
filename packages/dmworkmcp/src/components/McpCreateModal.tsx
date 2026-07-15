@@ -1,9 +1,20 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { WKModal, WKInput, WKButton, t } from "@octo/base";
 import { Select, TextArea, Toast } from "@douyinfe/semi-ui";
-import { createMcp, probeMcpTools, isProbeAvailable, updateMcp } from "../api/mcpService";
+import {
+  createMcp,
+  probeMcpTools,
+  isProbeAvailable,
+  updateMcp,
+  uploadMcpIcon,
+} from "../api/mcpService";
 import { MCP_CATEGORY_LABELS, MCP_CATEGORY_ORDER } from "../mock/mcpMock";
-import { applySecretSentinel, SECRET_PLACEHOLDER_SENTINEL, isSecretKey } from "../utils/constants";
+import {
+  applySecretSentinel,
+  SECRET_PLACEHOLDER_SENTINEL,
+  isSecretKey,
+  slugifyServerName,
+} from "../utils/constants";
 import type {
   CreateMcpParams,
   McpDetail,
@@ -31,8 +42,26 @@ interface McpCreateModalProps {
 
 const ICON_MAX_BYTES = 2 * 1024 * 1024;
 
+/**
+ * Per-field max input lengths. Kept in sync with the backend column limits so
+ * the client blocks over-long input before it ever reaches the wire (the
+ * `maxLength` attribute hard-caps the field; a hint tells the user why).
+ */
+const MAXLEN = {
+  name: 64,
+  slogan: 200,
+  url: 2048,
+  command: 256,
+  arg: 512,
+  headerKey: 128,
+  headerValue: 1024,
+  toolName: 64,
+  text: 500, // tool description / FAQ question+answer / note
+} as const;
+
 const EMPTY: CreateMcpParams = {
   name: "",
+  slug: "",
   category: "dev",
   icon: "",
   tags: [],
@@ -71,15 +100,6 @@ function parseKV(raw: string, separator: "=" | ":"): Record<string, string> {
   return out;
 }
 
-function readFileAsDataURL(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result));
-    reader.onerror = () => reject(reader.error);
-    reader.readAsDataURL(file);
-  });
-}
-
 /** Convert a detail record to the flat create/update form shape. Preserves
  *  everything the wire carries; drops the redacted secret sentinel so the
  *  user sees empty inputs (submit re-applies the sentinel via
@@ -88,6 +108,7 @@ function detailToForm(detail: McpDetail): CreateMcpParams {
   const qs = detail.quickStart;
   return {
     name: detail.name,
+    slug: qs.slug ?? "",
     category: detail.category,
     icon: detail.icon,
     tags: detail.tags ?? [],
@@ -322,6 +343,16 @@ const McpCreateModal: React.FC<McpCreateModalProps> = ({
   const [envRaw, setEnvRaw] = useState("");
   const [headersRaw, setHeadersRaw] = useState("");
 
+  // Icon: the selected File is held locally for an object-URL preview and only
+  // uploaded to object storage on submit (POST /mcps/{id}/icon, needs the id).
+  // `form.icon` keeps the persisted storage URL (or a legacy base64 icon on
+  // edit) so the create → detail round-trip renders without a blank.
+  const [iconFile, setIconFile] = useState<File | null>(null);
+  const [iconPreview, setIconPreview] = useState("");
+
+  // Once the user hand-edits the slug we stop auto-deriving it from the name.
+  const [slugTouched, setSlugTouched] = useState(false);
+
   const iconInputRef = useRef<HTMLInputElement>(null);
 
   const isEdit = !!editing;
@@ -342,15 +373,32 @@ const McpCreateModal: React.FC<McpCreateModalProps> = ({
         Object.keys(seed.env ?? {}).length > 0 ||
         Object.keys(seed.headers ?? {}).length > 0;
       setAdvancedOpen(hasAdvanced);
+      // An existing slug counts as "user-set" so a name edit doesn't clobber it.
+      setSlugTouched(!!seed.slug);
     } else {
       setForm(EMPTY);
       setArgsRaw("");
       setEnvRaw("");
       setHeadersRaw("");
       setAdvancedOpen(false);
+      setSlugTouched(false);
     }
+    setIconFile(null);
+    setIconPreview("");
     setStep(0);
   }, [visible, editing]);
+
+  // Object-URL preview lifecycle: create on file pick, revoke on replace/unmount
+  // so we never leak blob URLs.
+  useEffect(() => {
+    if (!iconFile) {
+      setIconPreview("");
+      return;
+    }
+    const url = URL.createObjectURL(iconFile);
+    setIconPreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [iconFile]);
 
   const update = <K extends keyof CreateMcpParams>(
     key: K,
@@ -365,7 +413,34 @@ const McpCreateModal: React.FC<McpCreateModalProps> = ({
     setEnvRaw("");
     setHeadersRaw("");
     setAdvancedOpen(false);
+    setIconFile(null);
+    setIconPreview("");
+    setSlugTouched(false);
     setStep(0);
+  };
+
+  /** Name edit also seeds the slug while the user hasn't hand-edited it, so the
+   *  JSON `mcpServers` key stays a sensible ASCII slug by default. */
+  const handleNameChange = (v: string) => {
+    setForm((prev) => ({
+      ...prev,
+      name: v,
+      slug: slugTouched ? prev.slug : slugifyServerName(v),
+    }));
+  };
+
+  /** Sanitize the manual slug as the user types so the field can never hold a
+   *  value that would be rejected/rewritten later: lowercase, spaces → `-`, and
+   *  only `[a-z0-9-]` survive. Empty is allowed (submit falls back to the name /
+   *  safe default); we keep in-progress trailing `-` so typing feels natural. */
+  const handleSlugChange = (v: string) => {
+    setSlugTouched(true);
+    const cleaned = v
+      .toLowerCase()
+      .replace(/\s+/g, "-")
+      .replace(/[^a-z0-9-]/g, "")
+      .replace(/-+/g, "-");
+    update("slug", cleaned);
   };
 
   /** Close = also wipe local form state so re-opening always starts fresh
@@ -389,9 +464,11 @@ const McpCreateModal: React.FC<McpCreateModalProps> = ({
   const goPrev = () => setStep((s) => Math.max(s - 1, 0));
 
   // ── Icon upload ────────────────────────────────────────────────────────
+  // Preview uses an object URL; the real upload to object storage happens on
+  // submit once we have an MCP id (POST /mcps/{id}/icon).
   const handleIconPick = () => iconInputRef.current?.click();
 
-  const handleIconChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleIconChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file) return;
@@ -403,16 +480,12 @@ const McpCreateModal: React.FC<McpCreateModalProps> = ({
       Toast.error(t("mcp.create.iconSizeError"));
       return;
     }
-    try {
-      const dataUrl = await readFileAsDataURL(file);
-      update("icon", dataUrl);
-    } catch {
-      Toast.error(t("mcp.create.iconTypeError"));
-    }
+    setIconFile(file);
   };
 
   const handleIconRemove = (e: React.MouseEvent) => {
     e.stopPropagation();
+    setIconFile(null);
     update("icon", "");
   };
 
@@ -456,13 +529,64 @@ const McpCreateModal: React.FC<McpCreateModalProps> = ({
   };
 
   // ── Submit ─────────────────────────────────────────────────────────────
+
+  /** Transport-aware required-field check (LSC-80 #3) + per-item length limits
+   *  for the free-text args / headers fields whose granularity a plain
+   *  `maxLength` can't express (LSC-80 #2). `args` stays optional.
+   *  Returns an i18n message key (+ interpolation values) on the first failure,
+   *  else null. */
+  const firstValidationError = (): {
+    key: string;
+    values?: Record<string, number>;
+  } | null => {
+    if (!form.name.trim()) return { key: "mcp.create.nameRequired" };
+    if (isRemote(form.transport)) {
+      if (!(form.url ?? "").trim()) return { key: "mcp.create.urlRequired" };
+      // Per-header key / value length (parsed from the raw `key: value` lines).
+      const headers = parseKV(headersRaw, ":");
+      for (const [k, v] of Object.entries(headers)) {
+        if (k.length > MAXLEN.headerKey)
+          return {
+            key: "mcp.create.headerKeyTooLong",
+            values: { max: MAXLEN.headerKey },
+          };
+        if (v.length > MAXLEN.headerValue)
+          return {
+            key: "mcp.create.headerValueTooLong",
+            values: { max: MAXLEN.headerValue },
+          };
+      }
+    } else {
+      // stdio → command required (args optional, per user confirmation).
+      if (!(form.command ?? "").trim())
+        return { key: "mcp.create.commandRequired" };
+      // Per-arg length (args are whitespace-split tokens).
+      const args = argsRaw.trim() ? argsRaw.trim().split(/\s+/) : [];
+      if (args.some((a) => a.length > MAXLEN.arg))
+        return { key: "mcp.create.argTooLong", values: { max: MAXLEN.arg } };
+    }
+    return null;
+  };
+
   const handleSubmit = async () => {
-    if (!form.name.trim()) {
-      Toast.warning(t("mcp.create.nameRequired"));
+    const err = firstValidationError();
+    if (err) {
+      Toast.warning(
+        t(err.key, err.values ? { values: err.values } : undefined)
+      );
+      // Connection fields live on step 1; jump there so the user sees the gap.
+      if (err.key !== "mcp.create.nameRequired") setStep(1);
+      else setStep(0);
       return;
     }
     const payload: CreateMcpParams = {
       ...form,
+      // Slug is the JSON `mcpServers` key; a manual override is run through the
+      // same slugify as the auto value so Chinese / uppercase / spaces /
+      // underscores can never leak into the key. Falls back to the safe default.
+      slug: slugifyServerName(
+        (form.slug ?? "").trim() ? form.slug! : form.name
+      ),
       args: argsRaw.trim() ? argsRaw.trim().split(/\s+/) : [],
       // Substitute the shared sentinel for any blank token-like env / header so
       // an empty secret is accepted instead of tripping `secret_leaked` on the
@@ -479,11 +603,26 @@ const McpCreateModal: React.FC<McpCreateModalProps> = ({
     try {
       if (isEdit && editing) {
         const updated = await updateMcp(editing.id, payload);
+        // Icon upload needs the id, so it runs after the record exists.
+        if (iconFile) {
+          try {
+            updated.icon = await uploadMcpIcon(editing.id, iconFile);
+          } catch {
+            Toast.warning(t("mcp.create.iconUploadFailed"));
+          }
+        }
         Toast.success(t("mcp.edit.success"));
         resetAll();
         onSaved(updated);
       } else {
-        await createMcp(payload);
+        const { id } = await createMcp(payload);
+        if (iconFile) {
+          try {
+            await uploadMcpIcon(id, iconFile);
+          } catch {
+            Toast.warning(t("mcp.create.iconUploadFailed"));
+          }
+        }
         Toast.success(t("mcp.create.success"));
         resetAll();
         onSaved();
@@ -577,7 +716,10 @@ const McpCreateModal: React.FC<McpCreateModalProps> = ({
     { value: "bearer" as const, label: t("mcp.create.authTypeBearer") },
   ];
 
-  const iconIsImage = isImageIcon(form.icon);
+  // Preview src: the freshly-picked file's object URL wins; otherwise the
+  // stored icon (a persisted storage URL, or a legacy base64 icon on edit).
+  const iconSrc = iconPreview || form.icon;
+  const iconIsImage = !!iconPreview || isImageIcon(form.icon);
 
   const AddBtn = ({ onClick }: { onClick: () => void }) => (
     <WKButton size="sm" variant="secondary" onClick={onClick}>
@@ -671,7 +813,7 @@ const McpCreateModal: React.FC<McpCreateModalProps> = ({
                   {iconIsImage ? (
                     <img
                       className="wk-mcp-icon-picker__img"
-                      src={form.icon}
+                      src={iconSrc}
                       alt=""
                     />
                   ) : (
@@ -707,12 +849,25 @@ const McpCreateModal: React.FC<McpCreateModalProps> = ({
                   <Field label={t("mcp.create.name")} required>
                     <WKInput
                       value={form.name}
-                      onChange={(v) => update("name", v)}
+                      onChange={handleNameChange}
                       placeholder={t("mcp.create.namePlaceholder")}
+                      maxLength={MAXLEN.name}
                     />
                   </Field>
                 </div>
               </div>
+
+              <Field
+                label={t("mcp.create.slug")}
+                hint={t("mcp.create.slugHint")}
+              >
+                <WKInput
+                  value={form.slug ?? ""}
+                  onChange={handleSlugChange}
+                  placeholder={t("mcp.create.slugPlaceholder")}
+                  maxLength={MAXLEN.name}
+                />
+              </Field>
 
               <div className="wk-mcp-field-grid">
                 <Field label={t("mcp.create.category")}>
@@ -737,6 +892,7 @@ const McpCreateModal: React.FC<McpCreateModalProps> = ({
                   value={form.slogan}
                   onChange={(v) => update("slogan", v)}
                   placeholder={t("mcp.create.sloganPlaceholder")}
+                  maxLength={MAXLEN.slogan}
                 />
               </Field>
             </Section>
@@ -761,11 +917,12 @@ const McpCreateModal: React.FC<McpCreateModalProps> = ({
 
               {isRemote(form.transport) ? (
                 <>
-                  <Field label={t("mcp.create.url")}>
+                  <Field label={t("mcp.create.url")} required>
                     <WKInput
                       value={form.url ?? ""}
                       onChange={(v) => update("url", v)}
                       placeholder={t("mcp.create.urlPlaceholder")}
+                      maxLength={MAXLEN.url}
                     />
                   </Field>
                   <Field label={t("mcp.create.authType")}>
@@ -778,11 +935,12 @@ const McpCreateModal: React.FC<McpCreateModalProps> = ({
                 </>
               ) : (
                 <>
-                  <Field label={t("mcp.create.command")}>
+                  <Field label={t("mcp.create.command")} required>
                     <WKInput
                       value={form.command ?? ""}
                       onChange={(v) => update("command", v)}
                       placeholder={t("mcp.create.commandPlaceholder")}
+                      maxLength={MAXLEN.command}
                     />
                   </Field>
                   <Field
@@ -897,11 +1055,13 @@ const McpCreateModal: React.FC<McpCreateModalProps> = ({
                         value={tool.name}
                         onChange={(v) => updateTool(idx, { name: v })}
                         placeholder={t("mcp.create.toolNamePlaceholder")}
+                        maxLength={MAXLEN.toolName}
                       />
                       <WKInput
                         value={tool.description}
                         onChange={(v) => updateTool(idx, { description: v })}
                         placeholder={t("mcp.create.toolDescPlaceholder")}
+                        maxLength={MAXLEN.text}
                       />
                     </div>
                   ))}
@@ -985,11 +1145,13 @@ const McpCreateModal: React.FC<McpCreateModalProps> = ({
                         value={faq.question}
                         onChange={(v) => updateFaq(idx, { question: v })}
                         placeholder={t("mcp.create.faqQuestionPlaceholder")}
+                        maxLength={MAXLEN.text}
                       />
                       <TextArea
                         value={faq.answer}
                         onChange={(v) => updateFaq(idx, { answer: v })}
                         rows={2}
+                        maxLength={MAXLEN.text}
                         placeholder={t("mcp.create.faqAnswerPlaceholder")}
                       />
                     </div>
@@ -1022,6 +1184,7 @@ const McpCreateModal: React.FC<McpCreateModalProps> = ({
                           value={note}
                           onChange={(v) => updateNote(idx, v)}
                           placeholder={t("mcp.create.notesPlaceholder")}
+                          maxLength={MAXLEN.text}
                         />
                       </div>
                       <WKButton

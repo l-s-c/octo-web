@@ -19,7 +19,7 @@ import {
   MOCK_MCP_LIST,
   MOCK_PROBED_TOOLS,
 } from "../mock/mcpMock";
-import { CATEGORY_KEY_ALL } from "../utils/constants";
+import { CATEGORY_KEY_ALL, slugifyServerName } from "../utils/constants";
 
 // ═══════════════════════════════════════════════════════════════════════════
 // MCP Market service layer
@@ -111,7 +111,8 @@ async function fetchMcpListMockFiltered(
     return matchCategory && matchKeyword;
   });
   const offset = params.offset && params.offset > 0 ? params.offset : 0;
-  const limit = params.limit && params.limit > 0 ? params.limit : filtered.length;
+  const limit =
+    params.limit && params.limit > 0 ? params.limit : filtered.length;
   const items = filtered.slice(offset, offset + limit);
   return delay({
     items,
@@ -210,6 +211,7 @@ function buildDetailFromCreate(id: string, params: CreateMcpParams): McpDetail {
   const quickStart: McpQuickStart = {
     transport: params.transport,
     serverName: params.name.trim(),
+    slug: slugifyServerName(params.slug?.trim() ? params.slug : params.name),
     url: params.url || undefined,
     authType: params.authType,
     headers:
@@ -377,6 +379,20 @@ async function post<T>(path: string, data?: unknown): Promise<T> {
   }
 }
 
+/** multipart POST — used by the icon upload endpoint which takes FormData
+ *  instead of a JSON body. Do NOT set Content-Type manually: axios/XHR must
+ *  generate the `multipart/form-data; boundary=...` header itself, otherwise
+ *  the backend cannot parse the parts (same pattern as dmloop attachmentApi). */
+async function postForm<T>(path: string, form: FormData): Promise<T> {
+  try {
+    const resp = await mcpAxios.post(`${BASE}${path}`, form);
+    return resp.data as T;
+  } catch (err) {
+    if (axios.isCancel(err)) throw err;
+    throw new Error(extractErrorMessage(err));
+  }
+}
+
 async function patch<T>(path: string, data?: unknown): Promise<T> {
   try {
     const resp = await mcpAxios.patch(`${BASE}${path}`, data);
@@ -508,6 +524,31 @@ async function deleteMcpReal(id: string): Promise<void> {
   return del(`/mcps/${encodeURIComponent(id)}`);
 }
 
+/**
+ * POST /mcps/{id}/icon — multipart upload of the icon image to object storage.
+ * Returns the persisted storage URL the backend saved. The UI stores this URL
+ * on the `icon` field (replacing the old base64 data URL flow); existing
+ * base64 icons stay renderable via isImageIcon.
+ *
+ * Contract (frontend-agreed, may need a joint pass with the backend subtask):
+ * field name `file`, response body `{ url }`.
+ */
+async function uploadMcpIconReal(id: string, file: File): Promise<string> {
+  const form = new FormData();
+  form.append("file", file);
+  const resp = await postForm<{ url: string }>(
+    `/mcps/${encodeURIComponent(id)}/icon`,
+    form
+  );
+  return resp.url;
+}
+
+/** Mock icon upload — returns an object URL so the mock detail renders the
+ *  freshly-picked image without a backend round-trip. */
+async function uploadMcpIconMock(_id: string, file: File): Promise<string> {
+  return delay(URL.createObjectURL(file), 200);
+}
+
 // ─── Public API (the only surface the UI imports) ──────────────────────────
 
 export function fetchMcpList(
@@ -560,4 +601,12 @@ export function updateMcp(
 /** DELETE /mcps/{id} — owner-only soft delete. */
 export function deleteMcp(id: string): Promise<void> {
   return USE_MOCK ? deleteMcpMock(id) : deleteMcpReal(id);
+}
+
+/**
+ * Upload an MCP icon to object storage (POST /mcps/{id}/icon, multipart).
+ * Returns the persisted storage URL to store on the `icon` field.
+ */
+export function uploadMcpIcon(id: string, file: File): Promise<string> {
+  return USE_MOCK ? uploadMcpIconMock(id, file) : uploadMcpIconReal(id, file);
 }

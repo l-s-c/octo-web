@@ -1,4 +1,4 @@
-import { isSecretKey } from "../utils/constants";
+import { isSecretKey, slugifyServerName } from "../utils/constants";
 import type { McpQuickStart } from "../types/mcp";
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -10,7 +10,7 @@ import type { McpQuickStart } from "../types/mcp";
 //   - default tab = 提示词 (natural-language instruction for agent clients)
 //   - JSON = `mcpServers` snippet — Cursor / Claude Desktop shape:
 //       stdio  → { command, args, env }              (NO `type` field)
-//       remote → { type: "http" | "sse", url, headers }
+//       remote → { type: "streamable_http" | "sse", url, headers }
 //     Claude Code also accepts `type: "stdio"`, but Cursor / Claude Desktop /
 //     Codex etc. don't — omitting it keeps one snippet copy-pasteable across
 //     the whole ecosystem, which is what users actually do.
@@ -42,16 +42,26 @@ function isRemote(qs: McpQuickStart): boolean {
  * The `type` value emitted for remote transports. `.mcp.json` (Claude Code)
  * requires it; Cursor / Claude Desktop tolerate it. stdio gets no `type` at all
  * (Cursor / Claude Desktop reject unknown fields on stdio; Claude Code accepts
- * the omission).
+ * the omission). streamable-http emits the canonical `streamable_http` value
+ * (the ecosystem's own key), not the shorthand `http`.
  */
-function jsonTypeField(qs: McpQuickStart): "sse" | "http" | null {
+function jsonTypeField(qs: McpQuickStart): "sse" | "streamable_http" | null {
   if (qs.transport === "sse") return "sse";
-  if (qs.transport === "streamable-http") return "http";
+  if (qs.transport === "streamable-http") return "streamable_http";
   return null;
+}
+
+/** The `mcpServers` JSON key — an ASCII slug, never the Chinese display name.
+ *  A manually-supplied slug is run through the same slugify as the auto one, so
+ *  Chinese / uppercase / spaces / underscores can never leak into the JSON key. */
+function serverKey(qs: McpQuickStart): string {
+  const source = qs.slug?.trim() ? qs.slug : qs.serverName;
+  return slugifyServerName(source);
 }
 
 /** Build the JSON `mcpServers` snippet — Cursor / Claude Desktop shape. */
 function buildJson(qs: McpQuickStart): string {
+  const key = serverKey(qs);
   if (isRemote(qs)) {
     // User-supplied headers first, so the auth line (if any) wins on collision.
     const merged: Record<string, string> = maskSecrets(qs.headers ?? {});
@@ -65,7 +75,7 @@ function buildJson(qs: McpQuickStart): string {
     if (Object.keys(merged).length > 0) {
       server.headers = merged;
     }
-    return JSON.stringify({ mcpServers: { [qs.serverName]: server } }, null, 2);
+    return JSON.stringify({ mcpServers: { [key]: server } }, null, 2);
   }
   // stdio — no `type` field per Cursor / Claude Desktop convention.
   const server: Record<string, unknown> = {
@@ -75,7 +85,7 @@ function buildJson(qs: McpQuickStart): string {
   if (qs.env && Object.keys(qs.env).length > 0) {
     server.env = maskSecrets(qs.env);
   }
-  return JSON.stringify({ mcpServers: { [qs.serverName]: server } }, null, 2);
+  return JSON.stringify({ mcpServers: { [key]: server } }, null, 2);
 }
 
 /** Replace secret-looking values with the token placeholder so the snippet is
