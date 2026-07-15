@@ -122,7 +122,11 @@
   white-space: nowrap;
 }
 
+/* 未选中 chip 的 hover：显式给出浅色底 + 主文本色，
+   不再只依赖基础态背景被继承——避免任何祖先/全局 button:hover
+   规则把底色改成深色、或 token 缺失时坍缩成黑底黑字（本次 bug）。 */
 .wk-mcp__pill:hover {
+  background: var(--wk-bg-elevated, var(--wk-bg-surface));
   border-color: var(--wk-border-strong, var(--wk-border-default));
   color: var(--wk-text-primary);
 }
@@ -130,6 +134,14 @@
 .wk-mcp__pill--active {
   background: var(--wk-brand-primary);
   border-color: var(--wk-brand-primary);
+  color: var(--wk-text-inverse);
+}
+
+/* 选中态的 hover 单独定义，保持品牌黑底 + 反色文字，
+   优先级高于通用 :hover，避免选中 chip 悬停时被改成浅色。 */
+.wk-mcp__pill--active:hover {
+  background: var(--wk-brand-primary-hover, var(--wk-brand-primary));
+  border-color: var(--wk-brand-primary-hover, var(--wk-brand-primary));
   color: var(--wk-text-inverse);
 }
 
