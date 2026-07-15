@@ -241,7 +241,7 @@ export default function NewSkillModal({ visible, categories, onClose, onCreated 
       <WKModal
         visible={visible}
         onCancel={requestClose}
-        title="新建 Skill"
+        title="上架 Skill"
         size="lg"
         className="skill-market-workflow-modal"
         footer={stage === "form" ? (
@@ -278,7 +278,7 @@ export default function NewSkillModal({ visible, categories, onClose, onCreated 
                     accept=".zip"
                     onChange={handleFileChange}
                   />
-                  <UploadCloud size={28} />
+                  <UploadCloud size={48} />
                   <strong>上传 Skill 压缩包（.zip，≤20MB）</strong>
                   <span>zip 内需包含 SKILL.md 文件</span>
                 </label>
