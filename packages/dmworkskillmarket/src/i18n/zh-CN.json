@@ -47,6 +47,7 @@
     "notFound": "Skill 不存在或已被删除",
     "promptCopied": "安装 Prompt 已复制",
     "downloadStarted": "下载已打开",
+    "downloadFailed": "下载失败",
     "visibilityPrivate": "私有",
     "visibilitySpace": "空间可见",
     "visibilityPublic": "公开",

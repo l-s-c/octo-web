@@ -47,6 +47,7 @@
     "notFound": "Skill does not exist or has been deleted",
     "promptCopied": "Install prompt copied",
     "downloadStarted": "Download started",
+    "downloadFailed": "Download failed",
     "visibilityPrivate": "Private",
     "visibilitySpace": "Space visible",
     "visibilityPublic": "Public",

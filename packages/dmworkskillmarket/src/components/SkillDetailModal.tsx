@@ -121,10 +121,14 @@ export default function SkillDetailModal({
     }
   }
 
-  function downloadSkillPackage() {
+  async function downloadSkillPackage() {
     if (!skill) return;
-    downloadSkill(skill.id);
-    onFeedback?.(t("skillMarket.detail.downloadStarted"));
+    try {
+      await downloadSkill(skill.id);
+      onFeedback?.(t("skillMarket.detail.downloadStarted"));
+    } catch (err) {
+      onFeedback?.(err instanceof Error ? err.message : t("skillMarket.detail.downloadFailed"));
+    }
   }
 
   return (
