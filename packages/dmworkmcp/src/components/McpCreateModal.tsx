@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { WKModal, WKInput, WKButton, t } from "@octo/base";
-import { Select, TextArea, Toast } from "@douyinfe/semi-ui";
+import { Input, Select, TextArea, Toast } from "@douyinfe/semi-ui";
 import {
   createMcp,
   probeMcpTools,
@@ -972,8 +972,8 @@ const McpCreateModal: React.FC<McpCreateModalProps> = ({
                       label={t("mcp.create.probeBearerLabel")}
                       hint={t("mcp.create.probeBearerHint")}
                     >
-                      <WKInput
-                        type="password"
+                      <Input
+                        mode="password"
                         value={probeBearer}
                         onChange={setProbeBearer}
                         placeholder={t("mcp.create.probeBearerPlaceholder")}
