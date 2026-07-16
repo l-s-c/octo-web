@@ -7,7 +7,7 @@ import { WKApp, WKButton, WKModal } from "@octo/base";
 import type { Category, Skill, SkillVersion } from "../types/skill";
 import { downloadSkill, getSkill, listVersions } from "../api/skillApi";
 import { formatFileSize, formatRelativeTime } from "../utils/format";
-import { buildInstallPrompt } from "../utils/installPrompt";
+import { buildInstallPrompt, resolveAPIBaseURL } from "../utils/installPrompt";
 import { getSkillAvatarColor, getSkillAvatarText } from "../utils/skillAvatar";
 import PublishVersionModal from "./PublishVersionModal";
 
@@ -114,7 +114,10 @@ export default function SkillDetailModal({
 
   function copyInstallPrompt() {
     if (!skill) return;
-    const prompt = buildInstallPrompt(skill.id);
+    const spaceId = WKApp.shared.currentSpaceId;
+    if (!spaceId) return;
+    const apiBaseURL = resolveAPIBaseURL(WKApp.apiClient.config.apiURL, window.location.origin);
+    const prompt = buildInstallPrompt(skill.id, spaceId, apiBaseURL);
     if (navigator.clipboard?.writeText) {
       void navigator.clipboard.writeText(prompt).then(() => {
         onFeedback?.("安装 Prompt 已复制");
