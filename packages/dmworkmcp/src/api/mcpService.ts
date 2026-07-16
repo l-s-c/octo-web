@@ -650,8 +650,8 @@ async function uploadMcpIconReal(_id: string, file: File): Promise<string> {
     download_url: string;
   }
 
-  const init = await mcpAxios.post<McpIconInitResponse>(
-    `${resolveBaseURL()}${BASE}/mcp/upload/icon`,
+  const init = await mcpAxios.post<{ data: McpIconInitResponse }>(
+    `${resolveBaseURL()}${BASE}/mcp_icon_uploads`,
     {
       file_name: file.name || "icon",
       file_size: file.size,
@@ -659,12 +659,12 @@ async function uploadMcpIconReal(_id: string, file: File): Promise<string> {
     }
   );
   if (
-    !init.data?.presigned_url ||
-    !init.data?.download_url
+    !init.data?.data?.presigned_url ||
+    !init.data?.data?.download_url
   ) {
     throw new Error(t("mcp.create.iconUploadFailed"));
   }
-  const { presigned_url, download_url, headers } = init.data;
+  const { presigned_url, download_url, headers } = init.data.data;
 
   // PUT via raw axios (no interceptors) — the presigned URL points at
   // storage / local proxy, not marketplace, and any Accept-Language /
