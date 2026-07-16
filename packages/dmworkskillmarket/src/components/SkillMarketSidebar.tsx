@@ -1,13 +1,14 @@
 import React from "react";
 import { Blocks } from "lucide-react";
-import { WKApp } from "@octo/base";
+import { t, useI18n, WKApp } from "@octo/base";
 import SkillListPage from "../pages/SkillListPage";
 
 export default function SkillMarketSidebar() {
+  useI18n();
   return (
     <aside className="skill-market-sidebar">
-      <div className="skill-market-sidebar__header">Skill 市场</div>
-      <nav className="skill-market-sidebar__nav" aria-label="Skill 市场导航">
+      <div className="skill-market-sidebar__header">{t("skillMarket.sidebar.header")}</div>
+      <nav className="skill-market-sidebar__nav" aria-label={t("skillMarket.sidebar.nav")}>
         <button
           type="button"
           className="is-active"
