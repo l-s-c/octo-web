@@ -77,7 +77,7 @@ export default function SkillCard({ skill, categories: _categories, onOpen, onEd
           </div>
         )}
       </div>
-      <p className="skill-market-card__desc">{skill.description}</p>
+      <p className="skill-market-card__desc" title={skill.description}>{skill.description}</p>
       <div className="skill-market-card__footer" onClick={(event) => event.stopPropagation()}>
         <button
           type="button"
