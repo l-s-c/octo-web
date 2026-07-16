@@ -114,7 +114,9 @@ export default function SkillDetailModal({
 
   function copyInstallPrompt() {
     if (!skill) return;
-    const prompt = buildInstallPrompt(skill.id);
+    const spaceId = WKApp.shared.currentSpaceId;
+    if (!spaceId) return;
+    const prompt = buildInstallPrompt(skill.id, spaceId, window.location.origin);
     if (navigator.clipboard?.writeText) {
       void navigator.clipboard.writeText(prompt).then(() => {
         onFeedback?.("安装 Prompt 已复制");

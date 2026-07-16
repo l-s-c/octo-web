@@ -3,7 +3,7 @@ import ReactMarkdown from "react-markdown";
 import rehypeSanitize from "rehype-sanitize";
 import remarkGfm from "remark-gfm";
 import { Check, Copy, Terminal } from "lucide-react";
-import { WKButton, WKModal } from "@octo/base";
+import { WKApp, WKButton, WKModal } from "@octo/base";
 import { buildInstallPrompt } from "../utils/installPrompt";
 
 interface InstallPromptModalProps {
@@ -18,7 +18,8 @@ export default function InstallPromptModal({ skillId, onClose }: InstallPromptMo
     if (skillId) setCopied(false);
   }, [skillId]);
 
-  const prompt = skillId ? buildInstallPrompt(skillId) : "";
+  const spaceId = WKApp.shared.currentSpaceId;
+  const prompt = skillId && spaceId ? buildInstallPrompt(skillId, spaceId, window.location.origin) : "";
 
   function handleCopy() {
     if (!prompt || !navigator.clipboard?.writeText) return;
