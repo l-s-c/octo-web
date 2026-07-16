@@ -1,10 +1,11 @@
 {
   "menu": {
-    "title": "MCP Market"
+    "title": "Markets"
   },
   "sidebar": {
     "header": "Markets",
-    "mcp": "MCP Market"
+    "mcp": "MCP Market",
+    "skills": "Skills Market"
   },
   "common": {
     "loadFailed": "Failed to load"

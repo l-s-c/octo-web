@@ -1,10 +1,11 @@
 {
   "menu": {
-    "title": "MCP 市场"
+    "title": "市场"
   },
   "sidebar": {
     "header": "市场",
-    "mcp": "MCP 市场"
+    "mcp": "MCP 市场",
+    "skills": "Skills 市场"
   },
   "common": {
     "loadFailed": "加载失败"
