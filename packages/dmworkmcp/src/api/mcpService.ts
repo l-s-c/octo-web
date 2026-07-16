@@ -516,66 +516,58 @@ async function deleteMcpReal(id: string): Promise<void> {
  * Upload an MCP icon and return the persisted URL to write onto the `icon`
  * field.
  *
- * Why: the marketplace service is stateless and does not carry its own object
- * storage credentials in dev/prod; wiring a second S3 stack just for icons
- * duplicates config and adds an outage surface. The main IM already exposes a
- * pre-signed direct-upload flow (`file/upload/credentials` → PUT S3) used by
- * chat images and avatars, so MCP icons ride the same rail. The `id`
- * parameter is used only as an object-key prefix for organization; upload is
- * otherwise independent of the MCP record.
+ * Uses marketplace's presigned URL flow (POST /api/v1/mcp/upload/icon) —
+ * same channel octo-admin uses. The client asks marketplace for a
+ * pre-signed PUT URL + a persistent download URL, PUTs the bytes directly
+ * to storage, then stores the download URL on the MCP record. The `id`
+ * parameter is ignored (kept for signature compatibility with the mock and
+ * older callers); marketplace assigns its own UUID to the object key.
+ *
+ * Prior implementation rode on the main IM's `file/upload/credentials`
+ * endpoint. Two upload channels for the same feature was operational churn
+ * — marketplace's own storage layer handles both admin and user paths now,
+ * so this frontend uses one.
  */
-async function uploadMcpIconReal(id: string, file: File): Promise<string> {
-  const contentType = file.type || "application/octet-stream";
-  const fileName = file.name || "icon";
-  const dot = fileName.lastIndexOf(".");
-  const ext = dot > 0 ? fileName.slice(dot) : "";
-  const path = `/mcp/${encodeURIComponent(id)}/${genUploadUUID()}${ext}`;
+async function uploadMcpIconReal(_id: string, file: File): Promise<string> {
+  interface McpIconInitResponse {
+    object_key: string;
+    presigned_url: string;
+    expires_in: number;
+    method: string;
+    headers: Record<string, string>;
+    download_url: string;
+  }
 
-  const cred = await WKApp.apiClient.get<{
-    uploadUrl?: string;
-    downloadUrl?: string;
-    contentType?: string;
-    contentDisposition?: string;
-  }>(
-    `file/upload/credentials?path=${encodeURIComponent(path)}` +
-      `&type=chat` +
-      `&filename=${encodeURIComponent(fileName)}` +
-      `&contentType=${encodeURIComponent(contentType)}` +
-      `&fileSize=${file.size}`
+  const init = await mcpAxios.post<McpIconInitResponse>(
+    `${resolveBaseURL()}${BASE}/mcp/upload/icon`,
+    {
+      file_name: file.name || "icon",
+      file_size: file.size,
+      content_type: file.type || "application/octet-stream",
+    }
   );
   if (
-    !cred ||
-    typeof cred.uploadUrl !== "string" ||
-    typeof cred.downloadUrl !== "string"
+    !init.data?.presigned_url ||
+    !init.data?.download_url
   ) {
     throw new Error(t("mcp.create.iconUploadFailed"));
   }
+  const { presigned_url, download_url, headers } = init.data;
 
-  const headers: Record<string, string> = {
-    "Content-Type": cred.contentType || contentType,
-  };
-  if (cred.contentDisposition) {
-    headers["Content-Disposition"] = cred.contentDisposition;
-  }
-  const resp = await axios.put(cred.uploadUrl, file, {
-    headers,
+  // PUT via raw axios (no interceptors) — the presigned URL points at
+  // storage / local proxy, not marketplace, and any Accept-Language /
+  // credentials header would leak into a third-party call.
+  const putResp = await axios.put(presigned_url, file, {
+    headers: headers ?? {},
     timeout: 2 * 60 * 1000,
+    // Disable axios's default JSON transform — we want the file bytes
+    // sent as-is, not stringified.
+    transformRequest: [(data) => data],
   });
-  if (!(resp.status >= 200 && resp.status < 300)) {
+  if (!(putResp.status >= 200 && putResp.status < 300)) {
     throw new Error(t("mcp.create.iconUploadFailed"));
   }
-  return cred.downloadUrl;
-}
-
-// 32-char hex, generated via crypto.getRandomValues — same shape used by the
-// IM chat upload flow so object keys look uniform in the storage bucket.
-function genUploadUUID(): string {
-  const bytes = new Uint8Array(32);
-  crypto.getRandomValues(bytes);
-  const chars = "0123456789ABCDEF";
-  let out = "";
-  for (let i = 0; i < bytes.length; i++) out += chars[bytes[i] % 16];
-  return out;
+  return download_url;
 }
 
 /** Mock icon upload — returns an object URL so the mock detail renders the

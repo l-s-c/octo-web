@@ -100,6 +100,24 @@ function parseKV(raw: string, separator: "=" | ":"): Record<string, string> {
   return out;
 }
 
+/** Inject the ephemeral probe bearer as `Authorization: Bearer <token>` for
+ *  the test-connect call only. The persisted `headers` map still submits the
+ *  sentinel placeholder that mcp-v1.md §5.1 requires; this override lets the
+ *  probe reach a real MCP server without persisting the real token. Any
+ *  `Authorization` already in `headers` (e.g. the sentinel) is intentionally
+ *  overwritten because the user's just-typed token is the more explicit
+ *  signal.
+ */
+function mergeProbeBearer(
+  headers: Record<string, string>,
+  authType: "bearer" | "none" | undefined,
+  probeBearer: string
+): Record<string, string> {
+  const token = probeBearer.trim();
+  if (authType !== "bearer" || !token) return headers;
+  return { ...headers, Authorization: `Bearer ${token}` };
+}
+
 /** Convert a detail record to the flat create/update form shape. Preserves
  *  everything the wire carries; drops the redacted secret sentinel so the
  *  user sees empty inputs (submit re-applies the sentinel via
@@ -342,6 +360,12 @@ const McpCreateModal: React.FC<McpCreateModalProps> = ({
   const [argsRaw, setArgsRaw] = useState("");
   const [envRaw, setEnvRaw] = useState("");
   const [headersRaw, setHeadersRaw] = useState("");
+  // Ephemeral bearer token used ONLY by the probe call; never included in the
+  // create/update payload. Lets the user paste a real token to fetch the tool
+  // list while the persisted headers keep the sentinel placeholder that
+  // mcp-v1.md §5.1 requires. Not seeded from `editing` — real values never
+  // round-trip to the client.
+  const [probeBearer, setProbeBearer] = useState("");
 
   // Icon: the selected File is held locally for an object-URL preview and only
   // uploaded to object storage on submit (POST /mcps/{id}/icon, needs the id).
@@ -383,6 +407,8 @@ const McpCreateModal: React.FC<McpCreateModalProps> = ({
       setAdvancedOpen(false);
       setSlugTouched(false);
     }
+    // Probe bearer is per-session and never re-used across opens.
+    setProbeBearer("");
     setIconFile(null);
     setIconPreview("");
     setStep(0);
@@ -412,6 +438,7 @@ const McpCreateModal: React.FC<McpCreateModalProps> = ({
     setArgsRaw("");
     setEnvRaw("");
     setHeadersRaw("");
+    setProbeBearer("");
     setAdvancedOpen(false);
     setIconFile(null);
     setIconPreview("");
@@ -495,7 +522,11 @@ const McpCreateModal: React.FC<McpCreateModalProps> = ({
       ? {
           transport: form.transport,
           url: form.url,
-          headers: parseKV(headersRaw, ":"),
+          headers: mergeProbeBearer(
+            parseKV(headersRaw, ":"),
+            form.authType,
+            probeBearer
+          ),
         }
       : {
           transport: form.transport,
@@ -936,6 +967,20 @@ const McpCreateModal: React.FC<McpCreateModalProps> = ({
                       onChange={(v) => update("authType", v)}
                     />
                   </Field>
+                  {form.authType === "bearer" && (
+                    <Field
+                      label={t("mcp.create.probeBearerLabel")}
+                      hint={t("mcp.create.probeBearerHint")}
+                    >
+                      <WKInput
+                        type="password"
+                        value={probeBearer}
+                        onChange={setProbeBearer}
+                        placeholder={t("mcp.create.probeBearerPlaceholder")}
+                        autoComplete="off"
+                      />
+                    </Field>
+                  )}
                 </>
               ) : (
                 <>
