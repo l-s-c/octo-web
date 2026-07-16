@@ -381,20 +381,6 @@ async function post<T>(path: string, data?: unknown): Promise<T> {
   }
 }
 
-/** multipart POST — used by the icon upload endpoint which takes FormData
- *  instead of a JSON body. Do NOT set Content-Type manually: axios/XHR must
- *  generate the `multipart/form-data; boundary=...` header itself, otherwise
- *  the backend cannot parse the parts (same pattern as dmloop attachmentApi). */
-async function postForm<T>(path: string, form: FormData): Promise<T> {
-  try {
-    const resp = await mcpAxios.post(`${BASE}${path}`, form);
-    return resp.data as T;
-  } catch (err) {
-    if (axios.isCancel(err)) throw err;
-    throw new Error(extractErrorMessage(err));
-  }
-}
-
 async function patch<T>(path: string, data?: unknown): Promise<T> {
   try {
     const resp = await mcpAxios.patch(`${BASE}${path}`, data);
@@ -527,22 +513,69 @@ async function deleteMcpReal(id: string): Promise<void> {
 }
 
 /**
- * POST /mcps/{id}/icon — multipart upload of the icon image to object storage.
- * Returns the persisted storage URL the backend saved. The UI stores this URL
- * on the `icon` field (replacing the old base64 data URL flow); existing
- * base64 icons stay renderable via isImageIcon.
+ * Upload an MCP icon and return the persisted URL to write onto the `icon`
+ * field.
  *
- * Contract (frontend-agreed, may need a joint pass with the backend subtask):
- * field name `file`, response body `{ url }`.
+ * Why: the marketplace service is stateless and does not carry its own object
+ * storage credentials in dev/prod; wiring a second S3 stack just for icons
+ * duplicates config and adds an outage surface. The main IM already exposes a
+ * pre-signed direct-upload flow (`file/upload/credentials` → PUT S3) used by
+ * chat images and avatars, so MCP icons ride the same rail. The `id`
+ * parameter is used only as an object-key prefix for organization; upload is
+ * otherwise independent of the MCP record.
  */
 async function uploadMcpIconReal(id: string, file: File): Promise<string> {
-  const form = new FormData();
-  form.append("file", file);
-  const resp = await postForm<{ url: string }>(
-    `/mcps/${encodeURIComponent(id)}/icon`,
-    form
+  const contentType = file.type || "application/octet-stream";
+  const fileName = file.name || "icon";
+  const dot = fileName.lastIndexOf(".");
+  const ext = dot > 0 ? fileName.slice(dot) : "";
+  const path = `/mcp/${encodeURIComponent(id)}/${genUploadUUID()}${ext}`;
+
+  const cred = await WKApp.apiClient.get<{
+    uploadUrl?: string;
+    downloadUrl?: string;
+    contentType?: string;
+    contentDisposition?: string;
+  }>(
+    `file/upload/credentials?path=${encodeURIComponent(path)}` +
+      `&type=chat` +
+      `&filename=${encodeURIComponent(fileName)}` +
+      `&contentType=${encodeURIComponent(contentType)}` +
+      `&fileSize=${file.size}`
   );
-  return resp.url;
+  if (
+    !cred ||
+    typeof cred.uploadUrl !== "string" ||
+    typeof cred.downloadUrl !== "string"
+  ) {
+    throw new Error(t("mcp.create.iconUploadFailed"));
+  }
+
+  const headers: Record<string, string> = {
+    "Content-Type": cred.contentType || contentType,
+  };
+  if (cred.contentDisposition) {
+    headers["Content-Disposition"] = cred.contentDisposition;
+  }
+  const resp = await axios.put(cred.uploadUrl, file, {
+    headers,
+    timeout: 2 * 60 * 1000,
+  });
+  if (!(resp.status >= 200 && resp.status < 300)) {
+    throw new Error(t("mcp.create.iconUploadFailed"));
+  }
+  return cred.downloadUrl;
+}
+
+// 32-char hex, generated via crypto.getRandomValues — same shape used by the
+// IM chat upload flow so object keys look uniform in the storage bucket.
+function genUploadUUID(): string {
+  const bytes = new Uint8Array(32);
+  crypto.getRandomValues(bytes);
+  const chars = "0123456789ABCDEF";
+  let out = "";
+  for (let i = 0; i < bytes.length; i++) out += chars[bytes[i] % 16];
+  return out;
 }
 
 /** Mock icon upload — returns an object URL so the mock detail renders the

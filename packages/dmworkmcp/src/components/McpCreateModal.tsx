@@ -579,8 +579,28 @@ const McpCreateModal: React.FC<McpCreateModalProps> = ({
       else setStep(0);
       return;
     }
+    setSubmitting(true);
+    // Upload icon FIRST so the URL can ride in the create/update body. The
+    // marketplace endpoint no longer accepts multipart icon uploads; uploads
+    // go through the main IM (mcpService.uploadMcpIconReal) and return a URL
+    // that only the caller can persist by writing it back onto the icon
+    // field. The prior "upload after create" flow silently dropped the URL.
+    let iconOverride: string | undefined;
+    if (iconFile) {
+      try {
+        // `uploadMcpIcon` uses its id arg only as an object-storage key
+        // prefix, so a synthetic value for the create case is fine.
+        const prefix = isEdit && editing ? editing.id : "new";
+        iconOverride = await uploadMcpIcon(prefix, iconFile);
+      } catch {
+        Toast.warning(t("mcp.create.iconUploadFailed"));
+        // Fall through — submit the record without a fresh icon rather than
+        // blocking the whole create/edit on a transient upload failure.
+      }
+    }
     const payload: CreateMcpParams = {
       ...form,
+      icon: iconOverride ?? form.icon,
       // Slug is the JSON `mcpServers` key; a manual override is run through the
       // same slugify as the auto value so Chinese / uppercase / spaces /
       // underscores can never leak into the key. Falls back to the safe default.
@@ -599,30 +619,14 @@ const McpCreateModal: React.FC<McpCreateModalProps> = ({
       faqs: (form.faqs ?? []).filter((f) => f.question.trim()),
       notes: (form.notes ?? []).filter((s) => s.trim()),
     };
-    setSubmitting(true);
     try {
       if (isEdit && editing) {
         const updated = await updateMcp(editing.id, payload);
-        // Icon upload needs the id, so it runs after the record exists.
-        if (iconFile) {
-          try {
-            updated.icon = await uploadMcpIcon(editing.id, iconFile);
-          } catch {
-            Toast.warning(t("mcp.create.iconUploadFailed"));
-          }
-        }
         Toast.success(t("mcp.edit.success"));
         resetAll();
         onSaved(updated);
       } else {
-        const { id } = await createMcp(payload);
-        if (iconFile) {
-          try {
-            await uploadMcpIcon(id, iconFile);
-          } catch {
-            Toast.warning(t("mcp.create.iconUploadFailed"));
-          }
-        }
+        await createMcp(payload);
         Toast.success(t("mcp.create.success"));
         resetAll();
         onSaved();

@@ -185,9 +185,9 @@
       "no_tools_capability": "This MCP does not expose a tool list."
     },
     "toolsEmpty": "No tools yet. Click \"Test / fetch tools\" to probe automatically, or add them manually.",
-    "toolsHint": "Before the real backend is wired up, probing hits the local mock and returns a sample tool set.",
+    "toolsHint": "Click \"Test / fetch tools\" to probe the remote server and sync its tool list.",
     "submit": "Submit",
-    "success": "Created (mock)",
+    "success": "Created",
     "failed": "Create failed"
   }
 }

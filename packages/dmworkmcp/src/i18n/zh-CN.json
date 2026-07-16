@@ -185,9 +185,9 @@
       "no_tools_capability": "该 MCP 未提供工具列表能力。"
     },
     "toolsEmpty": "尚未获取工具，可点击「试连 / 获取工具列表」自动探测，或手动补充。",
-    "toolsHint": "接入真实后端前，探测走本地 Mock，返回一组示例工具。",
+    "toolsHint": "点击「试连 / 获取工具列表」，探测远端服务并同步工具清单。",
     "submit": "提交",
-    "success": "创建成功（Mock）",
+    "success": "创建成功",
     "failed": "创建失败"
   }
 }
