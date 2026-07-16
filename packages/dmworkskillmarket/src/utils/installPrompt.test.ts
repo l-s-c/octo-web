@@ -1,5 +1,19 @@
 import { describe, expect, it } from "vitest";
-import { buildInstallPrompt } from "./installPrompt";
+import { buildInstallPrompt, resolveAPIBaseURL } from "./installPrompt";
+
+describe("resolveAPIBaseURL", () => {
+  it("preserves the Web /api deployment prefix", () => {
+    expect(resolveAPIBaseURL("/api/v1/", "https://im.deepminer.com.cn")).toBe(
+      "https://im.deepminer.com.cn/api",
+    );
+  });
+
+  it("removes only the API version from an absolute runtime URL", () => {
+    expect(resolveAPIBaseURL("https://api.example.com/v1/", "https://app.example.com")).toBe(
+      "https://api.example.com",
+    );
+  });
+});
 
 describe("buildInstallPrompt", () => {
   it("includes deterministic Space profile selection and login", () => {

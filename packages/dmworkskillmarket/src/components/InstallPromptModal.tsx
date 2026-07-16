@@ -4,7 +4,7 @@ import rehypeSanitize from "rehype-sanitize";
 import remarkGfm from "remark-gfm";
 import { Check, Copy, Terminal } from "lucide-react";
 import { WKApp, WKButton, WKModal } from "@octo/base";
-import { buildInstallPrompt } from "../utils/installPrompt";
+import { buildInstallPrompt, resolveAPIBaseURL } from "../utils/installPrompt";
 
 interface InstallPromptModalProps {
   skillId: string | null;
@@ -19,7 +19,8 @@ export default function InstallPromptModal({ skillId, onClose }: InstallPromptMo
   }, [skillId]);
 
   const spaceId = WKApp.shared.currentSpaceId;
-  const prompt = skillId && spaceId ? buildInstallPrompt(skillId, spaceId, window.location.origin) : "";
+  const apiBaseURL = resolveAPIBaseURL(WKApp.apiClient.config.apiURL, window.location.origin);
+  const prompt = skillId && spaceId ? buildInstallPrompt(skillId, spaceId, apiBaseURL) : "";
 
   function handleCopy() {
     if (!prompt || !navigator.clipboard?.writeText) return;

@@ -1,3 +1,9 @@
+export function resolveAPIBaseURL(apiURL: string, origin: string): string {
+  const value = apiURL || "/api/v1/";
+  const withoutVersion = value.replace(/\/v1\/?$/, "").replace(/\/+$/, "");
+  return new URL(withoutVersion || "/", origin).toString().replace(/\/$/, "");
+}
+
 export function buildInstallPrompt(skillId: string, spaceId: string, apiBaseURL: string): string {
   return `使用 octo-cli 将指定 Skill 安装到当前 Agent runtime。
 
