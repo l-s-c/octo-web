@@ -16,21 +16,66 @@
   font-size: var(--wk-text-size-md);
 }
 
-/* ── Top bar ─────────────────────────────────────────────────────────────── */
+/* ── Top bar ─────────────────────────────────────────────────────────────
+   Mirrors dmworkskillmarket's `.skill-market-topbar`: tabs on the left,
+   action cluster (primary button + search) on the right, single border-
+   bottom separator. Keeps the two market pages visually consistent under
+   the shared "/mcp-market" shell. */
 .wk-mcp__topbar {
   flex: none;
-  height: 56px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 var(--wk-sp-6);
+  gap: var(--wk-sp-4);
+  min-height: 64px;
+  padding: var(--wk-sp-3) var(--wk-sp-4);
   border-bottom: 1px solid var(--wk-border-subtle);
 }
 
-.wk-mcp__title {
-  font-size: var(--wk-text-size-xl);
-  font-weight: var(--wk-font-semibold);
+.wk-mcp__topbar-actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: var(--wk-sp-2);
+}
+
+/* Underline-style tabs — matches skill-market-tabs. Active tab uses
+   --wk-text-accent with a 2px underline pseudo-element. */
+.wk-mcp__tabs {
+  display: flex;
+  gap: 0;
+}
+
+.wk-mcp__tabs button {
+  position: relative;
+  padding: 8px 16px;
+  border: none;
+  background: none;
+  color: var(--wk-text-secondary);
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: color 0.15s;
+}
+
+.wk-mcp__tabs button:hover {
   color: var(--wk-text-primary);
+}
+
+.wk-mcp__tabs button.is-active {
+  color: var(--wk-text-accent);
+  font-weight: 600;
+}
+
+.wk-mcp__tabs button.is-active::after {
+  content: "";
+  position: absolute;
+  bottom: -1px;
+  left: 16px;
+  right: 16px;
+  height: 2px;
+  background: var(--wk-text-accent);
+  border-radius: 1px;
 }
 
 /* ── Scroll body ─────────────────────────────────────────────────────────── */
@@ -67,35 +112,23 @@
   gap: var(--wk-sp-2);
 }
 
-/* ── Page head ───────────────────────────────────────────────────────────── */
-.wk-mcp__head {
-  margin-bottom: var(--wk-sp-4);
-}
+/* ── Page head ─── (removed, header now lives in .wk-mcp__topbar) ────── */
 
-.wk-mcp__head-title {
-  font-size: var(--wk-text-size-3xl);
-  font-weight: var(--wk-font-semibold);
-  margin: 0 0 var(--wk-sp-1) 0;
-  color: var(--wk-text-primary);
-}
-
-.wk-mcp__head-desc {
-  font-size: var(--wk-text-size-base);
-  color: var(--wk-text-tertiary);
-  margin: 0;
-}
-
-/* ── Toolbar (search + filter pills) ─────────────────────────────────────── */
+/* ── Toolbar (category pills) ────────────────────────────────────────────
+   Sits below the topbar as its own row — mirrors dmworkskillmarket's
+   `.skill-market-toolbar`. Hidden on the "mine" tab, same as skillmarket. */
 .wk-mcp__toolbar {
-  display: flex;
-  align-items: center;
-  gap: var(--wk-sp-4);
-  flex-wrap: wrap;
-  margin: var(--wk-sp-4) 0 var(--wk-sp-6);
+  flex: none;
+  padding: var(--wk-sp-3) var(--wk-sp-4);
+  border-bottom: 1px solid var(--wk-border-subtle);
+}
+
+.wk-mcp__toolbar--mine {
+  display: none;
 }
 
 .wk-mcp__search {
-  width: 280px;
+  width: 240px;
   max-width: 100%;
 }
 
@@ -1035,42 +1068,9 @@
 }
 
 /* ── Market page: 全部 / 我的 mode toggle ─────────────────────────────────
-   Same segmented-button visual language as the create-form `wk-mcp-segments`
-   but scoped to the page-level "mode" toolbar row, so the market page and
-   the create modal share one system-of-parts. */
-.wk-mcp__mode {
-  display: inline-flex;
-  padding: 3px;
-  border-radius: var(--wk-r-md);
-  background: var(--wk-bg-elevated);
-  gap: 2px;
-  margin: 0 0 var(--wk-sp-4);
-}
-
-.wk-mcp__mode-item {
-  padding: 6px var(--wk-sp-4);
-  border: none;
-  background: transparent;
-  border-radius: calc(var(--wk-r-md) - 2px);
-  font-size: var(--wk-text-size-sm);
-  color: var(--wk-text-secondary);
-  cursor: pointer;
-  transition: background var(--wk-dur-fast) var(--wk-ease),
-    color var(--wk-dur-fast) var(--wk-ease);
-  white-space: nowrap;
-}
-
-.wk-mcp__mode-item:hover {
-  color: var(--wk-text-primary);
-}
-
-.wk-mcp__mode-item--active,
-.wk-mcp__mode-item--active:hover {
-  background: var(--wk-bg-surface);
-  color: var(--wk-text-primary);
-  font-weight: var(--wk-font-medium);
-  box-shadow: 0 1px 2px var(--wk-black-alpha-05);
-}
+   Removed — the segmented pill was replaced by the underline-style
+   `.wk-mcp__tabs` in the topbar (see the top of this file). Kept this
+   comment as a signpost so future grep-by-classname lands somewhere. */
 
 /* ── Infinite scroll footer note (loading spinner / reached end / hint) ── */
 .wk-mcp__footnote {

@@ -240,15 +240,63 @@ export default class McpMarketListPage extends Component<
 
     return (
       <div className="wk-mcp">
-        <div className="wk-mcp__topbar">
-          <span className="wk-mcp__title">{t("mcp.menu.title")}</span>
-          <WKButton
-            variant="primary"
-            icon={<IconPlus />}
-            onClick={() => this.setState({ createVisible: true })}
-          >
-            {t("mcp.list.create")}
-          </WKButton>
+        <header className="wk-mcp__topbar">
+          <nav className="wk-mcp__tabs" aria-label="MCP 市场导航">
+            {(["all", "mine"] as ListMode[]).map((k) => (
+              <button
+                key={k}
+                type="button"
+                className={k === mode ? "is-active" : ""}
+                onClick={() => this.handleMode(k)}
+              >
+                {t(`mcp.list.mode.${k}`)}
+              </button>
+            ))}
+          </nav>
+          <div className="wk-mcp__topbar-actions">
+            <div className="wk-mcp__search">
+              <WKInput
+                value={keyword}
+                onChange={this.handleKeyword}
+                prefix={<IconSearch />}
+                placeholder={t("mcp.list.searchPlaceholder")}
+              />
+            </div>
+            <WKButton
+              variant="primary"
+              icon={<IconPlus />}
+              onClick={() => this.setState({ createVisible: true })}
+            >
+              {t("mcp.list.create")}
+            </WKButton>
+          </div>
+        </header>
+
+        <div
+          className={
+            mode === "mine"
+              ? "wk-mcp__toolbar wk-mcp__toolbar--mine"
+              : "wk-mcp__toolbar"
+          }
+        >
+          {mode !== "mine" && (
+            <div className="wk-mcp__pills">
+              {categories.map((cat) => (
+                <button
+                  key={cat.key}
+                  className={
+                    cat.key === category
+                      ? "wk-mcp__pill wk-mcp__pill--active"
+                      : "wk-mcp__pill"
+                  }
+                  onClick={() => this.handleCategory(cat.key)}
+                >
+                  {cat.label}
+                  <span className="wk-mcp__pill-count">{cat.count}</span>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         <div
@@ -257,54 +305,6 @@ export default class McpMarketListPage extends Component<
           onScroll={this.handleScroll}
         >
           <div className="wk-mcp__inner">
-            <div className="wk-mcp__head">
-              <h1 className="wk-mcp__head-title">{t("mcp.menu.title")}</h1>
-              <p className="wk-mcp__head-desc">{t("mcp.list.desc")}</p>
-            </div>
-
-            <div className="wk-mcp__mode">
-              {(["all", "mine"] as ListMode[]).map((k) => (
-                <button
-                  key={k}
-                  type="button"
-                  className={
-                    k === mode
-                      ? "wk-mcp__mode-item wk-mcp__mode-item--active"
-                      : "wk-mcp__mode-item"
-                  }
-                  onClick={() => this.handleMode(k)}
-                >
-                  {t(`mcp.list.mode.${k}`)}
-                </button>
-              ))}
-            </div>
-
-            <div className="wk-mcp__toolbar">
-              <div className="wk-mcp__search">
-                <WKInput
-                  value={keyword}
-                  onChange={this.handleKeyword}
-                  prefix={<IconSearch />}
-                  placeholder={t("mcp.list.searchPlaceholder")}
-                />
-              </div>
-              <div className="wk-mcp__pills">
-                {categories.map((cat) => (
-                  <button
-                    key={cat.key}
-                    className={
-                      cat.key === category
-                        ? "wk-mcp__pill wk-mcp__pill--active"
-                        : "wk-mcp__pill"
-                    }
-                    onClick={() => this.handleCategory(cat.key)}
-                  >
-                    {cat.label}
-                    <span className="wk-mcp__pill-count">{cat.count}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
 
             {loading ? (
               <div className="wk-mcp__state">
