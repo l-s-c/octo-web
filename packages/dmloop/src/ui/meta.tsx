@@ -18,11 +18,11 @@ import type {
   IssueStatus,
   IssuePriority,
   ProjectStatus,
-  AgentStatus,
   AssigneeType,
 } from "../api/types";
+import type { LoopTagTone } from "./LoopTag";
 
-/** Semi Tag color 名（受限于 Semi 调色板）。 */
+/** Semi 调色板色名（仅供 Semi Avatar / 未迁移的 Semi 控件使用）。 */
 type TagColor =
   | "grey"
   | "blue"
@@ -35,6 +35,13 @@ type TagColor =
   | "amber"
   | "teal"
   | "light-blue";
+
+// Status values with a `.loop-status-dot[data-status]` rule + a `loop.agentStatus.*` label.
+const KNOWN_DOT_STATUSES = new Set(["idle", "working", "offline", "error", "unstable", "archived"]);
+/** Clamp a possibly-unknown status to a known one so dots and labels never render a raw value. */
+export function normalizeAgentStatus(status?: string): string {
+  return status && KNOWN_DOT_STATUSES.has(status) ? status : "offline";
+}
 
 /** 依据名称稳定地挑一个 Semi 头像色，避免同一实体每次渲染换色（Agent/Squad 头像共用）。 */
 const AVATAR_COLORS = ["violet", "blue", "cyan", "teal", "green", "amber", "orange", "purple", "indigo", "pink"] as const;
@@ -54,7 +61,7 @@ export const ISSUE_STATUS_ORDER: IssueStatus[] = [
   "cancelled",
 ];
 
-export const ISSUE_STATUS_COLOR: Record<IssueStatus, TagColor> = {
+export const ISSUE_STATUS_COLOR: Record<IssueStatus, LoopTagTone> = {
   backlog: "grey",
   todo: "blue",
   in_progress: "amber",
@@ -110,7 +117,7 @@ export const PRIORITY_HEX: Record<IssuePriority, string> = {
   none: "#c9cdd4",
 };
 
-export const PRIORITY_COLOR: Record<IssuePriority, TagColor> = {
+export const PRIORITY_COLOR: Record<IssuePriority, LoopTagTone> = {
   urgent: "red",
   high: "orange",
   medium: "amber",
@@ -126,19 +133,15 @@ export const PROJECT_STATUS_ORDER: ProjectStatus[] = [
   "cancelled",
 ];
 
-export const PROJECT_STATUS_COLOR: Record<ProjectStatus, TagColor> = {
-  planned: "blue",
-  in_progress: "amber",
-  paused: "grey",
-  completed: "green",
-  cancelled: "grey",
-};
-
-export const AGENT_STATUS_COLOR: Record<AgentStatus, TagColor> = {
-  idle: "grey",
-  working: "green",
-  offline: "grey",
-  error: "red",
+// 项目状态徽标样式（对标 multica PROJECT_STATUS_CONFIG）：进行中/已完成为实心强调色
+// （amber / info-blue，白字，突出「活跃」态）；规划中/已暂停/已取消为中性灰软标签。
+// dot 为下拉项前的圆点色（取消用红点区分，与 multica 一致）。
+export const PROJECT_STATUS_STYLE: Record<ProjectStatus, { solid: boolean; bg: string; dot: string }> = {
+  planned: { solid: false, bg: "", dot: "#8a8f99" },
+  in_progress: { solid: true, bg: "var(--semi-color-warning, #f5a623)", dot: "var(--semi-color-warning, #f5a623)" },
+  paused: { solid: false, bg: "", dot: "#8a8f99" },
+  completed: { solid: true, bg: "var(--semi-color-info, #2f6fed)", dot: "var(--semi-color-info, #2f6fed)" },
+  cancelled: { solid: false, bg: "", dot: "var(--semi-color-danger, #f5222d)" },
 };
 
 export const ASSIGNEE_TYPE_COLOR: Record<AssigneeType, TagColor> = {
@@ -161,11 +164,11 @@ export const RUN_STATUS_HEX_FALLBACK = "#c9cdd4";
 
 // Autopilot 运行状态 → 状态点颜色（卡片 last-run 点与详情运行行共用；未知值走灰兜底）。
 export const AUTOPILOT_RUN_DOT: Record<string, string> = {
-  issue_created: "#23a55a",
-  completed: "#23a55a",
-  running: "#f5a623",
-  failed: "#f5222d",
-  skipped: "#8a8f99",
+  issue_created: "var(--semi-color-success, #23a55a)",
+  completed: "var(--semi-color-success, #23a55a)",
+  running: "var(--semi-color-warning, #f5a623)",
+  failed: "var(--semi-color-danger, #f5222d)",
+  skipped: "var(--semi-color-tertiary, #8a8f99)",
 };
 export const AUTOPILOT_RUN_DOT_FALLBACK = "#c9cdd4";
 

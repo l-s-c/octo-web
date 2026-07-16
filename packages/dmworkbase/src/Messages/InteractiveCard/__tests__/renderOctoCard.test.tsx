@@ -111,6 +111,69 @@ describe("renderOctoCard", () => {
     target.remove();
   });
 
+  it("Action.Submit 的 style positive/destructive → 渲染出 style-positive/style-destructive class（审批卡主/次按钮样式依赖此 SDK class 名）", () => {
+    const target = mountTarget();
+    renderOctoCard({
+      card: {
+        type: "AdaptiveCard",
+        version: "1.5",
+        body: [{ type: "TextBlock", text: "审批" }],
+        actions: [
+          { type: "Action.Submit", id: "approve", title: "允许", style: "positive" },
+          { type: "Action.Submit", id: "deny", title: "拒绝", style: "destructive" },
+        ],
+      },
+      target,
+      onAction: () => {},
+    });
+    // index.css 的 .ac-pushButton.style-positive / .style-destructive 依赖 SDK 为
+    // style:positive/destructive 输出这两个 class；SDK 升级若改名，审批卡主/次按钮样式会
+    // 静默失效——此测试兜底锁死该契约（对齐服务端 approval_request 模板打的 ActionStyle）。
+    const classes = Array.from(
+      target.querySelectorAll<HTMLButtonElement>(".ac-pushButton")
+    ).map((b) => Array.from(b.classList));
+    expect(classes.some((c) => c.includes("style-positive"))).toBe(true);
+    expect(classes.some((c) => c.includes("style-destructive"))).toBe(true);
+    target.remove();
+  });
+
+  it("Action.OpenUrl 渲染出 role=link、Submit 渲染出 role=button（查看详情超链样式依赖此 SDK 契约）", () => {
+    const target = mountTarget();
+    renderOctoCard({
+      card: {
+        type: "AdaptiveCard",
+        version: "1.5",
+        body: [
+          {
+            type: "ActionSet",
+            actions: [
+              { type: "Action.OpenUrl", id: "open", title: "查看详情", url: "https://example.com" },
+            ],
+          },
+        ],
+        actions: [{ type: "Action.Submit", id: "ok", title: "允许" }],
+      },
+      target,
+      onAction: () => {},
+    });
+    // index.css 的 .ac-pushButton[role="link"] 超链样式依赖 SDK 给 Action.OpenUrl 打
+    // role="link"、给 Submit/Toggle/Copy 打 role="button"；SDK 升级若改了 role，超链会
+    // 失效或误伤决策按钮——此测试兜底锁死该契约。
+    // 按 title 绑定 role↔action：只断言「有一个 link + 一个 button」不够——SDK 若把两者
+    // role 对调（OpenUrl→button、Submit→link）仍会误过；这里钉死到具体按钮。
+    const roleByTitle = new Map(
+      Array.from(
+        target.querySelectorAll<HTMLButtonElement>(".ac-pushButton")
+      ).map((b) => [
+        b.getAttribute("title") ?? b.textContent?.trim() ?? "",
+        b.getAttribute("role"),
+      ])
+    );
+    expect(roleByTitle.get("查看详情")).toBe("link"); // Action.OpenUrl → 超链
+    expect(roleByTitle.get("允许")).toBe("button"); // Action.Submit → 按钮
+    target.remove();
+  });
+
   it("Action.ToggleVisibility 由 SDK 原生切换 isVisible", () => {
     const target = mountTarget();
     const types: string[] = [];

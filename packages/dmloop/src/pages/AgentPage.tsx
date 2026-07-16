@@ -1,16 +1,16 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Typography, Input, Button, Select, Avatar, Spin, Modal, Toast, Banner } from "@douyinfe/semi-ui";
+import { Input, Button, Select, Avatar, Spin, Modal, Toast, Banner } from "@douyinfe/semi-ui";
+import LoopButton from "../ui/LoopButton";
 import { Search, Plus, Trash2, Bot, RotateCcw } from "lucide-react";
 import { useI18n, WKApp } from "@octo/base";
-import type { Agent, AgentVisibility, RuntimeDevice } from "../api/types";
+import type { Agent, RuntimeDevice } from "../api/types";
 import { listAgents, createAgent, archiveAgent, restoreAgent, listRuntimesForAgent } from "../api/agentApi";
 import { listAssigneeCandidates } from "../api/issueApi";
 import AgentDetailPage from "../panel/AgentDetailPage";
 import { confirmDelete } from "../ui/confirmDelete";
 import { avatarColor } from "../ui/meta";
+import { StatusDot } from "../ui/StatusDot";
 import { formatRelativeTime } from "../ui/time";
-
-const { Title } = Typography;
 
 type Scope = "mine" | "all" | "archived";
 const SCOPES: Scope[] = ["mine", "all", "archived"];
@@ -28,7 +28,6 @@ export default function AgentPage() {
   const [nName, setNName] = useState("");
   const [nDesc, setNDesc] = useState("");
   const [nModel, setNModel] = useState("");
-  const [nVis, setNVis] = useState<AgentVisibility>("workspace");
   const [nRuntimeId, setNRuntimeId] = useState<string | undefined>();
   const [runtimes, setRuntimes] = useState<RuntimeDevice[]>([]);
 
@@ -69,14 +68,26 @@ export default function AgentPage() {
 
   const openCreate = () => {
     setCreateOpen(true);
-    listRuntimesForAgent().then((rs) => { setRuntimes(rs); if (rs[0]) setNRuntimeId(rs[0].id); }).catch(() => setRuntimes([]));
+    // Only bindable runtimes (owner-only, per backend canBindRuntimeAsOwner):
+    // can_bind === false is hidden; undefined (older backend) is kept so the
+    // picker never goes empty on a backend that predates the flag.
+    listRuntimesForAgent()
+      .then((rs) => {
+        const bindable = rs.filter((r) => r.can_bind !== false);
+        setRuntimes(bindable);
+        // Always resync the selection to the filtered list — else a stale
+        // nRuntimeId from a previous open could be submitted and 403 on the
+        // owner-only bind. Empty when nothing is bindable (doCreate then warns).
+        setNRuntimeId(bindable[0]?.id ?? "");
+      })
+      .catch(() => { setRuntimes([]); setNRuntimeId(""); });
   };
 
   const doCreate = async () => {
     if (!nName.trim()) { Toast.warning(t("loop.validate.nameRequired")); return; }
     if (!nRuntimeId) { Toast.warning(t("loop.agent.runtimeRequired")); return; }
     try {
-      await createAgent({ name: nName.trim(), description: nDesc, runtime_id: nRuntimeId, model: nModel || undefined, visibility: nVis });
+      await createAgent({ name: nName.trim(), description: nDesc, runtime_id: nRuntimeId, model: nModel || undefined, visibility: "workspace" });
       setCreateOpen(false); setNName(""); setNDesc("");
       Toast.success(t("loop.toast.created")); reload();
     } catch (e) { Toast.error((e as Error)?.message ?? "create failed"); }
@@ -101,10 +112,10 @@ export default function AgentPage() {
   return (
     <div className="loop-page">
       <div className="loop-page__head">
-        <Title heading={4}>{t("loop.nav.agent")}</Title>
+        <h2 className="loop-page__title">{t("loop.nav.agent")}</h2>
         <div className="loop-page__spacer" />
         <Input className="loop-search" prefix={<Search size={14} />} placeholder={t("loop.search.agent")} value={keyword} onChange={setKeyword} showClear style={{ width: 220 }} />
-        <Button theme="solid" icon={<Plus size={14} />} onClick={openCreate}>{t("loop.action.newAgent")}</Button>
+        <LoopButton icon={<Plus size={14} />} onClick={openCreate}>{t("loop.action.newAgent")}</LoopButton>
       </div>
 
       <div className="loop-agent-toolbar">
@@ -126,7 +137,7 @@ export default function AgentPage() {
               <Bot size={40} className="loop-empty__icon" />
               <div className="loop-empty__title">{scope === "archived" ? t("loop.agent.archivedEmpty") : t("loop.empty.agentTitle")}</div>
               {scope !== "archived" && <div className="loop-empty__desc">{t("loop.empty.agentDesc")}</div>}
-              {scope !== "archived" && <Button theme="solid" icon={<Plus size={14} />} onClick={openCreate} style={{ marginTop: 12 }}>{t("loop.action.newAgent")}</Button>}
+              {scope !== "archived" && <LoopButton icon={<Plus size={14} />} onClick={openCreate} style={{ marginTop: 12 }}>{t("loop.action.newAgent")}</LoopButton>}
             </div>
           ) : (
             <div className="loop-agent-list">
@@ -134,7 +145,7 @@ export default function AgentPage() {
                 <button key={a.id} className={`loop-agent-row ${a.archived_at ? "is-archived" : ""}`} onClick={() => openDetail(a.id)}>
                   <span className="loop-agent-row__avatar">
                     <Avatar size="extra-small" shape="square" color={avatarColor(a.name)}>{a.name.slice(0, 1).toUpperCase()}</Avatar>
-                    <i className="loop-agent-row__dot" data-status={a.status} />
+                    <StatusDot status={a.status} className="loop-agent-row__dot" />
                   </span>
                   <span className="loop-agent-row__name">{a.name}</span>
                   <span className="loop-agent-row__desc">{a.description}</span>
@@ -176,13 +187,6 @@ export default function AgentPage() {
           <div className="loop-fields__row">
             <div className="loop-fields__label">{t("loop.agent.model")}</div>
             <input className="loop-field" value={nModel} onChange={(e) => setNModel(e.target.value)} placeholder="claude-opus-4 / codex-latest…" />
-          </div>
-          <div className="loop-fields__row">
-            <div className="loop-fields__label">{t("loop.agent.visibility")}</div>
-            <Select value={nVis} onChange={(v) => setNVis(v as AgentVisibility)} dropdownClassName="loop-fields__dropdown" style={{ width: "100%" }}>
-              <Select.Option value="workspace">{t("loop.agent.visWorkspace")}</Select.Option>
-              <Select.Option value="private">{t("loop.agent.visPrivate")}</Select.Option>
-            </Select>
           </div>
         </div>
       </Modal>

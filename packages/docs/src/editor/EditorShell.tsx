@@ -3,7 +3,7 @@ import { useCollabEditor } from '../collab/useCollabEditor.ts'
 import type { CollabEditorOptions } from '../collab/createCollabEditor.ts'
 import { canManage } from '../auth/roles.ts'
 import { Toolbar, EditorBubbleMenu } from './Toolbar.tsx'
-import { TableBubbleMenu } from './TableControls.tsx'
+import { TableContextMenu } from './TableControls.tsx'
 import { Outline } from './Outline.tsx'
 import { StatusBar } from './StatusBar.tsx'
 import { PresenceBar } from './PresenceBar.tsx'
@@ -26,6 +26,7 @@ import { getDoc, getUserName, updateDocTitle } from '../pages/docsApi.ts'
 import { startDocForward } from '../forward/startDocForward.ts'
 import { RequestAccessButton } from '../access-request/RequestAccessButton.tsx'
 import { useAccessRequests } from '../access-request/useAccessRequests.ts'
+import { consumeImportContent, consumeImportWarnings, ImportContentCorruptError } from './importFlow.ts'
 import { DocTerminal } from './DocTerminal.tsx'
 import {
   DocMoreMenu,
@@ -282,13 +283,40 @@ export function EditorShell(props: EditorShellProps) {
   // Creation timestamp (RFC3339) for the "more" menu head's "Created on" line. Fetched from the
   // same per-doc GET as ownerId; stays undefined (row hidden) when the backend omits it.
   const [createdAt, setCreatedAt] = useState<string | undefined>(undefined)
+  // #64: link share scope/role, seeded from the same per-doc GET (additive shareScope/shareRole
+  // fields) so the member panel's share section renders current state without a second GET /share.
+  // Stays undefined when the backend predates #64; the panel then fetches /share or defaults.
+  const [shareSeed, setShareSeed] = useState<{ shareScope?: string; shareRole?: string } | undefined>(
+    undefined,
+  )
+  // XIN-1186 (#788 review-3 B1): `shareSeed` has two async writers — the one-shot page-load getDoc
+  // below (Writer A) and the panel commit callback `onShareCommitted` (Writer B) — and nothing
+  // ordered them. A SLOW getDoc could resolve AFTER a commit and clobber the just-committed scope
+  // back to its stale pre-edit value; reopening the panel then re-adopts this stale seed and
+  // confidently shows "Restricted" for a doc that is actually Anyone-in-Space. Guard the source of
+  // truth with a monotonic write version: every commit bumps it, and the page-load getDoc only
+  // lands its value while no newer (commit) write has arrived. A version (vs. a bare boolean flag)
+  // stays correct across repeated commits — each bump invalidates any getDoc still in flight from
+  // before it. The prior panel-side authoritativeRef fix (XIN-1175) stays; this closes the same
+  // stale-display class one layer up, at the seed's own writers.
+  const shareSeedVersionRef = useRef(0)
   useEffect(() => {
     let cancelled = false
+    // The page-load read is authoritative only while no commit has bumped the version past this
+    // snapshot; a commit landing mid-flight makes this getDoc stale and it must not write.
+    const versionAtLoad = shareSeedVersionRef.current
     getDoc(docId)
       .then((meta) => {
         if (cancelled) return
         if (typeof meta?.ownerId === 'string' && meta.ownerId) setOwnerId(meta.ownerId)
         if (typeof meta?.createdAt === 'string' && meta.createdAt) setCreatedAt(meta.createdAt)
+        if (meta?.shareScope != null || meta?.shareRole != null) {
+          // Skip if a commit (Writer B) landed since this read began — its value is newer and
+          // authoritative; re-adopting the page-load meta would revert to a stale scope.
+          if (shareSeedVersionRef.current === versionAtLoad) {
+            setShareSeed({ shareScope: meta.shareScope, shareRole: meta.shareRole })
+          }
+        }
       })
       .catch(() => {
         /* non-fatal: owner badge + created-on row just won't show */
@@ -297,6 +325,38 @@ export function EditorShell(props: EditorShellProps) {
       cancelled = true
     }
   }, [docId])
+
+  // Import injection (#import): when a doc was just created by a Markdown/Word import in DocsHome,
+  // the parsed ProseMirror document is stashed in sessionStorage keyed by docId. Once the editor
+  // is ready we drain the stash, inject it, then clear it. A corrupt stash (e.g. tampered
+  // sessionStorage) or non-fatal parse warnings surface as a dismissible notice instead of
+  // crashing the editor.
+  const [importNotice, setImportNotice] = useState<string | null>(null)
+  useEffect(() => {
+    const ed = instance?.editor
+    if (!ed || !ready) return
+    let pmDoc: unknown
+    try {
+      pmDoc = consumeImportContent(docId)
+    } catch (err) {
+      if (err instanceof ImportContentCorruptError) {
+        setImportNotice(t('docs.toolbar.importCorrupt'))
+      } else {
+        console.error('[docs] Import content read failed:', err)
+      }
+      return
+    }
+    if (!pmDoc) return
+    try {
+      ed.commands.setContent(pmDoc as never)
+    } catch (err) {
+      console.error('[docs] Import content injection failed:', err)
+      setImportNotice(t('docs.toolbar.importCorrupt'))
+      return
+    }
+    const warnings = consumeImportWarnings(docId)
+    if (warnings.length) setImportNotice(warnings.join(' '))
+  }, [instance, ready, docId, t])
 
   // uid → display name for this space (#8): once resolved, push the real name into awareness so
   // the presence avatar initial and the collaboration caret label show the name, not the uid.
@@ -720,6 +780,11 @@ export function EditorShell(props: EditorShellProps) {
           {exportError}
         </p>
       )}
+      {importNotice && (
+        <p className="octo-member-error" role="status" onClick={() => setImportNotice(null)}>
+          {importNotice}
+        </p>
+      )}
 
       {/* Body: the header above stays fixed; the toolbar + prose + status bar scroll inside
           .octo-doc-scroll, and the right-side drawer is pinned to THIS region — so it starts
@@ -731,7 +796,7 @@ export function EditorShell(props: EditorShellProps) {
 
           <div className="octo-editor-region">
             <EditorBubbleMenu editor={editor} />
-            <TableBubbleMenu editor={editor} />
+            <TableContextMenu editor={editor} />
             <CommentBubble editor={editor} onCreate={comments.createRoot} />
             <Outline editor={editor} />
             <div className="octo-editor-main">
@@ -781,6 +846,13 @@ export function EditorShell(props: EditorShellProps) {
               space={props.space}
               ownerId={ownerId}
               accessRequests={pendingAccess}
+              shareSeed={shareSeed}
+              onShareCommitted={(next) => {
+                // Writer B: bump the write version so any page-load getDoc still in flight is
+                // treated as stale and cannot clobber this committed value (XIN-1186).
+                shareSeedVersionRef.current += 1
+                setShareSeed({ shareScope: next.shareScope, shareRole: next.shareRole })
+              }}
               onClose={closePanel}
             />
           </div>

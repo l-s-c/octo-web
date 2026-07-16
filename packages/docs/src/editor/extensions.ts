@@ -30,11 +30,13 @@ import { Mathematics } from '@tiptap/extension-mathematics'
 import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight'
 import { createLowlight, common } from 'lowlight'
 import { BlockDragHandle } from './BlockDragHandle.ts'
+import { ParagraphIndent } from './ParagraphIndent.ts'
 import { Table } from '@tiptap/extension-table'
 import TableRow from '@tiptap/extension-table-row'
 import TableHeader from '@tiptap/extension-table-header'
 import TableCell from '@tiptap/extension-table-cell'
 import { TableCellView } from './TableCellView.ts'
+import { TableReorderHandle } from './TableReorderHandle.ts'
 import { OctoImage } from './ImageNode.ts'
 import { CommentHighlight } from '../comments/CommentDecorations.ts'
 import { buildEmoji } from './emoji.ts'
@@ -203,6 +205,12 @@ export function buildExtensions(opts: BuildExtensionsOptions): Extensions {
     // AFTER TextAlign so the canonical style property order (text-align; line-height; margin-top;
     // margin-bottom) holds for byte-alignment with the backend toDOM. Two-sided sanitise.
     LineHeight,
+    // SCHEMA-SPEC §16 (SCHEMA_VERSION 18): paragraph/heading indent. A global `indent` attr on
+    // the heading + paragraph nodes (not a new node/mark), rendered via margin-left and round-
+    // tripped as data-indent. Configured for the same two types as TextAlign so lists keep their
+    // own Tab/Shift-Tab sink/lift behavior untouched. Registered AFTER LineHeight so the
+    // margin-left declaration is appended last, matching the backend toDOM style order.
+    ParagraphIndent.configure({ types: ['heading', 'paragraph'] }),
     // SCHEMA-SPEC §3 (SCHEMA_VERSION 6): underline mark. StarterKit's bundled Underline is
     // disabled above; this standalone install is the single `underline` mark (same pattern as
     // the sanitised Link).
@@ -223,7 +231,15 @@ export function buildExtensions(opts: BuildExtensionsOptions): Extensions {
     // self-built NodeView (TableCellView) that gives ProseMirror explicit
     // ignoreMutation/stopEvent rules so resize/remote DOM writes don't desync
     // collaborative cursors (§3.2 requirement).
-    Table.configure({ resizable: true }),
+    // #749: the default prosemirror-tables `handleWidth` (5px) only arms a ~10px band
+    // straddling each column border, and the LAST column's right border sits flush with
+    // the visible edge so its arm zone is effectively unreachable — dragging it did
+    // nothing. Widen the arm band to 12px so every border, including the last column's
+    // right edge, has a comfortable grab zone. `cellMinWidth` is pinned to prosemirror's
+    // default (25) — kept explicit because it must stay >= handleWidth * 2 so adjacent
+    // borders' arm bands never overlap on the narrowest columns (which would make a small
+    // column impossible to grab/shrink).
+    Table.configure({ resizable: true, handleWidth: 12, cellMinWidth: 25 }),
     TableRow,
     TableHeader.extend({
       addNodeView() {
@@ -235,6 +251,12 @@ export function buildExtensions(opts: BuildExtensionsOptions): Extensions {
         return ({ node }) => new TableCellView(node, 'td')
       },
     }),
+    // octo-docs-backend#76: table row/column drag-to-reorder. A self-built plugin renders
+    // grab handles at the row-left / column-top edges and drives prosemirror-tables'
+    // moveTableRow / moveTableColumn (single-transaction, TableMap-based, merge-aware) — see
+    // TableReorderHandle.ts. Registered AFTER the Table series so its plugin sits above the
+    // column-resize / tableEditing plugins. No schema change (pure reorder).
+    TableReorderHandle,
     // SCHEMA-SPEC §2 (SCHEMA_VERSION 2): image node. Extends @tiptap/extension-image
     // (pinned 2.27.2, single core) with the backend-aligned attr set + parse/render
     // mapping and a self-built NodeView. docId is threaded so the NodeView and the
@@ -318,6 +340,9 @@ export function buildPreviewExtensions(docId: string): Extensions {
     TextAlign.configure({ types: ['heading', 'paragraph'] }),
     // Mirror the live editor's v17 line-spacing attrs so a historical version renders faithfully.
     LineHeight,
+    // Mirror the v18 indent attr so a historical version / preview renders the same margin.
+    // Registered AFTER LineHeight, matching the live set's style order.
+    ParagraphIndent.configure({ types: ['heading', 'paragraph'] }),
     Underline,
     Superscript,
     Subscript,

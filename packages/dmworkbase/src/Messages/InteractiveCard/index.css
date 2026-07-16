@@ -584,6 +584,71 @@
   box-shadow: 0 0 0 var(--wk-sp-0-5, 2px) var(--wk-border-glow);
 }
 
+/* ── ActionStyle 主/次区分（AdaptiveCards style: positive/destructive） ──
+ * 默认 .ac-pushButton 是「AI 强调」浅紫胶囊,主次不分。审批类卡片(允许/拒绝)由服务端模板
+ * 给动作打 style,这里落成一对**主操作 vs 次操作**:
+ *   - positive（允许）：品牌主色实心,读作「拍板/主操作」；
+ *   - destructive（拒绝）：中性幽灵,刻意不用告警红——「拒绝」是次操作而非危险操作。
+ * 只作用于设了 style 的按钮;未设 style 的其它 bot 卡按钮保持基础样式,零副作用。 */
+.wk-interactive-card-sdk .ac-pushButton.style-positive {
+  color: var(--wk-text-on-brand, #fff);
+  background: var(--wk-brand-primary);
+  border-color: var(--wk-brand-primary);
+}
+
+.wk-interactive-card-sdk .ac-pushButton.style-positive:hover {
+  color: var(--wk-text-on-brand, #fff);
+  background: var(--wk-brand-primary-hover);
+  border-color: var(--wk-brand-primary-hover);
+}
+
+.wk-interactive-card-sdk .ac-pushButton.style-destructive {
+  color: var(--wk-text-secondary);
+  background: transparent;
+  border-color: var(--wk-border-default);
+}
+
+.wk-interactive-card-sdk .ac-pushButton.style-destructive:hover {
+  color: var(--wk-text-primary);
+  background: var(--wk-bg-elevated);
+  border-color: var(--wk-border-strong);
+}
+
+/* ── Action.OpenUrl → HTML 超链 ──
+ * AdaptiveCards 给 Action.OpenUrl 的按钮打 role="link"（Submit/ToggleVisibility/
+ * CopyToClipboard 都是 role="button"）。导航类动作渲成经典超链接：语义更贴，也不再
+ * 和主/次决策按钮抢视觉（如审批卡的「查看详情」夹在 允许/拒绝 中间过于抢眼）。
+ * 用 role 精准命中——决策按钮(style-positive/destructive)、推理卡展开按钮
+ * (ToggleVisibility)、复制按钮(CopyToClipboard) 均为 role="button"，完全不受影响。 */
+.wk-interactive-card-sdk .ac-pushButton[role="link"] {
+  display: inline;
+  min-height: auto;
+  height: auto;
+  padding: 0;
+  font-weight: var(--wk-font-regular);
+  color: var(--wk-text-accent, var(--wk-brand-primary));
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.wk-interactive-card-sdk .ac-pushButton[role="link"]:hover {
+  color: var(--wk-color-accent-hover, var(--wk-text-accent, var(--wk-brand-primary)));
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  text-decoration: underline;
+}
+
+.wk-interactive-card-sdk .ac-pushButton[role="link"]:focus-visible {
+  outline: 2px solid var(--wk-border-glow);
+  outline-offset: 2px;
+  box-shadow: none;
+}
+
 .wk-interactive-card-sdk .ac-textInput,
 .wk-interactive-card-sdk .ac-numberInput,
 .wk-interactive-card-sdk .ac-dateInput,

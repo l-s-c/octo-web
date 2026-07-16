@@ -53,7 +53,7 @@ import SummaryDetailPage from '../SummaryDetailPage';
 
 vi.mock('../../api/summaryApi');
 
-function makePage(taskId: number) {
+function makePage(taskId: number | string) {
     const page = new SummaryDetailPage({ taskId } as any);
     (page as any).context = { t: (k: string) => k };
     (page as any).setState = function (this: any, patch: any) {
@@ -182,6 +182,35 @@ describe('SummaryDetailPage — Blocking 5: scheduleItem must track current deta
 // 且 loadDetail 入口同步清空 stale personalResult/members。
 describe('SummaryDetailPage — FE-1: 切任务竞态，旧 members/personalResult 迟到返回被忽略', () => {
     beforeEach(() => vi.clearAllMocks());
+
+    it('string task_no detail load starts BY_PERSON secondary fetches with numeric detail.task_id', async () => {
+        vi.mocked(api.getSummaryDetail).mockResolvedValue(
+            baseDetail({ task_id: 740, task_no: 'SUM-740', summary_mode: 2 }) as any,
+        );
+        vi.mocked(api.getPersonalResult).mockResolvedValue(
+            { content: '我的报告', worker_status: 2, submitted_at: null } as any,
+        );
+        vi.mocked(api.getMembers).mockResolvedValue([member('test-uid'), member('u_b')] as any);
+
+        const page = makePage('SUM-740');
+        const queuedSetStates: any[] = [];
+        (page as any).setState = function (this: any, patch: any, callback?: () => void) {
+            queuedSetStates.push({ patch, callback });
+        };
+
+        await page.loadDetail();
+
+        expect(api.getSummaryDetail).toHaveBeenCalledWith('SUM-740');
+        expect(api.getPersonalResult).toHaveBeenCalledWith(740);
+        expect(api.getMembers).toHaveBeenCalledWith(740);
+        expect(queuedSetStates.some(({ patch }) => patch?.detail?.task_id === 740)).toBe(true);
+        // M1 回归：detail 的 setState 在本 mock 下永不提交（this.taskId 一直为 null），
+        // 模拟字符串深链首载时 secondary fetch 先于 detail 提交返回的竞态窗口。
+        // 修复前旧守卫 this.taskId!==requestTaskId 会把 null!==740 判为切 task、
+        // 静默丢弃 personalResult/members；修复后必须仍将其 setState。
+        expect(queuedSetStates.some(({ patch }) => patch?.personalResult?.content === '我的报告')).toBe(true);
+        expect(queuedSetStates.some(({ patch }) => Array.isArray(patch?.members) && patch.members.length === 2)).toBe(true);
+    });
 
     // loadDetail 入口必须同步清空上一 task 的 personalResult/members，避免新 detail 返回前残留显示。
     it('loadDetail clears stale personalResult/members at entry (no leak before new detail resolves)', async () => {
@@ -2300,7 +2329,7 @@ describe('问题3：展开后点正文不收起（onClick 只在 header/toggle�
 });
 
 // ─── 问题4：团队总结「生成中」提示 ───
-describe('问题4：renderTeamSummary 在多人 + PROCESSING 时显示生成中提示', () => {
+describe('问题4：多人 + PROCESSING 时显示顶部团队生成中提示', () => {
     beforeEach(() => vi.clearAllMocks());
 
     it('多人 + status=PROCESSING + result 尚未产出 → 显示 teamGenerating', () => {
@@ -2310,17 +2339,16 @@ describe('问题4：renderTeamSummary 在多人 + PROCESSING 时显示生成中�
             detail: multiCollabDetail({}, { status: PROCESSING, result: null }),
             members: [member('test-uid'), member('u_b')],
         };
-        const tree = (page as any).renderTeamSummary();
-        // fail-before：!detail.result → return null（无提示）。pass-after：返回生成中块。
-        expect(tree).not.toBeNull();
-        const json = JSON.stringify(tree);
+        // 团队生成中的顶部状态不再由 renderTeamSummary 承担，避免与“上一版团队汇总”混在一起。
+        expect((page as any).renderTeamSummary()).toBeNull();
+        const json = JSON.stringify((page as any).renderTeamGeneratingStatus());
         expect(json).toContain('summary.detail.teamGenerating');
         expect(json).toContain('summary-detail-team-generating');
         // 仍带「团队总结」标题。
         expect(json).toContain('summary.detail.teamSummary');
     });
 
-    it('多人 + PROCESSING 即使有旧 result 也优先显示生成中（重算期）', () => {
+    it('多人 + PROCESSING 即使有旧 result 也降级展示上一版团队汇总（重算期）', () => {
         const page = makePage(1);
         page.state = {
             ...(page.state as any),
@@ -2328,14 +2356,22 @@ describe('问题4：renderTeamSummary 在多人 + PROCESSING 时显示生成中�
             members: [member('test-uid'), member('u_b')],
         };
         const json = JSON.stringify((page as any).renderTeamSummary());
-        expect(json).toContain('summary.detail.teamGenerating');
+        expect(json).toContain('summary.detail.previousTeamSummary');
+        expect(json).toContain('summary.detail.previousTeamSummaryDesc');
+        expect(json).toContain('team content');
     });
 
-    it('单人 + PROCESSING 不显示团队生成中（members<=1 → null）', () => {
+    it('单人 + PROCESSING 不显示团队生成中（participants<=1 → null）', () => {
         const page = makePage(1);
         page.state = {
             ...(page.state as any),
-            detail: multiCollabDetail({}, { status: PROCESSING, result: null }),
+            detail: baseDetail({
+                summary_mode: SM_BY_PERSON,
+                status: PROCESSING,
+                participants: [{ user_id: 'test-uid' }],
+                result: null,
+                result_id: null,
+            }),
             members: [member('test-uid')],
         };
         expect((page as any).renderTeamSummary()).toBeNull();
@@ -2362,9 +2398,10 @@ describe('问题4：renderTeamSummary 在多人 + PROCESSING 时显示生成中�
             editingTeamSummary: true,
             members: [member('test-uid'), member('u_b')],
         };
-        // 重算期(PROCESSING)应显示生成中，而非进入编辑器。
+        // 重算期(PROCESSING)应显示上一版团队汇总，而非进入编辑器。
         const json = JSON.stringify((page as any).renderTeamSummary());
-        expect(json).toContain('summary.detail.teamGenerating');
+        expect(json).toContain('summary.detail.previousTeamSummary');
+        expect(json).not.toContain('SummaryEditor');
     });
 });
 
@@ -2646,5 +2683,112 @@ describe('MemberSelectorModal — 问题3b: 防重复提交（confirmLoading 禁
         expect(confirmBtn).toBeTruthy();
         expect(confirmBtn.props.loading).toBeFalsy();
         expect(confirmBtn.props.disabled).toBeFalsy();
+    });
+});
+
+// ─── 深链 /s/:taskNo：loadPersonalResult 的四个入口在字符串 taskNo 场景下都以数字 task_id 生效 ───
+// 背景：/s/:taskNo 深链传入的是字符串 task_no。首载 (loadDetail) 拿到 detail 后，this.taskId
+// 回填为 detail.task_id（数字）。此后 handleSubmitPersonal / handleStatusChangeEvent /
+// doFallbackPollOnce 三个入口都基于 this.taskId（=数字）驱动 loadPersonalResult，
+// 不得再把字符串 task_no 传给 getPersonalResult/getMembers/batchStatus 等数字接口。
+describe('SummaryDetailPage — 深链 string taskNo：loadPersonalResult 四入口均以数字 task_id 生效', () => {
+    beforeEach(() => vi.clearAllMocks());
+
+    // 入口1：loadDetail（首载）——字符串 taskNo，detail 已提交后 this.taskId=数字。
+    it('入口1 loadDetail: string taskNo 首载后 this.taskId 回填为数字 detail.task_id', async () => {
+        vi.mocked(api.getSummaryDetail).mockResolvedValue(
+            baseDetail({ task_id: 740, task_no: 'SUM-740', summary_mode: 2 }) as any,
+        );
+        vi.mocked(api.getPersonalResult).mockResolvedValue(
+            { content: 'r', worker_status: 2, submitted_at: null } as any,
+        );
+        vi.mocked(api.getMembers).mockResolvedValue([member('test-uid')] as any);
+
+        const page = makePage('SUM-740'); // 同步提交型 setState：detail 落地后 taskId=740
+        await page.loadDetail();
+
+        expect(api.getSummaryDetail).toHaveBeenCalledWith('SUM-740'); // 首载用字符串深链标识
+        expect(api.getPersonalResult).toHaveBeenCalledWith(740);      // 二次加载用数字
+        expect(api.getMembers).toHaveBeenCalledWith(740);
+        expect(page.taskId).toBe(740);
+    });
+
+    // 入口2：handleSubmitPersonal——提交个人报告后刷新，必须用数字 taskId。
+    it('入口2 handleSubmitPersonal: 用数字 task_id 提交并刷新 personalResult/members', async () => {
+        vi.mocked(api.submitPersonalResult).mockResolvedValue(undefined as any);
+        vi.mocked(api.getSummaryDetail).mockResolvedValue(
+            baseDetail({ task_id: 740, task_no: 'SUM-740', summary_mode: 2 }) as any,
+        );
+        vi.mocked(api.getPersonalResult).mockResolvedValue(
+            { content: 'r', worker_status: 2, submitted_at: null } as any,
+        );
+        vi.mocked(api.getMembers).mockResolvedValue([member('test-uid')] as any);
+
+        const page = makePage('SUM-740');
+        // 模拟深链首载已完成：detail 已就位，this.taskId=740。
+        page.state = { ...(page.state as any), detail: baseDetail({ task_id: 740, task_no: 'SUM-740', summary_mode: 2 }) };
+
+        await page.handleSubmitPersonal();
+
+        expect(api.submitPersonalResult).toHaveBeenCalledWith(740);
+        expect(api.getPersonalResult).toHaveBeenCalledWith(740);
+        expect(api.getMembers).toHaveBeenCalledWith(740);
+        // 绝不把字符串 task_no 传给数字接口
+        expect(api.submitPersonalResult).not.toHaveBeenCalledWith('SUM-740');
+        expect(api.getPersonalResult).not.toHaveBeenCalledWith('SUM-740');
+    });
+
+    // 入口3：handleStatusChangeEvent——状态变更事件（携数字 taskIds）触发刷新。
+    it('入口3 handleStatusChangeEvent: 数字 taskIds 命中当前深链 task 时刷新 personalResult', async () => {
+        // 事件前状态 processing，事件后 completed → 触发终态刷新分支。
+        vi.mocked(api.getSummaryDetail).mockResolvedValue(
+            baseDetail({ task_id: 740, task_no: 'SUM-740', summary_mode: 2, status: 5 /* COMPLETED */ }) as any,
+        );
+        vi.mocked(api.getPersonalResult).mockResolvedValue(
+            { content: 'r', worker_status: 2, submitted_at: null } as any,
+        );
+        vi.mocked(api.getMembers).mockResolvedValue([member('test-uid')] as any);
+
+        const page = makePage('SUM-740');
+        page.state = {
+            ...(page.state as any),
+            detail: baseDetail({ task_id: 740, task_no: 'SUM-740', summary_mode: 2, status: 2 /* PROCESSING */ }),
+            lastKnownStatus: 2,
+        };
+
+        // 事件 detail.taskIds 是数字 task_id；this.taskId 必须解析为 740 才能命中。
+        await (page as any).handleStatusChangeEvent(
+            new CustomEvent('summary-status-change', { detail: { taskIds: [740] } }),
+        );
+
+        expect(api.getSummaryDetail).toHaveBeenCalledWith(740);
+        expect(api.getPersonalResult).toHaveBeenCalledWith(740);
+        expect(api.getPersonalResult).not.toHaveBeenCalledWith('SUM-740');
+    });
+
+    // 入口4：doFallbackPollOnce——兜底轮询，batchStatus 用数字 id，终态触发刷新。
+    it('入口4 doFallbackPollOnce: batchStatus 用数字 id，终态刷新 personalResult 用数字', async () => {
+        vi.mocked(api.batchStatus).mockResolvedValue([{ id: 740, status: 5 /* COMPLETED */ }] as any);
+        vi.mocked(api.getSummaryDetail).mockResolvedValue(
+            baseDetail({ task_id: 740, task_no: 'SUM-740', summary_mode: 2, status: 5 }) as any,
+        );
+        vi.mocked(api.getPersonalResult).mockResolvedValue(
+            { content: 'r', worker_status: 2, submitted_at: null } as any,
+        );
+        vi.mocked(api.getMembers).mockResolvedValue([member('test-uid')] as any);
+
+        const page = makePage('SUM-740');
+        page.state = {
+            ...(page.state as any),
+            detail: baseDetail({ task_id: 740, task_no: 'SUM-740', summary_mode: 2, status: 2 /* PROCESSING */ }),
+            lastKnownStatus: 2,
+        };
+
+        await (page as any).doFallbackPollOnce();
+
+        expect(api.batchStatus).toHaveBeenCalledWith([740]);        // 轮询用数字
+        expect(api.getPersonalResult).toHaveBeenCalledWith(740);    // 终态刷新用数字
+        expect(api.batchStatus).not.toHaveBeenCalledWith(['SUM-740']);
+        expect(api.getPersonalResult).not.toHaveBeenCalledWith('SUM-740');
     });
 });

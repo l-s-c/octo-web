@@ -19,6 +19,8 @@ import type {
     SourceItem,
     SummaryDetail,
     SummaryTemplate,
+    SummaryVersionDetail,
+    SummaryVersionItem,
     TopicTemplate,
     TopicTemplatesResponse,
     UpdateScheduleParams,
@@ -72,9 +74,17 @@ summaryAxios.interceptors.response.use(
 const BASE = '/summary/api/v1';
 
 function extractErrorMessage(err: unknown): string {
-    const axiosErr = err as { response?: { data?: { message?: string } } };
-    const msg = axiosErr?.response?.data?.message;
-    const raw = msg || (err instanceof Error ? err.message : 'Request failed');
+    const axiosErr = err as { response?: { status?: number; data?: { message?: string; msg?: string; error?: { message?: string } } } };
+    const status = axiosErr?.response?.status;
+    const data = axiosErr?.response?.data;
+    const msg = data?.message || data?.msg || data?.error?.message;
+    let raw = msg || (err instanceof Error ? err.message : 'Request failed');
+    if (status === 404 && raw.toLowerCase().includes('404')) {
+        raw = 'Summary refine API is not available. Please restart octo-smart-summary with the latest branch.';
+    }
+    if (status === 503 && raw.toLowerCase().includes('refine service is not configured')) {
+        raw = 'Summary refine service is not configured. Please enable LLM config for summary-api.';
+    }
     return raw.length > 200 ? raw.slice(0, 200) + '…' : raw;
 }
 
@@ -122,6 +132,150 @@ async function del<T>(path: string): Promise<T> {
 
 // ─── Core Summary Operations ───────────────────────────
 
+
+export interface SummaryStreamEvent {
+    type: "start" | "stage" | "delta" | "snapshot" | "done" | "error" | string;
+    task_id?: number;
+    run_id?: string;
+    scope?: "personal" | "team" | string;
+    stage?: string;
+    delta?: string;
+    content?: string;
+    message?: string;
+    status?: number;
+    result_id?: number;
+    version_id?: number;
+    version?: number;
+    citations?: unknown[];
+    team_citations?: unknown[];
+    msg_count?: number;
+    total_msg_count?: number;
+    total_token_used?: number;
+    model_version?: string;
+    operation_type?: string;
+    operation_note?: string;
+    parent_result_id?: number | null;
+    generated_at?: string;
+}
+
+function buildSummaryURL(path: string): string {
+    return `${resolveSummaryBaseURL()}${BASE}${path}`;
+}
+
+function parseSSEBlock(block: string): SummaryStreamEvent | null {
+    let eventType = "message";
+    const dataLines: string[] = [];
+    for (const rawLine of block.split(/\r?\n/)) {
+        const line = rawLine.trimEnd();
+        if (!line || line.startsWith(":")) continue;
+        if (line.startsWith("event:")) {
+            eventType = line.slice("event:".length).trim();
+        } else if (line.startsWith("data:")) {
+            dataLines.push(line.slice("data:".length).trimStart());
+        }
+    }
+    if (dataLines.length === 0) return null;
+    const data = dataLines.join("\n");
+    if (data === "[DONE]") return { type: "done" };
+    try {
+        const parsed = JSON.parse(data) as SummaryStreamEvent;
+        return { ...parsed, type: parsed.type || eventType };
+    } catch {
+        return { type: eventType, delta: data };
+    }
+}
+
+function buildStreamHeaders(hasBody = false): Record<string, string> {
+    const headers: Record<string, string> = {
+        Accept: "text/event-stream",
+        "Accept-Language": buildAcceptLanguage(),
+    };
+    if (hasBody) headers["Content-Type"] = "application/json";
+    const token = WKApp.loginInfo.token;
+    if (token) headers.token = token;
+    const spaceId = WKApp.shared.currentSpaceId;
+    if (spaceId) headers["X-Space-Id"] = spaceId;
+    return headers;
+}
+
+async function consumeSSE(resp: Response, onEvent: (event: SummaryStreamEvent) => void): Promise<void> {
+    if (!resp.body) return;
+    const reader = resp.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    let completed = false;
+    try {
+        while (true) {
+            const { value, done } = await reader.read();
+            if (done) break;
+            buffer += decoder.decode(value, { stream: true });
+            let match = buffer.match(/\r?\n\r?\n/);
+            while (match?.index != null) {
+                const block = buffer.slice(0, match.index);
+                buffer = buffer.slice(match.index + match[0].length);
+                const event = parseSSEBlock(block);
+                if (event) onEvent(event);
+                match = buffer.match(/\r?\n\r?\n/);
+            }
+        }
+        const tail = buffer.trim();
+        if (tail) {
+            const event = parseSSEBlock(tail);
+            if (event) onEvent(event);
+        }
+        completed = true;
+    } finally {
+        if (!completed) {
+            try {
+                await reader.cancel();
+            } catch {
+                // ignore cleanup errors
+            }
+        }
+        reader.releaseLock();
+    }
+}
+
+async function streamRequest(
+    path: string,
+    init: RequestInit,
+    onEvent: (event: SummaryStreamEvent) => void,
+): Promise<void> {
+    const resp = await fetch(buildSummaryURL(path), init);
+    if (resp.status === 401) {
+        WKApp.shared.logout();
+    }
+    if (!resp.ok) {
+        let message = `Summary stream failed (${resp.status})`;
+        try {
+            const data = await resp.json();
+            message = data?.message || data?.msg || data?.error || message;
+        } catch {
+            // ignore non-json error body
+        }
+        throw new Error(message);
+    }
+    await consumeSSE(resp, onEvent);
+}
+
+export async function streamSummary(
+    taskId: number,
+    options: {
+        scope?: "personal" | "team";
+        signal?: AbortSignal;
+        onEvent: (event: SummaryStreamEvent) => void;
+    },
+): Promise<void> {
+    const params = new URLSearchParams();
+    if (options.scope) params.set("scope", options.scope);
+    const suffix = params.toString() ? `?${params.toString()}` : "";
+    await streamRequest(`/summaries/${taskId}/stream${suffix}`, {
+        method: "GET",
+        headers: buildStreamHeaders(),
+        signal: options.signal,
+    }, options.onEvent);
+}
+
 export async function createSummary(params: CreateSummaryParams): Promise<{ task_id: number }> {
     return post('/summaries', params);
 }
@@ -133,8 +287,8 @@ export async function listSummaries(
     return get('/summaries', params as Record<string, unknown>, config);
 }
 
-export async function getSummaryDetail(taskId: number): Promise<SummaryDetail> {
-    return get(`/summaries/${taskId}`);
+export async function getSummaryDetail(taskId: number | string): Promise<SummaryDetail> {
+    return get(`/summaries/${encodeURIComponent(String(taskId))}`);
 }
 
 export async function deleteSummary(taskId: number): Promise<void> {
@@ -143,6 +297,148 @@ export async function deleteSummary(taskId: number): Promise<void> {
 
 export async function regenerateSummary(taskId: number, body?: { topic?: string }): Promise<{ task_id: number }> {
     return post(`/summaries/${taskId}/regenerate`, body);
+}
+
+export async function streamRefineSummary(
+    taskId: number,
+    body: { feedback: string; base_result_id: number },
+    options: { signal?: AbortSignal; onEvent: (event: SummaryStreamEvent) => void },
+): Promise<void> {
+    await streamRequest(`/summaries/${taskId}/refine/stream`, {
+        method: "POST",
+        headers: buildStreamHeaders(true),
+        body: JSON.stringify(body),
+        signal: options.signal,
+    }, options.onEvent);
+}
+
+export async function refineSummary(
+    taskId: number,
+    body: { feedback: string; base_result_id: number },
+): Promise<{
+    task_id: number;
+    result_id: number;
+    version: number;
+    content: string;
+    citations?: unknown[];
+    team_citations?: unknown[];
+    total_msg_count?: number;
+    total_token_used?: number;
+    model_version?: string;
+    operation_type?: string;
+    operation_note?: string;
+    parent_result_id?: number | null;
+    generated_at?: string;
+}> {
+    try {
+        const resp = await summaryAxios.post(`${BASE}/summaries/${taskId}/refine`, body, { timeout: 95000 });
+        return resp.data?.data ?? resp.data;
+    } catch (err: unknown) {
+        if (axios.isCancel(err)) throw err;
+        const axiosErr = err as { code?: string; response?: { status?: number } };
+        const msg = axiosErr?.code === 'ECONNABORTED'
+            ? 'Summary refine request timed out. Please check whether summary-api can reach the LLM service.'
+            : extractErrorMessage(err);
+        const error = new Error(msg) as Error & { status?: number };
+        if (axiosErr?.response?.status) error.status = axiosErr.response.status;
+        throw error;
+    }
+}
+
+
+export async function regeneratePersonalSummary(
+    taskId: number,
+    body?: { topic?: string },
+): Promise<{ task_id: number; result_id: number; status: number }> {
+    return post(`/summaries/${taskId}/personal-regenerate`, body);
+}
+
+export async function streamRefinePersonalSummary(
+    taskId: number,
+    body: { feedback: string; base_result_id: number; base_version?: number },
+    options: { signal?: AbortSignal; onEvent: (event: SummaryStreamEvent) => void },
+): Promise<void> {
+    await streamRequest(`/summaries/${taskId}/personal-refine/stream`, {
+        method: "POST",
+        headers: buildStreamHeaders(true),
+        body: JSON.stringify(body),
+        signal: options.signal,
+    }, options.onEvent);
+}
+
+export async function refinePersonalSummary(
+    taskId: number,
+    body: { feedback: string; base_result_id: number; base_version?: number },
+): Promise<{
+    task_id: number;
+    result_id: number;
+    version_id?: number;
+    version: number;
+    content: string;
+    citations?: unknown[];
+    msg_count?: number;
+    total_token_used?: number;
+    model_version?: string;
+    operation_type?: string;
+    operation_note?: string;
+    parent_result_id?: number | null;
+    generated_at?: string;
+}> {
+    try {
+        const resp = await summaryAxios.post(`${BASE}/summaries/${taskId}/personal-refine`, body, { timeout: 95000 });
+        return resp.data?.data ?? resp.data;
+    } catch (err: unknown) {
+        if (axios.isCancel(err)) throw err;
+        const axiosErr = err as { code?: string; response?: { status?: number } };
+        const msg = axiosErr?.code === 'ECONNABORTED'
+            ? 'Summary refine request timed out. Please check whether summary-api can reach the LLM service.'
+            : extractErrorMessage(err);
+        const error = new Error(msg) as Error & { status?: number };
+        if (axiosErr?.response?.status) error.status = axiosErr.response.status;
+        throw error;
+    }
+}
+
+export async function listPersonalSummaryVersions(
+    taskId: number,
+    limit = 3,
+): Promise<{ versions: SummaryVersionItem[]; keep_limit: number }> {
+    return get(`/summaries/${taskId}/personal-versions`, { limit });
+}
+
+export async function restorePersonalSummaryVersion(
+    taskId: number,
+    versionId: number,
+): Promise<{ task_id: number; result_id: number; version_id: number; version: number }> {
+    return post(`/summaries/${taskId}/personal-versions/${versionId}/restore`);
+}
+
+export async function getPersonalSummaryVersion(
+    taskId: number,
+    versionId: number,
+): Promise<SummaryVersionDetail> {
+    return get(`/summaries/${taskId}/personal-versions/${versionId}`);
+}
+
+export async function listSummaryVersions(
+    taskId: number,
+    limit = 3,
+): Promise<{ versions: SummaryVersionItem[]; keep_limit: number }> {
+    return get(`/summaries/${taskId}/versions`, { limit });
+}
+
+export async function restoreSummaryVersion(
+    taskId: number,
+    resultId: number,
+): Promise<{ task_id: number; result_id: number; version: number }> {
+    return post(`/summaries/${taskId}/versions/${resultId}/restore`);
+}
+
+export async function getSummaryVersion(
+    taskId: number,
+    resultId: number,
+): Promise<SummaryVersionDetail> {
+    return get(`/summaries/${taskId}/versions/${resultId}`);
 }
 
 // 不复用 put helper，因为需要保留 HTTP status 区分 409（冲突）和 5xx（服务错误）

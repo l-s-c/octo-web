@@ -1,16 +1,17 @@
 {
+  "beta": "Beta",
   "menu": {
     "title": "回路",
     "changeStatus": "修改状态",
     "changePriority": "修改优先级",
     "changeAssignee": "修改负责人",
-    "deleteIssue": "删除回路",
+    "deleteIssue": "删除任务",
     "editProps": "编辑属性"
   },
   "nav": {
-    "myloop": "我的回路",
+    "myloop": "我的任务",
     "workspaceGroup": "工作区",
-    "issue": "回路",
+    "issue": "任务",
     "skill": "技能",
     "project": "项目",
     "automation": "自动化",
@@ -38,7 +39,7 @@
     "runNow": "手动运行",
     "runNowConfirm": "立即执行这个自动化？",
     "runNowConfirmDesc": "将立即触发一次运行，把任务交给执行方。",
-    "viewIssue": "查看回路",
+    "viewIssue": "查看任务",
     "runStarted": "已触发运行",
     "runFailed": "触发失败",
     "triggerFailed": "自动化已创建，但排程设置失败，请在编辑里重试",
@@ -59,7 +60,7 @@
     "retry": "重试",
     "noTaskDesc": "暂无任务说明",
     "runStatus": {
-      "issue_created": "已建回路",
+      "issue_created": "已建任务",
       "running": "运行中",
       "completed": "成功",
       "failed": "失败",
@@ -103,18 +104,17 @@
     "runtimeCount": "{{count}} 个运行时",
     "builtIn": "内置",
     "addComputerTitle": "添加电脑",
-    "addComputerDesc": "在需要接入的电脑上运行下面的命令，完成登录后运行时会出现在列表里。",
-    "copyCommand": "复制命令",
+    "addComputerDesc": "把下面的安装指令交给你的 Bot，让它在目标电脑上自动完成安装、配置权限并重启；接入成功后运行时会出现在列表里。",
     "copy": "复制",
     "copied": "已复制",
-    "copySuccess": "命令已复制",
+    "copySuccess": "安装指令已复制",
     "copyFailed": "复制失败，请手动复制",
-    "addComputerBrowser": "1. 浏览器授权（本机有浏览器）：",
-    "addComputerHeadless": "2. 免浏览器（headless / 远程 / CI 环境）：",
-    "headlessTokenPlaceholder": "<点击右侧「复制」生成>",
-    "headlessNoBackend": "管理员未配置后端公开地址，无法生成 headless 命令",
-    "headlessFailed": "生成 headless 命令失败，请重试",
-    "headlessCopyManual": "命令已生成在下方，自动复制失败，请手动复制"
+    "copyInstall": "复制安装指令",
+    "installHint": "把这段指令复制给 Bot 执行（含一次性认证凭证，请勿外传）：",
+    "installTokenPlaceholder": "<点击「复制安装指令」时生成>",
+    "installPrompt": "请在这台电脑上安装并配置 octo-daemon 运行时，依次执行：\n\n1. 安装：\n{{install}}\n\n2. 配置权限（登录认证）：\n{{auth}}\n\n3. 启动 / 重启使其生效：\n{{start}}\n\n4. 参考 octo-daemon --help 安装内置的 skills。\n\n完成后请确认该 daemon 在运行时列表中显示为在线。",
+    "headlessNoBackend": "管理员未配置后端公开地址，无法生成安装指令",
+    "headlessFailed": "生成安装指令失败，请重试"
   },
   "view": {
     "board": "看板",
@@ -124,6 +124,7 @@
   },
   "scope": {
     "all": "全部",
+    "mine": "我的",
     "members": "成员",
     "agents": "AI",
     "involves": "与我相关"
@@ -134,7 +135,7 @@
     "deleteConfirm": "确定删除选中的 {{count}} 项？此操作不可撤销。"
   },
   "search": {
-    "issue": "搜索回路/ 编号",
+    "issue": "搜索任务/ 编号",
     "skill": "搜索技能",
     "project": "搜索项目",
     "agent": "搜索 AI队友",
@@ -146,24 +147,17 @@
     "assignee": "负责人",
     "creator": "创建者",
     "project": "项目",
+    "label": "标签",
     "dateRange": "时间范围",
-    "noProject": "含无项目"
+    "noProject": "含无项目",
+    "noAssignee": "含无负责人"
   },
   "dateField": {
     "created_at": "创建时间",
     "updated_at": "更新时间"
   },
-  "sort": {
-    "direction": "升/降序",
-    "position": "手动排序",
-    "priority": "优先级",
-    "title": "标题",
-    "created_at": "创建时间",
-    "start_date": "开始日期",
-    "due_date": "截止日期"
-  },
   "action": {
-    "newIssue": "新建回路",
+    "newIssue": "新建任务",
     "newSkill": "新建技能",
     "newProject": "新建项目",
     "newAgent": "新建 AI队友",
@@ -215,17 +209,17 @@
     "cancelled": "已取消"
   },
   "empty": {
-    "issue": "暂无回路",
+    "issue": "暂无任务",
     "skill": "暂无技能",
     "project": "暂无项目",
     "agent": "暂无 AI队友",
     "squad": "暂无 AI小队",
-    "issueTitle": "还没有回路",
-    "issueDesc": "创建第一个回路，开始跟踪你的工作。",
+    "issueTitle": "还没有任务",
+    "issueDesc": "创建第一个任务，开始跟踪你的工作。",
     "skillTitle": "还没有技能",
     "skillDesc": "创建或导入技能，供 AI队友复用。",
     "projectTitle": "还没有项目",
-    "projectDesc": "创建项目来组织相关的回路。",
+    "projectDesc": "创建项目来组织相关的任务。",
     "agentTitle": "还没有 AI队友",
     "agentDesc": "创建 AI队友来自动处理你的任务。",
     "squadTitle": "还没有 AI小队",
@@ -246,9 +240,11 @@
     "labels": "标签",
     "startDate": "开始日期",
     "dueDate": "截止日期",
-    "parent": "父 Issue",
-    "noParent": "无父 Issue",
-    "stage": "阶段"
+    "parent": "父任务",
+    "noParent": "无父任务",
+    "stage": "阶段",
+    "progress": "进度",
+    "createdAt": "创建时间"
   },
   "status": {
     "backlog": "待规划",
@@ -277,7 +273,9 @@
     "idle": "空闲",
     "working": "工作中",
     "offline": "离线",
-    "error": "异常"
+    "error": "异常",
+    "unstable": "不稳定",
+    "archived": "已归档"
   },
   "assignee": {
     "member": "成员",
@@ -286,7 +284,7 @@
     "unassigned": "未指派"
   },
   "detail": {
-    "issueTitle": "回路详情",
+    "issueTitle": "任务详情",
     "skillTitle": "技能详情",
     "projectTitle": "项目详情",
     "agentTitle": "AI队友详情",
@@ -327,7 +325,11 @@
   "attach": {
     "title": "附件",
     "add": "添加附件",
+    "download": "下载 {{name}}",
     "empty": "暂无附件"
+  },
+  "createIssue": {
+    "runHint": "创建后 {{name}} 会立即开始工作"
   },
   "toast": {
     "created": "已创建",
@@ -349,7 +351,7 @@
   },
   "confirm": {
     "delete": "确定删除？",
-    "deleteIssue": "确定删除该回路？此操作不可撤销。"
+    "deleteIssue": "确定删除该任务？此操作不可撤销。"
   },
   "skill": {
     "source": "来源",
@@ -418,10 +420,12 @@
   },
   "webhook": {
     "title": "Webhook",
-    "hint": "在 issue 状态变化时触发。每个请求都用 HMAC-SHA256 签名，放在 X-Octo-Signature-256 请求头里。",
+    "hint": "在任务状态变化时触发。每个请求都用 HMAC-SHA256 签名，放在 X-Octo-Signature-256 请求头里。",
     "urlPlaceholder": "https://example.com/webhooks/octo",
     "add": "添加",
     "empty": "还没有 webhook。",
+    "adminOnly": "仅工作区管理员可管理 Webhook。",
+    "loadFailed": "加载 webhook 失败，点击重试。",
     "enabled": "启用",
     "delete": "删除 webhook",
     "deleteConfirm": "删除这个 webhook？",
@@ -446,26 +450,35 @@
   },
   "subscribe": {
     "label": "订阅者",
-    "subscribe": "订阅此 Issue",
+    "subscribe": "订阅此任务",
     "unsubscribe": "取消订阅",
     "subscribed": "已订阅",
     "unsubscribed": "已取消订阅"
   },
   "subIssue": {
-    "title": "子 Issue",
-    "create": "新建子 Issue"
+    "title": "子任务",
+    "create": "新建子任务"
   },
   "reaction": {
     "add": "添加反应"
   },
   "mention": {
     "groupUsers": "用户",
-    "groupIssues": "事项",
+    "groupIssues": "任务",
     "allMembers": "所有成员"
   },
   "agent": {
-    "runtime": "运行环境",
+    "runtime": "运行时",
     "model": "模型",
+    "modelDefault": "默认",
+    "noDescription": "暂无描述",
+    "runtimeEmpty": "暂无可用运行时",
+    "runtimeCloudBadge": "云端",
+    "runtimePrivateBadge": "私有",
+    "modelSearchPlaceholder": "输入模型名称…",
+    "modelCustomUse": "使用自定义「{{value}}」",
+    "modelInputHint": "输入模型名称，或留空使用默认",
+    "modelClear": "清除（恢复默认）",
     "namePlaceholder": "队友名称，例如 前端小助手",
     "descPlaceholder": "简单描述这个 AI 队友的职责",
     "runs30d": "近 30 天任务",
@@ -474,13 +487,6 @@
     "visibility": "可见性",
     "visWorkspace": "工作区",
     "visPrivate": "私有",
-    "thinking": "思考等级",
-    "thinkingLevel": {
-      "none": "关闭",
-      "light": "轻度",
-      "medium": "中度",
-      "deep": "深度"
-    },
     "concurrency": "并发数",
     "runtimeRequired": "请选择运行环境",
     "customArgs": "自定义参数",
@@ -504,8 +510,6 @@
     "connectorsMustBeObject": "连接器配置必须是 JSON 对象",
     "connectorsEmpty": "还没有连接器配置。",
     "clear": "清空",
-    "statusOnline": "在线",
-    "statusOffline": "离线",
     "taskCount": "{{count}} 个任务",
     "runsUnit": "次运行 · 近 30 天",
     "successAvg": "{{pct}}% 成功 · 平均 {{avg}}",
@@ -642,7 +646,7 @@
     "wsName": "工作区名称",
     "wsSlug": "工作区 slug",
     "slugHint": "slug 创建后不可修改",
-    "issuePrefix": "回路前缀",
+    "issuePrefix": "任务前缀",
     "role": "角色",
     "removeMember": "移除成员",
     "revokeInvite": "撤销邀请",
@@ -670,7 +674,6 @@
     "dispatch": "派单",
     "dispatched": "已派单",
     "agentUnavailable": "AI 队友当前不在线，无法派单——请等它上线，或换一个在线的队友。",
-    "daemonUnsupported": "AI 队友的运行环境版本过低，无法安全派单——请先升级它的运行时后重试。",
     "attachFailedAbort": "有 {{count}} 个附件上传失败，已取消派单——附件是 AI 的上下文，请重试。",
     "manualSwitch": "手动建单 · 指派给人",
     "examplesTitle": "从一个例子开始",
@@ -685,7 +688,7 @@
     "ex3Prompt": "修一下 Web 项目里收件箱加载慢的问题"
   },
   "activityAction": {
-    "created": "创建了这个回路",
+    "created": "创建了这个任务",
     "statusChanged": "更新了状态",
     "priorityChanged": "更新了优先级",
     "assigneeChanged": "变更了负责人",
@@ -696,6 +699,6 @@
     "dateChanged": "更新了时间",
     "reopened": "重新打开",
     "completed": "标记完成",
-    "generic": "更新了这个回路"
+    "generic": "更新了这个任务"
   }
 }

@@ -1,16 +1,17 @@
 {
+  "beta": "Beta",
   "menu": {
     "title": "Loop",
     "changeStatus": "Change status",
     "changePriority": "Change priority",
     "changeAssignee": "Change assignee",
-    "deleteIssue": "Delete Loop",
+    "deleteIssue": "Delete Task",
     "editProps": "Edit properties"
   },
   "nav": {
-    "myloop": "My loops",
+    "myloop": "My tasks",
     "workspaceGroup": "Workspace",
-    "issue": "Loop",
+    "issue": "Task",
     "skill": "Skill",
     "project": "Project",
     "automation": "Automation",
@@ -38,7 +39,7 @@
     "runNow": "Run now",
     "runNowConfirm": "Run this automation now?",
     "runNowConfirmDesc": "This triggers a run immediately and hands the task to the executor.",
-    "viewIssue": "View loop",
+    "viewIssue": "View task",
     "runStarted": "Run triggered",
     "runFailed": "Failed to trigger",
     "triggerFailed": "Automation created, but scheduling failed — retry from Edit",
@@ -59,7 +60,7 @@
     "retry": "Retry",
     "noTaskDesc": "No task instructions",
     "runStatus": {
-      "issue_created": "Loop created",
+      "issue_created": "Task created",
       "running": "Running",
       "completed": "Succeeded",
       "failed": "Failed",
@@ -103,18 +104,17 @@
     "runtimeCount": "{{count}} runtimes",
     "builtIn": "Built-in",
     "addComputerTitle": "Add computer",
-    "addComputerDesc": "Run this command on the computer you want to connect. After login, its runtimes will appear in the list.",
-    "copyCommand": "Copy command",
+    "addComputerDesc": "Hand the install instructions below to your Bot to auto-install, configure permissions and restart on the target machine. Once connected, its runtimes appear in the list.",
     "copy": "Copy",
     "copied": "Copied",
-    "copySuccess": "Command copied",
+    "copySuccess": "Install instructions copied",
     "copyFailed": "Copy failed. Please copy manually.",
-    "addComputerBrowser": "1. Browser authorization (this machine has a browser):",
-    "addComputerHeadless": "2. Headless (no browser / remote / CI):",
-    "headlessTokenPlaceholder": "<click Copy to generate>",
-    "headlessNoBackend": "The administrator has not configured a public backend URL; headless command unavailable",
-    "headlessFailed": "Failed to generate headless command, please retry",
-    "headlessCopyManual": "Command generated below, but auto-copy failed — please copy it manually"
+    "copyInstall": "Copy install instructions",
+    "installHint": "Copy these instructions to your Bot to run (contains a one-time credential — do not share):",
+    "installTokenPlaceholder": "<generated when you click Copy>",
+    "installPrompt": "Please install and configure the octo-daemon runtime on this machine. Run these steps in order:\n\n1. Install:\n{{install}}\n\n2. Configure permissions (login):\n{{auth}}\n\n3. Start / restart to apply:\n{{start}}\n\n4. Refer to octo-daemon --help to install the built-in skills.\n\nWhen done, confirm the daemon shows as online in the runtime list.",
+    "headlessNoBackend": "The administrator has not configured a public backend URL; install instructions unavailable",
+    "headlessFailed": "Failed to generate install instructions, please retry"
   },
   "view": {
     "board": "Board",
@@ -124,6 +124,7 @@
   },
   "scope": {
     "all": "All",
+    "mine": "Mine",
     "members": "Members",
     "agents": "AI",
     "involves": "Involves me"
@@ -131,10 +132,10 @@
   "batch": {
     "selected": "{{count}} selected",
     "done": "Updated",
-    "deleteConfirm": "Delete {{count}} selected issue(s)? This cannot be undone."
+    "deleteConfirm": "Delete {{count}} selected task(s)? This cannot be undone."
   },
   "search": {
-    "issue": "Search Loop / id",
+    "issue": "Search Task / id",
     "skill": "Search skill",
     "project": "Search project",
     "agent": "Search AI teammate",
@@ -146,24 +147,17 @@
     "assignee": "Assignee",
     "creator": "Creator",
     "project": "Project",
+    "label": "Label",
     "dateRange": "Date range",
-    "noProject": "Incl. no project"
+    "noProject": "Incl. no project",
+    "noAssignee": "Incl. no assignee"
   },
   "dateField": {
     "created_at": "Created",
     "updated_at": "Updated"
   },
-  "sort": {
-    "direction": "Asc/desc",
-    "position": "Manual",
-    "priority": "Priority",
-    "title": "Title",
-    "created_at": "Created",
-    "start_date": "Start date",
-    "due_date": "Due date"
-  },
   "action": {
-    "newIssue": "New Loop",
+    "newIssue": "New Task",
     "newSkill": "New Skill",
     "newProject": "New Project",
     "newAgent": "New AI teammate",
@@ -215,17 +209,17 @@
     "cancelled": "Cancelled"
   },
   "empty": {
-    "issue": "No Loops",
+    "issue": "No Tasks",
     "skill": "No skills",
     "project": "No projects",
     "agent": "No AI teammates",
     "squad": "No AI squads",
-    "issueTitle": "No Loops yet",
-    "issueDesc": "Create your first Loop to start tracking work.",
+    "issueTitle": "No Tasks yet",
+    "issueDesc": "Create your first Task to start tracking work.",
     "skillTitle": "No skills yet",
     "skillDesc": "Create or import a skill for your AI teammates to reuse.",
     "projectTitle": "No projects yet",
-    "projectDesc": "Create a project to organize related Loops.",
+    "projectDesc": "Create a project to organize related Tasks.",
     "agentTitle": "No AI teammates yet",
     "agentDesc": "Create an AI teammate to automate your tasks.",
     "squadTitle": "No AI squads yet",
@@ -246,9 +240,11 @@
     "labels": "Labels",
     "startDate": "Start date",
     "dueDate": "Due date",
-    "parent": "Parent issue",
+    "parent": "Parent task",
     "noParent": "No parent",
-    "stage": "Stage"
+    "stage": "Stage",
+    "progress": "Progress",
+    "createdAt": "Created"
   },
   "status": {
     "backlog": "Backlog",
@@ -277,7 +273,9 @@
     "idle": "Idle",
     "working": "Working",
     "offline": "Offline",
-    "error": "Error"
+    "error": "Error",
+    "unstable": "Unstable",
+    "archived": "Archived"
   },
   "assignee": {
     "member": "Member",
@@ -286,7 +284,7 @@
     "unassigned": "Unassigned"
   },
   "detail": {
-    "issueTitle": "Loop detail",
+    "issueTitle": "Task detail",
     "skillTitle": "Skill detail",
     "projectTitle": "Project detail",
     "agentTitle": "AI teammate detail",
@@ -327,7 +325,11 @@
   "attach": {
     "title": "Attachments",
     "add": "Add attachment",
+    "download": "Download {{name}}",
     "empty": "No attachments"
+  },
+  "createIssue": {
+    "runHint": "{{name}} will start working right after creation."
   },
   "toast": {
     "created": "Created",
@@ -349,7 +351,7 @@
   },
   "confirm": {
     "delete": "Delete?",
-    "deleteIssue": "Delete this Loop? This cannot be undone."
+    "deleteIssue": "Delete this Task? This cannot be undone."
   },
   "skill": {
     "source": "Source",
@@ -418,10 +420,12 @@
   },
   "webhook": {
     "title": "Webhooks",
-    "hint": "Fires on issue status changes. Each request is signed with HMAC-SHA256 in the X-Octo-Signature-256 header.",
+    "hint": "Fires on task status changes. Each request is signed with HMAC-SHA256 in the X-Octo-Signature-256 header.",
     "urlPlaceholder": "https://example.com/webhooks/octo",
     "add": "Add",
     "empty": "No webhooks yet.",
+    "adminOnly": "Only workspace admins can manage webhooks.",
+    "loadFailed": "Failed to load webhooks — click to retry.",
     "enabled": "Enabled",
     "delete": "Delete webhook",
     "deleteConfirm": "Delete this webhook?",
@@ -446,26 +450,35 @@
   },
   "subscribe": {
     "label": "Subscribers",
-    "subscribe": "Subscribe to issue",
+    "subscribe": "Subscribe to task",
     "unsubscribe": "Unsubscribe",
     "subscribed": "Subscribed",
     "unsubscribed": "Unsubscribed"
   },
   "subIssue": {
-    "title": "Sub-issues",
-    "create": "New sub-issue"
+    "title": "Sub-tasks",
+    "create": "New sub-task"
   },
   "reaction": {
     "add": "Add reaction"
   },
   "mention": {
     "groupUsers": "Users",
-    "groupIssues": "Issues",
+    "groupIssues": "Tasks",
     "allMembers": "All members"
   },
   "agent": {
     "runtime": "Runtime",
     "model": "Model",
+    "modelDefault": "Default",
+    "noDescription": "No description",
+    "runtimeEmpty": "No runtime available",
+    "runtimeCloudBadge": "Cloud",
+    "runtimePrivateBadge": "Private",
+    "modelSearchPlaceholder": "Type a model name…",
+    "modelCustomUse": "Use custom \"{{value}}\"",
+    "modelInputHint": "Type a model name, or leave empty for default",
+    "modelClear": "Clear (use default)",
     "namePlaceholder": "Teammate name, e.g. Frontend helper",
     "descPlaceholder": "Briefly describe what this AI teammate does",
     "runs30d": "Runs (30d)",
@@ -474,13 +487,6 @@
     "visibility": "Visibility",
     "visWorkspace": "Workspace",
     "visPrivate": "Private",
-    "thinking": "Thinking",
-    "thinkingLevel": {
-      "none": "Off",
-      "light": "Light",
-      "medium": "Medium",
-      "deep": "Deep"
-    },
     "concurrency": "Concurrency",
     "runtimeRequired": "Please select a runtime",
     "customArgs": "Custom args",
@@ -504,8 +510,6 @@
     "connectorsMustBeObject": "Connector config must be a JSON object",
     "connectorsEmpty": "No connector config yet.",
     "clear": "Clear",
-    "statusOnline": "Online",
-    "statusOffline": "Offline",
     "taskCount": "{{count}} tasks",
     "runsUnit": "runs · last 30 days",
     "successAvg": "{{pct}}% success · avg {{avg}}",
@@ -581,7 +585,7 @@
     "filterCreator": "Creator",
     "clearFilters": "Clear",
     "noMatches": "No matching squads",
-    "createDesc": "Group agents and members to collaborate on issues.",
+    "createDesc": "Group agents and members to collaborate on tasks.",
     "membersLabel": "Members",
     "membersOptional": "optional",
     "membersHint": "Add more agents or members to the squad.",
@@ -642,7 +646,7 @@
     "wsName": "Workspace name",
     "wsSlug": "Workspace slug",
     "slugHint": "Slug cannot be changed after creation",
-    "issuePrefix": "Loop prefix",
+    "issuePrefix": "Task prefix",
     "role": "Role",
     "removeMember": "Remove member",
     "revokeInvite": "Revoke invitation",
@@ -670,7 +674,6 @@
     "dispatch": "Dispatch",
     "dispatched": "Dispatched",
     "agentUnavailable": "That AI teammate is offline right now, so it can't be dispatched — wait for it to come online, or pick one that's online.",
-    "daemonUnsupported": "That AI teammate's runtime is too old to dispatch safely — please upgrade its runtime and try again.",
     "attachFailedAbort": "{{count}} attachment(s) failed to upload, so dispatch was cancelled — attachments are the AI's context; please retry.",
     "manualSwitch": "Create manually · assign to a person",
     "examplesTitle": "Start from an example",
@@ -685,7 +688,7 @@
     "ex3Prompt": "Fix the slow inbox loading in the Web project"
   },
   "activityAction": {
-    "created": "created this loop",
+    "created": "created this task",
     "statusChanged": "updated the status",
     "priorityChanged": "updated the priority",
     "assigneeChanged": "changed the assignee",
@@ -696,6 +699,6 @@
     "dateChanged": "updated dates",
     "reopened": "reopened",
     "completed": "marked complete",
-    "generic": "updated this loop"
+    "generic": "updated this task"
   }
 }

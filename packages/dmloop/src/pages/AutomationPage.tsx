@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Typography, Button, Spin, Toast, Switch, Avatar, Dropdown } from "@douyinfe/semi-ui";
+import LoopButton from "../ui/LoopButton";
 import { Zap, Plus, MoreHorizontal, Play, Trash2 } from "lucide-react";
 import { useI18n, WKApp } from "@octo/base";
 import type { Autopilot } from "../api/types";
@@ -15,7 +16,7 @@ import { formatNextRunAt } from "../ui/autopilotSchedule";
 import CreateAutomationModal from "../ui/CreateAutomationModal";
 import AutopilotDetailPage from "../panel/AutopilotDetailPage";
 
-const { Title, Text } = Typography;
+const { Text } = Typography;
 
 export default function AutomationPage() {
   const { t } = useI18n();
@@ -116,10 +117,10 @@ export default function AutomationPage() {
   return (
     <div className="loop-page">
       <div className="loop-page__head">
-        <Title heading={4}>{t("loop.nav.automation")}</Title>
+        <h2 className="loop-page__title">{t("loop.nav.automation")}</h2>
         <Text type="tertiary" style={{ fontSize: 13 }}>{rows.length}</Text>
         <div className="loop-page__spacer" />
-        <Button theme="solid" icon={<Plus size={14} />} onClick={() => setCreateOpen(true)}>{t("loop.automation.create")}</Button>
+        <LoopButton icon={<Plus size={14} />} onClick={() => setCreateOpen(true)}>{t("loop.automation.create")}</LoopButton>
       </div>
       <div className="loop-page__body">
         {loading ? (
@@ -129,7 +130,7 @@ export default function AutomationPage() {
             <Zap size={40} className="loop-empty__icon" />
             <div className="loop-empty__title">{t("loop.automation.emptyTitle")}</div>
             <div className="loop-empty__desc">{t("loop.automation.emptyDesc")}</div>
-            <Button theme="solid" icon={<Plus size={14} />} onClick={() => setCreateOpen(true)} style={{ marginTop: 12 }}>{t("loop.automation.create")}</Button>
+            <LoopButton icon={<Plus size={14} />} onClick={() => setCreateOpen(true)} style={{ marginTop: 12 }}>{t("loop.automation.create")}</LoopButton>
           </div>
         ) : (
           <div className="loop-automation-cards" role="list">{cards()}</div>

@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Typography, Button, Select, Avatar, Spin, Modal, Toast, Banner, Dropdown } from "@douyinfe/semi-ui";
+import LoopButton from "../ui/LoopButton";
 import { Plus, Trash2, Users, Filter, ArrowUp, ArrowDown, ChevronDown, Check } from "lucide-react";
 import { useI18n, WKApp } from "@octo/base";
 import type { Squad, AssigneeCandidate } from "../api/types";
@@ -10,7 +11,7 @@ import { confirmDelete } from "../ui/confirmDelete";
 import { avatarColor } from "../ui/meta";
 import { formatRelativeTime } from "../ui/time";
 
-const { Title, Text } = Typography;
+const { Text } = Typography;
 
 type Scope = "mine" | "all";
 type SortField = "name" | "members" | "created";
@@ -205,10 +206,10 @@ export default function SquadPage() {
   return (
     <div className="loop-page">
       <div className="loop-page__head">
-        <Title heading={4}>{t("loop.nav.squad")}</Title>
+        <h2 className="loop-page__title">{t("loop.nav.squad")}</h2>
         {rows.length > 0 && <Text type="tertiary" style={{ fontSize: 13 }}>{rows.length}</Text>}
         <div className="loop-page__spacer" />
-        <Button theme="solid" icon={<Plus size={14} />} onClick={openCreate}>{t("loop.action.newSquad")}</Button>
+        <LoopButton icon={<Plus size={14} />} onClick={openCreate}>{t("loop.action.newSquad")}</LoopButton>
       </div>
 
       <div className="loop-agent-toolbar loop-squad-toolbar">
@@ -241,7 +242,7 @@ export default function SquadPage() {
               <Users size={40} className="loop-empty__icon" />
               <div className="loop-empty__title">{t("loop.empty.squadTitle")}</div>
               <div className="loop-empty__desc">{t("loop.empty.squadDesc")}</div>
-              <Button theme="solid" icon={<Plus size={14} />} onClick={openCreate} style={{ marginTop: 12 }}>{t("loop.action.newSquad")}</Button>
+              <LoopButton icon={<Plus size={14} />} onClick={openCreate} style={{ marginTop: 12 }}>{t("loop.action.newSquad")}</LoopButton>
             </div>
           ) : visible.length === 0 ? (
             <div className="loop-empty">

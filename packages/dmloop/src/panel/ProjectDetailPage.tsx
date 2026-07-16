@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from "react";
 import { Typography, Button, Spin, Toast } from "@douyinfe/semi-ui";
+import LoopButton from "../ui/LoopButton";
 import { ArrowLeft, Save, Trash2 } from "lucide-react";
 import { useI18n, WKApp } from "@octo/base";
 import type { Project } from "../api/types";
 import { getProject, updateProject, deleteProject } from "../api/projectApi";
 import ProjectWebhooksSection from "./ProjectWebhooksSection";
+import { useIsWorkspaceAdmin } from "../ui/useWorkspaceAdmin";
 import "./sideDetail.css";
 
 const { Text } = Typography;
@@ -17,6 +19,7 @@ export default function ProjectDetailPage({ projectId, onChanged }: { projectId:
   const [title, setTitle] = useState("");
   const [desc, setDesc] = useState("");
   const [dirty, setDirty] = useState(false);
+  const isAdmin = useIsWorkspaceAdmin();
 
   const load = () => {
     setLoading(true);
@@ -66,8 +69,8 @@ export default function ProjectDetailPage({ projectId, onChanged }: { projectId:
         <Button icon={<ArrowLeft size={16} />} theme="borderless" onClick={back}>{t("loop.detail.back")}</Button>
         <Text type="tertiary" style={{ fontSize: 12 }}>{row.icon} {t("loop.detail.projectTitle")}</Text>
         <div style={{ flex: 1 }} />
-        <Button theme="borderless" type="danger" icon={<Trash2 size={14} />} onClick={remove}>{t("loop.action.delete")}</Button>
-        <Button theme="solid" icon={<Save size={14} />} disabled={!dirty} onClick={save}>{t("loop.action.save")}</Button>
+        {isAdmin && <Button theme="borderless" type="danger" icon={<Trash2 size={14} />} onClick={remove}>{t("loop.action.delete")}</Button>}
+        <LoopButton icon={<Save size={14} />} disabled={!dirty} onClick={save}>{t("loop.action.save")}</LoopButton>
       </div>
       <div className="loop-sd__body" style={{ gridTemplateColumns: "minmax(0, 1fr)" }}>
         <section className="loop-sd__main">
@@ -90,7 +93,7 @@ export default function ProjectDetailPage({ projectId, onChanged }: { projectId:
             </div>
             <div className="loop-fields__row">
               <div className="loop-fields__label">{t("loop.webhook.title")}</div>
-              <ProjectWebhooksSection projectId={row.id} />
+              <ProjectWebhooksSection projectId={row.id} isAdmin={isAdmin} />
             </div>
           </div>
         </section>

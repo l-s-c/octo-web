@@ -11,14 +11,25 @@
     "comingSoon": "Coming soon",
     "kindDoc": "Document",
     "kindBoard": "Board",
+    "kindSheet": "Spreadsheet",
     "back": "All documents",
-    "updatedAt": "Updated"
+    "updatedAt": "Updated",
+    "viewedAt": "Viewed",
+    "createdBy": "Created by",
+    "viewedBySelf": "You viewed",
+    "updatedBy": "Updated by {{name}} ·",
+    "loadingMore": "Loading more…",
+    "end": "No more documents",
+    "loadMoreFailed": "Couldn't load more",
+    "retry": "Retry"
   },
   "board": {
     "readOnly": "Read-only",
     "saveFailed": "Not saved — local storage is full or unavailable",
     "untitled": "Untitled board",
     "deleteEntry": "Delete board",
+    "deleteConfirmTitle": "Delete board",
+    "deleteConfirm": "This cannot be undone. Delete this board?",
     "importLibrary": "Import from local",
     "importLibraryError": "Couldn't import that library — please make sure it's a valid .excalidrawlib",
     "saveLibrary": "Save to file",
@@ -97,7 +108,7 @@
     "fontSize": "Font size",
     "fontSizeDefault": "Default",
     "fontFamily": "Font",
-    "fontFamilyDefault": "Default",
+    "fontFamilyDefault": "Default font",
     "font": {
       "yahei": "Microsoft YaHei",
       "simsun": "SimSun",
@@ -113,11 +124,13 @@
     "alignRight": "Align right",
     "alignJustify": "Justify",
     "lineHeight": "Line spacing",
-    "lineHeightDefault": "Default",
+    "lineHeightDefault": "Default spacing",
     "lineHeightCustom": "Custom",
     "spaceBefore": "Space before",
     "spaceAfter": "Space after",
     "spacingCustom": "Custom",
+    "indentIncrease": "Increase indent",
+    "indentDecrease": "Decrease indent",
     "code": "Inline code",
     "list": "List",
     "bulletList": "Bullet list",
@@ -127,12 +140,15 @@
     "codeBlock": "Code block",
     "divider": "Divider",
     "clearFormat": "Clear formatting",
+    "formatPainter": "Format painter",
     "blockType": "Text style",
     "bodyText": "Body text",
     "find": "Find & replace",
     "highlight": "Highlight",
     "textColor": "Text color",
     "customColor": "Custom color",
+    "hexInput": "Hex color",
+    "hexPlaceholder": "#rrggbb",
     "table": "Table",
     "image": "Image",
     "file": "File",
@@ -150,6 +166,8 @@
     "linkText": "Link text",
     "linkPlaceholder": "https://…",
     "linkSet": "Set",
+    "linkErrorEmpty": "Enter a URL",
+    "linkErrorInvalid": "Enter a valid URL (http, https or mailto)",
     "insert": "Insert",
     "undo": "Undo",
     "redo": "Redo",
@@ -163,7 +181,25 @@
     "exportPdf": "Export as PDF",
     "exportError": "Couldn't export this document. Please try again.",
     "export": "Export",
-    "exportSignedLinkNotice": "This document contains shared links — please verify access permissions"
+    "exportSignedLinkNotice": "This document contains shared links — please verify access permissions",
+    "importCorrupt": "The imported content is corrupt or unreadable and couldn't be loaded."
+  },
+  "import": {
+    "word": "Import from Word",
+    "wordError": "Couldn't parse this Word document. Please make sure it's a valid .docx.",
+    "wordTooLarge": "This Word document is too large or too complex to import.",
+    "markdown": "Import from Markdown",
+    "pdf": "Import from PDF",
+    "pdfError": "Couldn't parse this PDF. Please make sure it's a valid PDF with a text layer.",
+    "localImagesSkipped": "{{count}} local image(s) were not imported (only network image URLs are supported).",
+    "imageNotImported": "[image: {{name}} not imported]",
+    "imageMigrateFailed": "An image could not be migrated to the new document ({{reason}}).",
+    "imagesMigratePartial": "Some images could not be migrated to the new document.",
+    "externalImagesLinked": "Some external images could not be saved to the document and were kept as links.",
+    "mdOnly": "Only Markdown files (.md / .markdown) can be imported.",
+    "noFileChosen": "No file selected.",
+    "fileReadFailed": "Failed to read the file.",
+    "cancelled": "Cancelled by user."
   },
   "slash": {
     "groupBasic": "Basic",
@@ -197,7 +233,8 @@
     "deleteColumn": "Delete column",
     "deleteTable": "Delete table",
     "pickerHint": "Pick a size",
-    "pickerLabel": "Table size"
+    "pickerLabel": "Table size",
+    "reorderConflict": "The table was changed by a collaborator, so the reorder was cancelled. Please try again."
   },
   "callout": {
     "info": "Info",
@@ -356,6 +393,22 @@
     "writer": "Writer",
     "admin": "Admin"
   },
+  "share": {
+    "title": "Link sharing",
+    "restricted": "Restricted",
+    "restrictedHint": "Only collaborators can access",
+    "anyoneInSpace": "Anyone in Space",
+    "anyoneInSpaceHint": "Anyone in this space can access",
+    "permission": "Permission",
+    "role": {
+      "read": "Can read",
+      "edit": "Can edit"
+    },
+    "error": "Failed to update sharing. Please try again.",
+    "loading": "Loading share settings…",
+    "loadError": "Couldn't load share settings — the current scope is unknown.",
+    "retry": "Retry"
+  },
   "state": {
     "loading": "Loading document…",
     "empty": "Nothing here yet.",
@@ -451,7 +504,50 @@
       "changed": "Changed",
       "emptyCell": "(empty)",
       "emptyGrid": "(empty sheet)"
-    }
+    },
+    "fontLabels": {
+      "pingfang": "PingFang SC",
+      "hiraginoSansGB": "Hiragino Sans GB",
+      "stxihei": "STXihei",
+      "yuanti": "Yuanti SC",
+      "hannotate": "Hannotate SC",
+      "hanzipen": "HanziPen SC",
+      "wawati": "Wawati SC"
+    },
+    "formula": {
+      "insert": "Insert formula",
+      "circleArea": "Area of a circle",
+      "binomial": "Binomial theorem",
+      "sumExpansion": "Sum expansion",
+      "fourier": "Fourier series",
+      "pythagorean": "Pythagorean theorem",
+      "quadratic": "Quadratic formula",
+      "taylor": "Taylor expansion",
+      "trig1": "Trig identity 1",
+      "trig2": "Trig identity 2",
+      "newFormula": "New formula",
+      "latex": "LaTeX formula",
+      "zoomIn": "Zoom in",
+      "zoomOut": "Zoom out",
+      "menu": "Formula",
+      "paletteStructure": "Structures",
+      "paletteBracket": "Brackets / Matrices",
+      "paletteOperator": "Operators / Relations",
+      "paletteGreek": "Greek letters",
+      "paletteArrow": "Arrows / Functions",
+      "matrix": "Matrix",
+      "pmatrix": "(Matrix)",
+      "determinant": "|Determinant|",
+      "cases": "Cases"
+    },
+    "info": {
+      "error": "Error",
+      "forceStringInfo": "Number stored as text"
+    },
+    "latexTitle": "Insert formula",
+    "latexPreview": "Preview",
+    "formulaEditorCancel": "Cancel",
+    "formulaEditorOk": "OK"
   },
   "error": {
     "permission": {
@@ -477,5 +573,31 @@
     "pendingError": "Failed to load pending requests.",
     "approve": "Approve",
     "deny": "Deny"
+  },
+  "tab": {
+    "recent": "Recently viewed",
+    "mine": "My documents"
+  },
+  "search": {
+    "placeholder": "Search by file name"
+  },
+  "filter": {
+    "creator": "Creator",
+    "type": "Type",
+    "clearAll": "Clear all",
+    "noCreators": "No creators"
+  },
+  "empty": {
+    "recentNone": "You haven't viewed any documents yet",
+    "recentNoneCta": "Open a document",
+    "myDocsNone": "You haven't created any documents yet",
+    "myDocsNoneCta": "New document",
+    "searchNone": "No documents match “{{kw}}”",
+    "searchNoneCta": "Clear search",
+    "filterNone": "No documents you've viewed from the selected creators",
+    "filterNoneCta": "Clear filter",
+    "typeNone": "No documents of the selected type",
+    "typeNoneCta": "Clear type",
+    "combinedNone": "No matching results"
   }
 }
