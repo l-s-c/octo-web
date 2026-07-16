@@ -1,0 +1,440 @@
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { AlertCircle, Box, CheckCircle2, FileArchive, ImagePlus, Loader2, XCircle } from "lucide-react";
+import { t, useI18n, WKButton, WKInput, WKModal } from "@octo/base";
+import type { Category, Skill, Visibility } from "../types/skill";
+import { updateSkill, uploadIcon, initReupload, uploadFile, triggerParse, pollParse } from "../api/skillApi";
+import { formatFileSize } from "../utils/format";
+import IconCropModal from "./IconCropModal";
+
+interface EditSkillModalProps {
+  skill: Skill | null;
+  categories: Category[];
+  onClose: () => void;
+  onUpdated: (skill: Skill) => void;
+}
+
+type UploadStage = "idle" | "uploading" | "parsing" | "error";
+
+const MAX_ZIP_SIZE = 20 * 1024 * 1024;
+
+function bumpPatch(ver: string): string {
+  const parts = ver.split(".");
+  if (parts.length < 3) return ver;
+  const patch = parseInt(parts[2], 10);
+  parts[2] = String(isNaN(patch) ? 1 : patch + 1);
+  return parts.join(".");
+}
+
+function validateZipFile(file: File): string | null {
+  if (!file.name.toLowerCase().endsWith(".zip")) return t("skillMarket.upload.invalidFormat");
+  if (file.size > MAX_ZIP_SIZE) return t("skillMarket.upload.fileTooLarge");
+  return null;
+}
+
+export default function EditSkillModal({ skill, categories, onClose, onUpdated }: EditSkillModalProps) {
+  useI18n();
+  const selectableCategories = useMemo<Category[]>(
+    () => categories.filter((category: Category) => category.id !== "all"),
+    [categories],
+  );
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const abortRef = useRef(false);
+  const [name, setName] = useState("");
+  const [displayName, setDisplayName] = useState("");
+  const [description, setDescription] = useState("");
+  const [categoryId, setCategoryId] = useState("dev-tools");
+  const [tags, setTags] = useState<string[]>([]);
+  const [tagDraft, setTagDraft] = useState("");
+  const [visibility, setVisibility] = useState<Visibility>("space");
+  const [version, setVersion] = useState("1.0.0");
+  const [uploadStage, setUploadStage] = useState<UploadStage>("idle");
+  const [progress, setProgress] = useState(0);
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const [parseTaskId, setParseTaskId] = useState<string | null>(null);
+  const [iconPreview, setIconPreview] = useState<string | null>(null);
+  const [iconBlob, setIconBlob] = useState<Blob | null>(null);
+  const [iconCropFile, setIconCropFile] = useState<File | null>(null);
+  const [changelog, setChangelog] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [confirmClose, setConfirmClose] = useState(false);
+
+  useEffect(() => () => { abortRef.current = true; }, []);
+
+  useEffect(() => {
+    if (!skill) {
+      abortRef.current = true;
+      return;
+    }
+    abortRef.current = true;
+    setName(skill.name);
+    setDisplayName(skill.displayName ?? "");
+    setDescription(skill.description);
+    setCategoryId(skill.categoryId);
+    setTags(skill.tags);
+    setTagDraft("");
+    setVisibility(skill.visibility);
+    setVersion(skill.version);
+    setUploadStage("idle");
+    setProgress(0);
+    setUploadedFile(null);
+    setParseTaskId(null);
+    setIconPreview(skill.iconUrl || null);
+    setIconBlob(null);
+    setIconCropFile(null);
+    setError(null);
+    setConfirmClose(false);
+    setTimeout(() => { abortRef.current = false; }, 0);
+  }, [skill]);
+
+  const busy = uploadStage === "uploading" || uploadStage === "parsing";
+  const dirty = Boolean(skill) && (
+    name !== skill?.name ||
+    displayName !== (skill?.displayName ?? "") ||
+    categoryId !== skill?.categoryId ||
+    visibility !== skill?.visibility ||
+    JSON.stringify(tags) !== JSON.stringify(skill?.tags) ||
+    Boolean(uploadedFile) ||
+    Boolean(iconBlob)
+  );
+
+  function requestClose() {
+    if (busy) {
+      setConfirmClose(true);
+      return;
+    }
+    if (dirty && !saving) {
+      setConfirmClose(true);
+      return;
+    }
+    onClose();
+  }
+
+  function confirmLeave() {
+    abortRef.current = true;
+    setUploadStage("idle");
+    setProgress(0);
+    setUploadedFile(null);
+    setParseTaskId(null);
+    onClose();
+  }
+
+  function addTag() {
+    const next = tagDraft.trim();
+    if (!next || tags.includes(next)) return;
+    setTags([...tags, next].slice(0, 5));
+    setTagDraft("");
+  }
+
+  async function startUpload(nextFile: File) {
+    if (!skill) return;
+    const validationError = validateZipFile(nextFile);
+    setError(validationError);
+    if (validationError) {
+      setUploadStage("error");
+      setUploadedFile(null);
+      setProgress(0);
+      return;
+    }
+
+    setUploadedFile(nextFile);
+    setUploadStage("uploading");
+    setProgress(0);
+    setError(null);
+    abortRef.current = false;
+
+    try {
+      const { uploadId, presignedUrl, headers } = await initReupload(skill.id, nextFile.name, nextFile.size);
+      if (abortRef.current) return;
+
+      await uploadFile(presignedUrl, nextFile, headers, (percent) => {
+        if (!abortRef.current) setProgress(percent);
+      });
+      if (abortRef.current) return;
+
+      setUploadStage("parsing");
+      const { taskId } = await triggerParse(uploadId);
+      if (abortRef.current) return;
+
+      let attempts = 0;
+      const maxAttempts = 60;
+      while (attempts < maxAttempts) {
+        if (abortRef.current) return;
+        const status = await pollParse(taskId);
+        if (abortRef.current) return;
+
+        if (status.status === "success" && status.result) {
+          setParseTaskId(taskId);
+          setName(status.result.name);
+          setDescription(status.result.description);
+          setTags(status.result.tags);
+          setVersion(bumpPatch(skill.version));
+          setChangelog("");
+          setUploadStage("idle");
+          setError(null);
+          return;
+        }
+        if (status.status === "failed") {
+          setUploadStage("error");
+          setUploadedFile(null);
+          setError(status.error?.message ?? t("skillMarket.upload.parseFailed"));
+          return;
+        }
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+        attempts++;
+      }
+      setUploadStage("error");
+      setError(t("skillMarket.upload.parseTimeout"));
+    } catch (err) {
+      if (!abortRef.current) {
+        setUploadStage("error");
+        setUploadedFile(null);
+        setError(err instanceof Error ? err.message : t("skillMarket.upload.uploadFailed"));
+      }
+    }
+  }
+
+  function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (file) void startUpload(file);
+    event.target.value = "";
+  }
+
+  async function submit() {
+    if (!skill) return;
+    if (!name.trim() || !displayName.trim() || !categoryId) {
+      setError(t("skillMarket.form.validationRequired"));
+      return;
+    }
+    setSaving(true);
+    setError(null);
+    try {
+      let iconUrl: string | undefined;
+      if (iconBlob) {
+        iconUrl = await uploadIcon(iconBlob);
+      }
+      const updated = await updateSkill(skill.id, {
+        ...(parseTaskId ? { parseTaskId, version, changelog } : {}),
+        name,
+        displayName,
+        description,
+        categoryId,
+        tags,
+        visibility,
+        ...(iconUrl !== undefined ? { iconUrl } : {}),
+      });
+      onUpdated(updated);
+      onClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t("skillMarket.form.saveFailed"));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <>
+      <WKModal
+        visible={Boolean(skill)}
+        onCancel={requestClose}
+        title={skill ? t("skillMarket.form.editTitle", { values: { name: skill.name } }) : t("skillMarket.form.editTitleFallback")}
+        size="lg"
+        className="skill-market-workflow-modal"
+        footer={
+          <>
+            <WKButton variant="secondary" onClick={requestClose} disabled={saving}>{t("skillMarket.common.cancel")}</WKButton>
+            <WKButton
+              variant="primary"
+              onClick={() => void submit()}
+              loading={saving}
+              disabled={busy || uploadStage === "error" || !name.trim() || !displayName.trim() || (!!parseTaskId && !changelog.trim())}
+            >
+              {t("skillMarket.common.save")}
+            </WKButton>
+          </>
+        }
+      >
+        <div className="skill-market-form skill-market-form--workflow">
+          {error && (
+            <div className="skill-market-form__error">
+              <AlertCircle size={15} />
+              <span>{error}</span>
+            </div>
+          )}
+          <div className="skill-market-upload-file">
+            <FileArchive size={18} />
+            <div>
+              <strong>{uploadedFile?.name ?? skill?.fileName}</strong>
+              <span>
+                {uploadedFile ? formatFileSize(uploadedFile.size) : skill ? formatFileSize(skill.fileSize) : "-"}
+                {uploadedFile ? " · " + t("skillMarket.upload.parsed") : " · " + t("skillMarket.upload.currentPackage")}
+              </span>
+            </div>
+            <button type="button" onClick={() => fileInputRef.current?.click()}>{t("skillMarket.upload.reupload")}</button>
+            <input
+              ref={fileInputRef}
+              aria-label={t("skillMarket.upload.selectNewFileAriaLabel")}
+              className="skill-market-upload-file__input"
+              type="file"
+              accept=".zip"
+              onChange={handleFileChange}
+            />
+          </div>
+          {uploadStage === "uploading" && (
+            <div className="skill-market-upload-status">
+              <div className="skill-market-upload-status__line">
+                <span>{t("skillMarket.upload.uploadProgress")}</span>
+                <strong>{progress}%</strong>
+              </div>
+              <div className="skill-market-progress" aria-label={t("skillMarket.upload.progressBarAriaLabel")}>
+                <span style={{ width: `${progress}%` }} />
+              </div>
+            </div>
+          )}
+          {uploadStage === "parsing" && (
+            <div className="skill-market-upload-status is-parsing">
+              <Loader2 size={16} />
+              <span>{t("skillMarket.upload.parsing")}</span>
+            </div>
+          )}
+          {uploadStage === "error" && (
+            <WKButton variant="secondary" onClick={() => fileInputRef.current?.click()}>{t("skillMarket.upload.reselect")}</WKButton>
+          )}
+
+          {parseTaskId && (
+            <div className="skill-market-form__version-section">
+              <h3 className="skill-market-form__section-title">{t("skillMarket.form.versionSection")}</h3>
+              <div className="skill-market-form__row">
+                <label>
+                  <span>{t("skillMarket.form.versionLabel")}<i className="skill-market-required">*</i></span>
+                  <WKInput value={version} onChange={setVersion} placeholder={t("skillMarket.form.versionPlaceholder")} />
+                </label>
+                <label>
+                  <span>{t("skillMarket.form.changelogLabel")}<i className="skill-market-required">*</i></span>
+                  <textarea
+                    value={changelog}
+                    onChange={(e) => setChangelog(e.target.value)}
+                    placeholder={t("skillMarket.form.changelogPlaceholder")}
+                    rows={3}
+                    className="skill-market-form__textarea"
+                  />
+                </label>
+              </div>
+            </div>
+          )}
+
+          <h3 className="skill-market-form__section-title">{t("skillMarket.form.basicInfoSection")}</h3>
+
+          <div className="skill-market-form__icon-row">
+            <label className="skill-market-icon-upload" title={t("skillMarket.form.uploadIcon")}>
+              <input
+                type="file"
+                accept="image/png,image/jpeg,image/svg+xml"
+                onChange={(event) => {
+                  const f = event.target.files?.[0];
+                  if (f) setIconCropFile(f);
+                  event.target.value = "";
+                }}
+              />
+              {iconPreview ? (
+                <img src={iconPreview} alt="icon" />
+              ) : (
+                <Box size={24} />
+              )}
+            </label>
+            <label className="skill-market-field-readonly">
+              <span>{t("skillMarket.form.englishName")}</span>
+              <span className="skill-market-field-readonly__value">{name}</span>
+            </label>
+            <label>
+              <span>{t("skillMarket.form.displayName")}<i className="skill-market-required">*</i></span>
+              <WKInput value={displayName} onChange={(v) => setDisplayName(v.slice(0, 20))} placeholder={t("skillMarket.form.displayNamePlaceholder")} maxLength={20} />
+            </label>
+          </div>
+          <div className="skill-market-form__row">
+            <label>
+              <span>{t("skillMarket.form.category")}<i className="skill-market-required">*</i></span>
+              <select aria-label={t("skillMarket.form.category")} value={categoryId} onChange={(event) => setCategoryId(event.target.value)}>
+                {selectableCategories.map((category) => (
+                  <option key={category.id} value={category.id}>{category.name}</option>
+                ))}
+              </select>
+            </label>
+            <label>
+              <span>{t("skillMarket.form.tags")}</span>
+              <div className="skill-market-tag-input">
+                {tags.map((tag) => (
+                  <button key={tag} type="button" onClick={() => setTags(tags.filter((item) => item !== tag))}>
+                    {tag}
+                    <XCircle size={12} />
+                  </button>
+                ))}
+                <input
+                  value={tagDraft}
+                  onChange={(event) => setTagDraft(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      event.preventDefault();
+                      addTag();
+                    }
+                  }}
+                  onBlur={addTag}
+                  placeholder={t("skillMarket.form.tagPlaceholder")}
+                />
+              </div>
+            </label>
+          </div>
+          <fieldset className="skill-market-radio-group">
+            <legend>{t("skillMarket.form.visibility")}<i className="skill-market-required">*</i></legend>
+            {[
+              ["space", t("skillMarket.form.visibilityPublic"), t("skillMarket.form.visibilityPublicHint")],
+              ["private", t("skillMarket.form.visibilityPrivate"), t("skillMarket.form.visibilityPrivateHint")],
+            ].map(([value, label, hint]) => (
+              <label key={value}>
+                <input
+                  type="radio"
+                  checked={visibility === value}
+                  onChange={() => setVisibility(value as Visibility)}
+                />
+                <span>{label}</span>
+                <small className="skill-market-radio-hint">{hint}</small>
+              </label>
+            ))}
+          </fieldset>
+          <div className="skill-market-doc-note">
+            <CheckCircle2 size={15} />
+            <span>{t("skillMarket.form.docNote")}</span>
+          </div>
+        </div>
+      </WKModal>
+      <IconCropModal
+        visible={!!iconCropFile}
+        file={iconCropFile}
+        onCancel={() => setIconCropFile(null)}
+        onConfirm={(blob) => {
+          setIconPreview(URL.createObjectURL(blob));
+          setIconBlob(blob);
+          setIconCropFile(null);
+        }}
+      />
+      <WKModal
+        visible={confirmClose}
+        onCancel={() => setConfirmClose(false)}
+        title={t("skillMarket.confirm.title")}
+        size="md"
+        footer={
+          <>
+            <WKButton variant="secondary" onClick={() => setConfirmClose(false)}>{t("skillMarket.confirm.keepEditing")}</WKButton>
+            <WKButton variant="danger" onClick={confirmLeave}>{t("skillMarket.confirm.leave")}</WKButton>
+          </>
+        }
+      >
+        <p className="skill-market-confirm-text">
+          {busy
+            ? t("skillMarket.confirm.busyMessage")
+            : t("skillMarket.confirm.dirtyEditMessage")}
+        </p>
+      </WKModal>
+    </>
+  );
+}

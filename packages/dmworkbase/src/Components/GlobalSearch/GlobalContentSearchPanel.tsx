@@ -1,4 +1,10 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   FileResultItem,
   MixedResultItem,
@@ -16,13 +22,17 @@ import {
 import { canLocateChannelSearchItem } from "../ChannelSearch/locate";
 import { useI18n } from "../../i18n";
 import { shouldRunGlobalSearch } from "./apiAdapter";
-import { hasGlobalSearchCriteria } from "./filterState";
+import GlobalSearchFilterPanel from "./GlobalSearchFilterPanel";
+import { activeGlobalSearchFilterCount } from "./filterState";
 import {
+  defaultGlobalSearchFilters,
   type GlobalContentTab,
   type GlobalSearchDataSource,
   type GlobalSearchFilters,
+  type GlobalSearchPanelState,
 } from "./types";
 import "./global-content-search-panel.css";
+import { Filter } from "lucide-react";
 
 const SEARCH_DEBOUNCE_MS = 300;
 const PAGE_SIZE = 20;
@@ -32,7 +42,8 @@ interface GlobalContentSearchPanelProps {
   keyword: string;
   dataSource: GlobalSearchDataSource;
   onLocateMessage: (item: ChannelSearchItem) => void;
-  filters: GlobalSearchFilters;
+  initialState?: GlobalSearchPanelState;
+  onStateChange?: (state: GlobalSearchPanelState) => void;
   // Content panels for messages/files are all mounted at once and toggled via
   // `display:none` (avoids remounting <img>/VisibilityTrigger on tab switch).
   // A hidden container reports scrollHeight/scrollTop/clientHeight = 0, which
@@ -48,10 +59,15 @@ const GlobalContentSearchPanel: React.FC<GlobalContentSearchPanelProps> = ({
   keyword,
   dataSource,
   onLocateMessage,
-  filters,
+  initialState,
+  onStateChange,
   isActive = true,
 }) => {
   const { t } = useI18n();
+  const [filters, setFilters] = useState<GlobalSearchFilters>(
+    () => initialState?.filters || defaultGlobalSearchFilters()
+  );
+  const [filterOpen, setFilterOpen] = useState(!!initialState?.filterOpen);
   const [response, setResponse] = useState<ChannelSearchResponse>({
     items: [],
     hasMore: false,
@@ -67,13 +83,18 @@ const GlobalContentSearchPanel: React.FC<GlobalContentSearchPanelProps> = ({
   const loadingMoreCursorRef = useRef<string | null>(null);
   const scrollFrameRef = useRef<number | null>(null);
   const contentRef = useRef<HTMLDivElement>(null);
+  const filterWrapRef = useRef<HTMLDivElement>(null);
 
   const canSearch = shouldRunGlobalSearch(tab, keyword, filters) && isActive;
-  const hasSearchCriteria = hasGlobalSearchCriteria(tab, keyword, filters);
+  const filterCount = activeGlobalSearchFilterCount(filters);
   const getSender = useCallback(
     (uid: string) => dataSource.getSender(uid),
     [dataSource]
   );
+
+  useEffect(() => {
+    onStateChange?.({ filterOpen, filters, keyword });
+  }, [filterOpen, filters, keyword, onStateChange]);
 
   const runSearch = useCallback(
     async (cursor?: string) => {
@@ -227,6 +248,7 @@ const GlobalContentSearchPanel: React.FC<GlobalContentSearchPanelProps> = ({
 
   const handleFileMenuOpenChange = useCallback(
     (itemId: string, open: boolean) => {
+      if (open) setFilterOpen(false);
       setOpenFileMenuId(open ? itemId : null);
     },
     []
@@ -247,13 +269,7 @@ const GlobalContentSearchPanel: React.FC<GlobalContentSearchPanelProps> = ({
       return <div className="wk-channel-search-error">{error}</div>;
     }
     if (!queryStarted || response.items.length === 0) {
-      return (
-        <ChannelSearchEmpty
-          queryStarted={queryStarted && hasSearchCriteria}
-          emptyHint={t("base.globalSearch.files.emptyHint")}
-          noResultsHint={t("base.globalSearch.files.noResults")}
-        />
-      );
+      return <ChannelSearchEmpty queryStarted={queryStarted} />;
     }
     if (tab === "files") {
       return (
@@ -295,6 +311,33 @@ const GlobalContentSearchPanel: React.FC<GlobalContentSearchPanelProps> = ({
 
   return (
     <div className="wk-global-content-search">
+      <div className="wk-global-content-search-toolbar">
+        <div
+          className="wk-channel-search-filter-wrap"
+          ref={filterWrapRef}
+        >
+          <button
+            type="button"
+            className="wk-channel-search-filter-trigger"
+            onClick={() => setFilterOpen((v) => !v)}
+          >
+            <Filter size={16} />
+            {t("base.channelSearch.filter.title")}
+            {filterCount > 0 && <span>{filterCount}</span>}
+          </button>
+          {filterOpen && (
+            <GlobalSearchFilterPanel
+              tab={tab}
+              keyword={keyword}
+              filters={filters}
+              dataSource={dataSource}
+              onApply={(next) => setFilters(next)}
+              onClose={() => setFilterOpen(false)}
+            />
+          )}
+        </div>
+      </div>
+
       <div
         className="wk-channel-search-content"
         ref={contentRef}

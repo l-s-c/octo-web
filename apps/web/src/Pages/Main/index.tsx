@@ -251,7 +251,6 @@ export class MainPage extends Component<{}, MainPageState> {
                                             const prevMenuId = vm.currentMenus?.id;
                                             vm.currentMenus = menus;
                                             WKApp.currentMenuId = menus.id;
-                                            WKApp.route.syncPath(menus.routePath);
                                             if (menus.onPress) {
                                                 menus.onPress();
                                             } else {
@@ -313,7 +312,6 @@ export class MainPage extends Component<{}, MainPageState> {
                                         if (target && vm.currentMenus?.id !== menuId) {
                                             vm.currentMenus = target;
                                             WKApp.currentMenuId = menuId;
-                                            WKApp.route.syncPath(target.routePath);
                                             // NOTE: do NOT popToRoot() here. routeLeft is a shared
                                             // stack across tabs; popping it would destroy the detail
                                             // view (e.g. summary detail page) the user was on,

@@ -1,5 +1,5 @@
 import React, { Component } from "react";
-import { I18nContext, WKApp, apiFetchJson, computeAndSaveJoinSuccess, setSessionSid, t, toJoinApprovalStatus } from "@octo/base";
+import { I18nContext, WKApp, apiFetchJson, computeAndSaveJoinSuccess, t, toJoinApprovalStatus } from "@octo/base";
 import type { JoinSpaceStatus } from "@octo/base";
 import { Button, Spin, Toast } from "@douyinfe/semi-ui";
 import "./index.css";
@@ -275,12 +275,11 @@ export default class InviteLanding extends Component<InviteLandingProps, InviteL
             if (!crossSpace && joinedSpaceId) {
                 localStorage.setItem('currentSpaceId', joinedSpaceId);
             }
-            // 跳转回主界面；sid 写入当前 tab 的 SessionScope，不再暴露到 URL。
+            // 跳转回主界面，带上正确的 sid
             const sid = this.findSid();
             // 使用安全的 basePath，避免当 pathname 为 /api/ 时跳到后端 API 路径（#1006）
             const basePath = this.getAppBasePath();
-            if (sid) setSessionSid(sid);
-            window.location.href = `${window.location.origin}${basePath}/`;
+            window.location.href = `${window.location.origin}${basePath}/${sid ? `?sid=${sid}` : ''}`;
         } catch (e: any) {
             const body = this.getApiErrorData(e);
             if (this.isNeedSpaceResponse(this.getApiErrorStatus(e), body)) {

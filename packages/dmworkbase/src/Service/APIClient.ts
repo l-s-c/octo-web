@@ -132,7 +132,6 @@ export default class APIClient {
         headers: config?.headers,
         responseType: config?.responseType,
         timeout: config?.timeout,
-        signal: config?.signal,
     }), config)
     }
     post(path: string, data?: any, config?: RequestConfig) {
@@ -140,7 +139,6 @@ export default class APIClient {
             headers: config?.headers,
             responseType: config?.responseType,
             timeout: config?.timeout,
-            signal: config?.signal,
         }), config)
     }
 
@@ -220,8 +218,6 @@ export class RequestConfig {
      * server-side renders (large document export) need a higher ceiling.
      */
     timeout?: number
-    /** Cancels stale searches and other request/response races. */
-    signal?: AbortSignal
 }
 
 export interface APIResp {

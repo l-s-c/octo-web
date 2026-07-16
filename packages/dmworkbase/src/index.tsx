@@ -12,8 +12,6 @@ export * from './Service/apiFetch'
 export { default as Provider } from './Service/Provider'
 export * from './Service/Provider'
 export * from './Service/Route'
-export * from './Service/SessionScope'
-export * from './Service/RoutePath'
 export * from './Service/DataSource/DataProvider'
 export { default as ChatPage } from "./Pages/Chat"
 export * from './Components/ChannelSetting/context'
@@ -76,6 +74,8 @@ export { default as WKButton } from "./Components/WKButton"
 export { default as WKInput } from "./Components/WKInput"
 export { default as WKModal } from "./Components/WKModal"
 export type { WKModalProps, WKModalSize, WKModalFooterConfig } from "./Components/WKModal"
+export { wkConfirm } from "./Components/WKModal"
+export type { WKConfirmProps } from "./Components/WKModal"
 export { default as GroupAvatarPreview } from "./Components/GroupAvatarPreview"
 export type { GroupAvatarPreviewProps } from "./Components/GroupAvatarPreview"
 export { default as GroupAvatarEditModal } from "./Components/GroupAvatarEditModal"

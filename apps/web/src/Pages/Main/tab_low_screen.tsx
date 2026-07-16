@@ -20,7 +20,6 @@ export class TabLowScreen extends Component<TabLowScreenProps> {
                             return <li key={menus.id} onClick={() => {
                                 vm.currentMenus = menus
                                 if (menus.onPress) {
-                                    WKApp.route.syncPath(menus.routePath)
                                     menus.onPress()
                                 } else {
                                     WKApp.route.push(menus.routePath)

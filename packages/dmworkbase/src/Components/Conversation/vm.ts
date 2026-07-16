@@ -1680,11 +1680,6 @@ export default class ConversationVM extends ProviderListener {
     // 获取第一屏消息
     requestMessagesOfFirstPage(lcateMessageSeq?: number, stateCallback?: () => void) {
 
-        // Only an explicit positive argument represents a user-initiated
-        // locate (for example from global search). The undefined path below
-        // may derive a seq from unread/scroll-restoration state and must not
-        // flash a message on every normal conversation open.
-        const shouldHighlightLocatedMessage = typeof lcateMessageSeq === "number" && lcateMessageSeq > 0
         this.initLocateMessageSeq = 0
         let initLocateOffsetY = 0
         if (lcateMessageSeq === undefined) {
@@ -1710,12 +1705,7 @@ export default class ConversationVM extends ProviderListener {
         } else {
             this.initLocateMessageSeq = lcateMessageSeq
         }
-        return this.syncMessages(
-            this.initLocateMessageSeq,
-            stateCallback,
-            initLocateOffsetY,
-            shouldHighlightLocatedMessage,
-        )
+        return this.syncMessages(this.initLocateMessageSeq, stateCallback, initLocateOffsetY)
     }
 
     // 最近会话显示的最后一条消息的messageSeq
@@ -1728,12 +1718,7 @@ export default class ConversationVM extends ProviderListener {
     }
 
     // 同步消息
-    async syncMessages(
-        initMessageSeq?: number,
-        stateCallback?: () => void,
-        locateOffsetY: number = 0,
-        highlightLocatedMessage: boolean = false,
-    ) {
+    async syncMessages(initMessageSeq?: number, stateCallback?: () => void, locateOffsetY: number = 0) {
         this.loading = true
         this.liveFoldRevokeClientMsgNos.clear()
         this.notifyListener()
@@ -1795,9 +1780,6 @@ export default class ConversationVM extends ProviderListener {
                     break
                 }
             }
-        }
-        if (initMessage && highlightLocatedMessage) {
-            initMessage.locateRemind = true
         }
 
         this.messagesOfOrigin = allMessages
