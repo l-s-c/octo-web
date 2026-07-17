@@ -5,6 +5,7 @@ import {
   getCategories,
   getMySkills,
   getSkill,
+  getSkillTags,
   getSkills,
   updateSkill,
 } from "./skillApiMock";
@@ -60,6 +61,13 @@ describe("skillApi mock contract", () => {
     expect(category.items.every((skill) => skill.categoryId === "quality")).toBe(true);
     expect(mine.items.length).toBeGreaterThanOrEqual(3);
     expect(mine.items.every((skill) => skill.ownerId === "me")).toBe(true);
+  });
+
+  it("returns distinct tag suggestions from the mock store", async () => {
+    const tags = await getSkillTags("ci");
+
+    expect(tags.length).toBeGreaterThan(0);
+    expect(tags.every((tag) => tag.name.toLowerCase().includes("ci"))).toBe(true);
   });
 
   it("search matches category name so users can find skills by visible category label", async () => {

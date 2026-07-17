@@ -14,9 +14,11 @@ import type {
   RawCategory,
   RawPagedResult,
   RawSkill,
+  RawSkillTag,
   RawSkillVersion,
   Skill,
   SkillListQuery,
+  SkillTag,
   SkillVersion,
   TriggerParseResult,
   UpdateSkillForm,
@@ -213,6 +215,15 @@ function mapSkill(raw: RawSkill): Skill {
   };
 }
 
+function mapSkillTag(raw: RawSkillTag): SkillTag {
+  return {
+    name: raw.name,
+    createdBy: raw.created_by,
+    createdAt: raw.created_at,
+    updatedAt: raw.updated_at,
+  };
+}
+
 function mapPagedResult(raw: RawPagedResult<RawSkill>): PagedResult<Skill> {
   return {
     items: (raw.items ?? []).map(mapSkill),
@@ -273,6 +284,21 @@ export function getMySkills(
       next_cursor: pagination?.next_cursor ?? null,
     })
   );
+}
+
+export function getSkillTags(
+  q = "",
+  opts?: RequestOptions
+): Promise<SkillTag[]> {
+  const params = new URLSearchParams();
+  const query = q.trim();
+  if (query) params.set("q", query);
+  params.set("page_size", "20");
+  const qs = params.toString();
+  return request<{ items: RawSkillTag[] }>(
+    `/skills/tags${qs ? `?${qs}` : ""}`,
+    opts?.signal ? { signal: opts.signal } : undefined
+  ).then((data) => (data.items ?? []).map(mapSkillTag));
 }
 
 export function getSkill(id: string): Promise<Skill> {

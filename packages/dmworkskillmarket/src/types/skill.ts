@@ -40,6 +40,13 @@ export interface SkillListQuery {
   mine?: boolean;
 }
 
+export interface SkillTag {
+  name: string;
+  createdBy?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export interface PagedResult<T> {
   items: T[];
   nextCursor: string | null;
@@ -152,6 +159,13 @@ export interface RawSkill {
   file_sha256: string;
   created_at: string;
   updated_at: string;
+}
+
+export interface RawSkillTag {
+  name: string;
+  created_by?: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 /** Raw paged response from list endpoints */

@@ -3,7 +3,7 @@ import { AlertCircle, Box, CheckCircle2, FileArchive, ImagePlus, Loader2, XCircl
 import { t, useI18n, WKButton, WKInput, WKModal } from "@octo/base";
 import type { Category, Skill, Visibility } from "../types/skill";
 import { updateSkill, uploadIcon, initReupload, uploadFile, triggerParse, pollParse } from "../api/skillApi";
-import { formatFileSize } from "../utils/format";
+import { formatFileSize, MAX_SKILL_TAGS, validateSkillTag } from "../utils/format";
 import IconCropModal from "./IconCropModal";
 
 interface EditSkillModalProps {
@@ -45,6 +45,7 @@ export default function EditSkillModal({ skill, categories, onClose, onUpdated }
   const [categoryId, setCategoryId] = useState("dev-tools");
   const [tags, setTags] = useState<string[]>([]);
   const [tagDraft, setTagDraft] = useState("");
+  const [tagError, setTagError] = useState<string | null>(null);
   const [visibility, setVisibility] = useState<Visibility>("space");
   const [version, setVersion] = useState("1.0.0");
   const [uploadStage, setUploadStage] = useState<UploadStage>("idle");
@@ -73,6 +74,7 @@ export default function EditSkillModal({ skill, categories, onClose, onUpdated }
     setCategoryId(skill.categoryId);
     setTags(skill.tags);
     setTagDraft("");
+    setTagError(null);
     setVisibility(skill.visibility);
     setVersion(skill.version);
     setUploadStage("idle");
@@ -94,8 +96,28 @@ export default function EditSkillModal({ skill, categories, onClose, onUpdated }
     categoryId !== skill?.categoryId ||
     visibility !== skill?.visibility ||
     JSON.stringify(tags) !== JSON.stringify(skill?.tags) ||
+    Boolean(tagDraft.trim()) ||
     Boolean(uploadedFile) ||
     Boolean(iconBlob)
+  );
+
+  function getTagDraftError() {
+    const next = tagDraft.trim();
+    if (!next) return null;
+    if (validateSkillTag(next)) return validateSkillTag(next);
+    if (tags.includes(next)) return t("skillMarket.form.tagDuplicate");
+    if (tags.length >= MAX_SKILL_TAGS) return t("skillMarket.form.tagLimit", { values: { count: MAX_SKILL_TAGS } });
+    return null;
+  }
+
+  const tagSubmitError = tagError ?? getTagDraftError();
+  const canSave = Boolean(
+    !busy &&
+    uploadStage !== "error" &&
+    name.trim() &&
+    displayName.trim() &&
+    (!parseTaskId || changelog.trim()) &&
+    !tagSubmitError,
   );
 
   function requestClose() {
@@ -121,9 +143,23 @@ export default function EditSkillModal({ skill, categories, onClose, onUpdated }
 
   function addTag() {
     const next = tagDraft.trim();
-    if (!next || tags.includes(next)) return;
-    setTags([...tags, next].slice(0, 5));
+    if (!next) return;
+    const validationError = validateSkillTag(next);
+    if (validationError) {
+      setTagError(validationError);
+      return;
+    }
+    if (tags.includes(next)) {
+      setTagError(t("skillMarket.form.tagDuplicate"));
+      return;
+    }
+    if (tags.length >= MAX_SKILL_TAGS) {
+      setTagError(t("skillMarket.form.tagLimit", { values: { count: MAX_SKILL_TAGS } }));
+      return;
+    }
+    setTags([...tags, next].slice(0, MAX_SKILL_TAGS));
     setTagDraft("");
+    setTagError(null);
   }
 
   async function startUpload(nextFile: File) {
@@ -206,6 +242,14 @@ export default function EditSkillModal({ skill, categories, onClose, onUpdated }
       setError(t("skillMarket.form.validationRequired"));
       return;
     }
+    const draftError = getTagDraftError();
+    if (tagError || draftError) {
+      setTagError(tagError ?? draftError);
+      return;
+    }
+    const submittedTags = tagDraft.trim()
+      ? [...tags, tagDraft.trim()].slice(0, MAX_SKILL_TAGS)
+      : tags;
     setSaving(true);
     setError(null);
     try {
@@ -219,7 +263,7 @@ export default function EditSkillModal({ skill, categories, onClose, onUpdated }
         displayName,
         description,
         categoryId,
-        tags,
+        tags: submittedTags,
         visibility,
         ...(iconUrl !== undefined ? { iconUrl } : {}),
       });
@@ -247,7 +291,7 @@ export default function EditSkillModal({ skill, categories, onClose, onUpdated }
               variant="primary"
               onClick={() => void submit()}
               loading={saving}
-              disabled={busy || uploadStage === "error" || !name.trim() || !displayName.trim() || (!!parseTaskId && !changelog.trim())}
+              disabled={!canSave}
             >
               {t("skillMarket.common.save")}
             </WKButton>
@@ -348,7 +392,7 @@ export default function EditSkillModal({ skill, categories, onClose, onUpdated }
             </label>
             <label>
               <span>{t("skillMarket.form.displayName")}<i className="skill-market-required">*</i></span>
-              <WKInput value={displayName} onChange={(v) => setDisplayName(v.slice(0, 20))} placeholder={t("skillMarket.form.displayNamePlaceholder")} maxLength={20} />
+              <WKInput value={displayName} onChange={(v: string) => setDisplayName(v.slice(0, 20))} placeholder={t("skillMarket.form.displayNamePlaceholder")} maxLength={20} />
             </label>
           </div>
           <div className="skill-market-form__row">
@@ -371,7 +415,11 @@ export default function EditSkillModal({ skill, categories, onClose, onUpdated }
                 ))}
                 <input
                   value={tagDraft}
-                  onChange={(event) => setTagDraft(event.target.value)}
+                  onChange={(event) => {
+                    const next = event.target.value;
+                    setTagDraft(next);
+                    setTagError(validateSkillTag(next));
+                  }}
                   onKeyDown={(event) => {
                     if (event.key === "Enter") {
                       event.preventDefault();
@@ -380,8 +428,14 @@ export default function EditSkillModal({ skill, categories, onClose, onUpdated }
                   }}
                   onBlur={addTag}
                   placeholder={t("skillMarket.form.tagPlaceholder")}
+                  aria-describedby={(tagError || tags.length >= MAX_SKILL_TAGS) ? "skill-market-edit-tag-hint" : undefined}
                 />
               </div>
+              {(tagError || tags.length >= MAX_SKILL_TAGS) && (
+                <small id="skill-market-edit-tag-hint" className={tagError ? "skill-market-tag-hint is-error" : "skill-market-tag-hint"}>
+                  {tagError ?? t("skillMarket.form.tagLimit", { values: { count: MAX_SKILL_TAGS } })}
+                </small>
+              )}
             </label>
           </div>
           <fieldset className="skill-market-radio-group">

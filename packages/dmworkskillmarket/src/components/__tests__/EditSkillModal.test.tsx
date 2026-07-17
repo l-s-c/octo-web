@@ -89,6 +89,18 @@ describe("EditSkillModal", () => {
     expect(onClose).toHaveBeenCalled();
   });
 
+  it("blocks save while a tag validation error is visible", () => {
+    render(<EditSkillModal skill={skill} categories={categories} onClose={vi.fn()} onUpdated={vi.fn()} />);
+
+    fireEvent.change(screen.getByPlaceholderText(/输入或选择标签|skillMarket\.form\.tagPlaceholder/), { target: { value: "bad<tag" } });
+
+    expect(screen.getByText(/标签仅支持文字、数字、空格和 - _ \. \/ # \+|skillMarket\.form\.tagInvalidChars/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /保存|skillMarket\.common\.save/ })).toBeDisabled();
+
+    fireEvent.click(screen.getByRole("button", { name: /保存|skillMarket\.common\.save/ }));
+    expect(api.updateSkill).not.toHaveBeenCalled();
+  });
+
   it("guards closing after the form is changed", () => {
     const onClose = vi.fn();
     render(<EditSkillModal skill={skill} categories={categories} onClose={onClose} onUpdated={vi.fn()} />);

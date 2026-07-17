@@ -4,6 +4,7 @@ import {
   getCategories,
   getSkills,
   getMySkills,
+  getSkillTags,
   getSkill,
   createSkill,
   updateSkill,
@@ -146,6 +147,41 @@ describe("skillApiReal", () => {
     expect(url).toContain("q=CI");
     expect(url).toContain("category_id=dev-tools");
     expect(url).toContain("page_size=10");
+  });
+
+  it("getSkillTags fetches current-space tag suggestions", async () => {
+    mockFetch.mockReturnValueOnce(
+      jsonResponse({
+        items: [
+          {
+            name: "ui-case",
+            created_by: "dev-user",
+            created_at: "2026-07-17T09:04:23Z",
+            updated_at: "2026-07-17T09:04:23Z",
+          },
+        ],
+      })
+    );
+
+    const tags = await getSkillTags("ui");
+
+    expect(tags).toEqual([
+      {
+        name: "ui-case",
+        createdBy: "dev-user",
+        createdAt: "2026-07-17T09:04:23Z",
+        updatedAt: "2026-07-17T09:04:23Z",
+      },
+    ]);
+    expect(mockFetch).toHaveBeenCalledWith(
+      "/market/api/v1/skills/tags?q=ui&page_size=20",
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          token: "test-token",
+          "X-Space-Id": "space-123",
+        }),
+      })
+    );
   });
 
   it("getMySkills calls /skill/mine endpoint", async () => {

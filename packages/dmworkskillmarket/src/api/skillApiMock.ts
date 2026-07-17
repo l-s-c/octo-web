@@ -4,6 +4,7 @@ import type {
   PagedResult,
   Skill,
   SkillListQuery,
+  SkillTag,
   SkillVersion,
   UpdateSkillForm,
 } from "../types/skill";
@@ -94,6 +95,16 @@ export function getSkills(query: SkillListQuery = {}, _opts?: { signal?: AbortSi
 
 export function getMySkills(query: SkillListQuery = {}, _opts?: { signal?: AbortSignal }): Promise<PagedResult<Skill>> {
   return getSkills({ ...query, mine: true });
+}
+
+export function getSkillTags(q = "", _opts?: { signal?: AbortSignal }): Promise<SkillTag[]> {
+  const query = normalizeQuery(q);
+  const names = Array.from(new Set(skills.flatMap((skill) => skill.tags)))
+    .filter((name) => !query || name.toLowerCase().includes(query))
+    .sort((a, b) => a.localeCompare(b))
+    .slice(0, 20)
+    .map((name) => ({ name, createdBy: CURRENT_USER_ID }));
+  return withDelay(names);
 }
 
 export function getSkill(id: string): Promise<Skill> {
