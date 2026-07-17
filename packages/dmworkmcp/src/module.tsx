@@ -91,6 +91,11 @@ export class McpMarketModule implements IModule {
           if (page && React.isValidElement(page)) {
             WKApp.routeRight.replaceToRoot(page);
           }
+          // Sync URL so refresh/copy-link/back button land on the same tab.
+          // Main/index.tsx#onMenuClick already syncPath's to the menu's
+          // `/mcp-market` before firing onPress, but the mounted pane is the
+          // more specific `/mcp-market/mcp` first tab — reflect that.
+          WKApp.route.syncPath("/mcp-market/mcp");
         };
         return m;
       },
