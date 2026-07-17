@@ -1,7 +1,7 @@
 import React from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import SkillCard from "../SkillCard";
+import SkillCard, { getDescriptionTooltipStyle } from "../SkillCard";
 import type { Category, Skill } from "../../types/skill";
 
 const categories: Category[] = [
@@ -33,7 +33,8 @@ describe("SkillCard", () => {
   it("renders the Stage 2 card contract", () => {
     render(<SkillCard skill={skill} categories={categories} onOpen={vi.fn()} />);
 
-    expect(screen.getByText("ci-helper")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "test" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "ci-helper @我" })).toBeInTheDocument();
     expect(screen.getByText("@我")).toBeInTheDocument();
     expect(screen.getByText("CI")).toBeInTheDocument();
     expect(screen.getByText("调试")).toBeInTheDocument();
@@ -61,16 +62,54 @@ describe("SkillCard", () => {
     fireEvent.keyDown(screen.getByRole("button", { name: "ci-helper @我" }), { key: "Enter" });
     expect(onOpen).toHaveBeenCalledWith(skill);
 
-    fireEvent.click(screen.getByRole("button", { name: "编辑 ci-helper" }));
+    fireEvent.click(screen.getByRole("button", { name: "skillMarket.card.editAriaLabel" }));
     expect(onEdit).toHaveBeenCalledWith(skill);
     expect(onOpen).toHaveBeenCalledTimes(1);
 
-    fireEvent.click(screen.getByRole("button", { name: "删除 ci-helper" }));
+    fireEvent.click(screen.getByRole("button", { name: "skillMarket.card.deleteAriaLabel" }));
     expect(onDelete).toHaveBeenCalledWith(skill);
     expect(onOpen).toHaveBeenCalledTimes(1);
 
-    fireEvent.keyDown(screen.getByRole("button", { name: "编辑 ci-helper" }), { key: "Enter" });
-    fireEvent.keyDown(screen.getByRole("button", { name: "删除 ci-helper" }), { key: " " });
+    fireEvent.keyDown(screen.getByRole("button", { name: "skillMarket.card.editAriaLabel" }), { key: "Enter" });
+    fireEvent.keyDown(screen.getByRole("button", { name: "skillMarket.card.deleteAriaLabel" }), { key: " " });
     expect(onOpen).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows the full description tooltip only when the description is truncated", async () => {
+    render(<SkillCard skill={skill} categories={categories} onOpen={vi.fn()} />);
+
+    const description = screen.getByText(skill.description);
+    Object.defineProperty(description, "scrollHeight", { configurable: true, value: 80 });
+    Object.defineProperty(description, "clientHeight", { configurable: true, value: 42 });
+    Object.defineProperty(description, "scrollWidth", { configurable: true, value: 300 });
+    Object.defineProperty(description, "clientWidth", { configurable: true, value: 300 });
+
+    fireEvent.mouseEnter(description);
+    expect(await screen.findByRole("tooltip")).toHaveTextContent(skill.description);
+
+    fireEvent.mouseLeave(description);
+    expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
+  });
+
+  it("positions the tooltip above the description near the viewport bottom", () => {
+    const style = getDescriptionTooltipStyle(
+      { left: 120, top: 720, bottom: 762, width: 300, height: 42 },
+      { left: 0, top: 0, bottom: 120, width: 300, height: 120 },
+      { pageLeft: 80, contentTop: 164, viewportWidth: 900, viewportHeight: 800 },
+    );
+
+    expect(style.top).toBe(592);
+    expect(style.maxHeight).toBe(548);
+  });
+
+  it("clamps very tall tooltips using constrained height", () => {
+    const style = getDescriptionTooltipStyle(
+      { left: 120, top: 220, bottom: 262, width: 300, height: 42 },
+      { left: 0, top: 0, bottom: 1000, width: 300, height: 1000 },
+      { pageLeft: 80, contentTop: 164, viewportWidth: 900, viewportHeight: 800 },
+    );
+
+    expect(style.top).toBe(270);
+    expect(style.maxHeight).toBe(518);
   });
 });

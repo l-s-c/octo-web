@@ -382,16 +382,40 @@
   line-height: 40px;
 }
 
+.skill-market-card__desc-wrap {
+  position: relative;
+  margin: var(--wk-sp-3) 0 0;
+}
+
 .skill-market-card__desc {
   display: -webkit-box;
   min-height: 42px;
-  margin: var(--wk-sp-3) 0 0;
+  margin: 0;
   overflow: hidden;
   color: var(--wk-text-secondary);
   font-size: 13px;
   line-height: 1.55;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
+}
+
+.skill-market-card__desc-tooltip {
+  position: fixed;
+  z-index: 1000;
+  width: max-content;
+  max-width: min(420px, calc(100vw - var(--wk-sp-6)));
+  padding: var(--wk-sp-2) var(--wk-sp-3);
+  border: 1px solid var(--wk-border-subtle);
+  border-radius: var(--wk-r-sm);
+  background: var(--wk-bg-elevated);
+  box-shadow: var(--wk-shadow-dropdown);
+  color: var(--wk-text-strong);
+  font-size: 13px;
+  line-height: 1.5;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  overflow-y: auto;
+  pointer-events: none;
 }
 
 .skill-market-card__footer {
