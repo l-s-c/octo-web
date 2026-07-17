@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { AlertCircle, CheckCircle2, FileArchive, ImagePlus, Loader2, UploadCloud, XCircle } from "lucide-react";
 import { t, useI18n, WKButton, WKInput, WKModal } from "@octo/base";
-import type { Category, NewSkillForm, Visibility } from "../types/skill";
+import type { Category, NewSkillForm } from "../types/skill";
 import { createSkill, getSkillTags, initUpload, uploadFile, uploadIcon, triggerParse, pollParse } from "../api/skillApi";
 import { formatFileSize, MAX_SKILL_TAGS, validateSkillTag } from "../utils/format";
 import IconCropModal from "./IconCropModal";
@@ -55,7 +55,6 @@ export default function NewSkillModal({ visible, categories, onClose, onCreated 
   const [tagSuggestOpen, setTagSuggestOpen] = useState(false);
   const [activeTagSuggestion, setActiveTagSuggestion] = useState(0);
   const [tagError, setTagError] = useState<string | null>(null);
-  const [visibility, setVisibility] = useState<Visibility>("space");
   const [version, setVersion] = useState("1.0.0");
   const [iconPreview, setIconPreview] = useState<string | null>(null);
   const [iconBlob, setIconBlob] = useState<Blob | null>(null);
@@ -101,7 +100,6 @@ export default function NewSkillModal({ visible, categories, onClose, onCreated 
     setTagSuggestOpen(false);
     setActiveTagSuggestion(0);
     setTagError(null);
-    setVisibility("space");
     setVersion("1.0.0");
     setIconPreview(null);
     setIconBlob(null);
@@ -175,7 +173,6 @@ export default function NewSkillModal({ visible, categories, onClose, onCreated 
           setDescription(status.result.description);
           setTags(status.result.tags);
           setVersion(status.result.version);
-          setVisibility("space");
           setCategoryId("");
           setStage("form");
           setError(null);
@@ -308,7 +305,7 @@ export default function NewSkillModal({ visible, categories, onClose, onCreated 
         description,
         categoryId,
         tags: submittedTags,
-        visibility,
+        visibility: "space",
         version,
         readmeContent: createReadme(name, description, version),
         iconUrl,
@@ -539,23 +536,6 @@ export default function NewSkillModal({ visible, categories, onClose, onCreated 
                   </div>
                 </label>
               </div>
-              <fieldset className="skill-market-radio-group">
-                <legend>{t("skillMarket.form.visibility")}<i className="skill-market-required">*</i></legend>
-                {[
-                  ["space", t("skillMarket.form.visibilityPublic"), t("skillMarket.form.visibilityPublicHint")],
-                  ["private", t("skillMarket.form.visibilityPrivate"), t("skillMarket.form.visibilityPrivateHint")],
-                ].map(([value, label, hint]) => (
-                  <label key={value}>
-                    <input
-                      type="radio"
-                      checked={visibility === value}
-                      onChange={() => setVisibility(value as Visibility)}
-                    />
-                    <span>{label}</span>
-                    <small className="skill-market-radio-hint">{hint}</small>
-                  </label>
-                ))}
-              </fieldset>
               <div className="skill-market-doc-note">
                 <CheckCircle2 size={15} />
                 <span>{t("skillMarket.form.docNote")}</span>

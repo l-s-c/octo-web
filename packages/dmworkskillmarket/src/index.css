@@ -1543,42 +1543,6 @@
   clip: rect(0, 0, 0, 0);
 }
 
-.skill-market-radio-group {
-  display: flex;
-  flex-wrap: wrap;
-  align-content: start;
-  gap: var(--wk-sp-2);
-  margin: 0;
-  padding: 0;
-  border: 0;
-}
-
-.skill-market-radio-group legend {
-  width: 100%;
-  margin-bottom: 6px;
-  color: var(--wk-text-secondary);
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.skill-market-radio-group label {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  height: 32px;
-  padding: 0 var(--wk-sp-2);
-  border: 1px solid var(--wk-border-subtle);
-  border-radius: var(--wk-r-full);
-  background: var(--wk-bg-surface);
-  color: var(--wk-text-secondary);
-  font-size: 13px;
-}
-
-.skill-market-radio-group label:has(input:checked) {
-  border-color: var(--wk-brand-primary);
-  color: var(--wk-text-strong);
-}
-
 .skill-market-tag-field {
   position: relative;
 }
@@ -1884,14 +1848,6 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-/* --- Radio hint (small text under radio label) --- */
-
-.skill-market-radio-hint {
-  color: var(--wk-text-tertiary);
-  font-size: 12px;
-  font-weight: 400;
 }
 
 /* --- Crop modal --- */

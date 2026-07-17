@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { AlertCircle, Box, CheckCircle2, FileArchive, ImagePlus, Loader2, XCircle } from "lucide-react";
 import { t, useI18n, WKButton, WKInput, WKModal } from "@octo/base";
-import type { Category, Skill, Visibility } from "../types/skill";
+import type { Category, Skill } from "../types/skill";
 import { updateSkill, uploadIcon, initReupload, uploadFile, triggerParse, pollParse } from "../api/skillApi";
 import { formatFileSize, MAX_SKILL_TAGS, validateSkillTag } from "../utils/format";
 import IconCropModal from "./IconCropModal";
@@ -46,7 +46,6 @@ export default function EditSkillModal({ skill, categories, onClose, onUpdated }
   const [tags, setTags] = useState<string[]>([]);
   const [tagDraft, setTagDraft] = useState("");
   const [tagError, setTagError] = useState<string | null>(null);
-  const [visibility, setVisibility] = useState<Visibility>("space");
   const [version, setVersion] = useState("1.0.0");
   const [uploadStage, setUploadStage] = useState<UploadStage>("idle");
   const [progress, setProgress] = useState(0);
@@ -75,7 +74,6 @@ export default function EditSkillModal({ skill, categories, onClose, onUpdated }
     setTags(skill.tags);
     setTagDraft("");
     setTagError(null);
-    setVisibility(skill.visibility);
     setVersion(skill.version);
     setUploadStage("idle");
     setProgress(0);
@@ -94,7 +92,6 @@ export default function EditSkillModal({ skill, categories, onClose, onUpdated }
     name !== skill?.name ||
     displayName !== (skill?.displayName ?? "") ||
     categoryId !== skill?.categoryId ||
-    visibility !== skill?.visibility ||
     JSON.stringify(tags) !== JSON.stringify(skill?.tags) ||
     Boolean(tagDraft.trim()) ||
     Boolean(uploadedFile) ||
@@ -264,7 +261,6 @@ export default function EditSkillModal({ skill, categories, onClose, onUpdated }
         description,
         categoryId,
         tags: submittedTags,
-        visibility,
         ...(iconUrl !== undefined ? { iconUrl } : {}),
       });
       onUpdated(updated);
@@ -438,23 +434,6 @@ export default function EditSkillModal({ skill, categories, onClose, onUpdated }
               )}
             </label>
           </div>
-          <fieldset className="skill-market-radio-group">
-            <legend>{t("skillMarket.form.visibility")}<i className="skill-market-required">*</i></legend>
-            {[
-              ["space", t("skillMarket.form.visibilityPublic"), t("skillMarket.form.visibilityPublicHint")],
-              ["private", t("skillMarket.form.visibilityPrivate"), t("skillMarket.form.visibilityPrivateHint")],
-            ].map(([value, label, hint]) => (
-              <label key={value}>
-                <input
-                  type="radio"
-                  checked={visibility === value}
-                  onChange={() => setVisibility(value as Visibility)}
-                />
-                <span>{label}</span>
-                <small className="skill-market-radio-hint">{hint}</small>
-              </label>
-            ))}
-          </fieldset>
           <div className="skill-market-doc-note">
             <CheckCircle2 size={15} />
             <span>{t("skillMarket.form.docNote")}</span>
