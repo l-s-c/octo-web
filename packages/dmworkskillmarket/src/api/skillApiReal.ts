@@ -160,6 +160,29 @@ function wait(ms: number): Promise<void> {
   return new Promise((resolve) => globalThis.setTimeout(resolve, ms));
 }
 
+/**
+ * Reject presigned upload / download URLs whose scheme is not http(s), or
+ * whose http-scheme host is not loopback. Blocks `javascript:` / `data:` /
+ * `file:` / arbitrary non-web schemes before an anchor.href / xhr.open
+ * accepts them.
+ *
+ * Scope: scheme-level only. `https://10.x` / `https://169.254.169.254`
+ * still passes — internal-host filtering would need a marketplace-side
+ * allowlist not shipped here. Blast radius stays bounded because the PUT
+ * runs with no app credentials (bare XHR / no interceptors).
+ */
+function assertSafeExternalURL(raw: string): void {
+  let u: URL;
+  try {
+    u = new URL(raw);
+  } catch {
+    throw normalizeError({ code: "invalid_response", message: "URL 无效" });
+  }
+  if (u.protocol === "https:") return;
+  if (u.protocol === "http:" && (u.hostname === "localhost" || u.hostname === "127.0.0.1")) return;
+  throw normalizeError({ code: "invalid_response", message: "URL scheme 不允许" });
+}
+
 // ─── Mappers ───────────────────────────────────────────────────────────────
 
 function mapCategory(raw: RawCategory, index: number): Category {
@@ -332,6 +355,7 @@ export async function downloadSkill(id: string): Promise<void> {
   if (!result.download_url) {
     throw normalizeError({ code: "invalid_response", message: "下载地址无效" });
   }
+  assertSafeExternalURL(result.url);
   const anchor = document.createElement("a");
   anchor.href = result.download_url;
   anchor.target = "_blank";
@@ -371,6 +395,7 @@ export async function uploadFile(
   headers?: Record<string, string>,
   onProgress?: (percent: number) => void
 ): Promise<void> {
+    assertSafeExternalURL(presignedUrl);
   // Use XMLHttpRequest for progress support
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
@@ -413,7 +438,12 @@ export async function uploadIcon(blob: Blob): Promise<string> {
     method: "POST",
     body: JSON.stringify({ file_name: fileName, file_size: blob.size }),
   });
-
+  // Mirror the presence guard `uploadMcpIconReal` already has — a malformed
+  // response would otherwise dereference `undefined.presigned_url` inside
+  // `uploadFile` as a bare TypeError instead of a normalized Toast error.
+  if (!initResp?.presigned_url || !initResp?.object_key) {
+    throw normalizeError({ code: "invalid_response", message: "上传失败：响应字段缺失" });
+  }
   // Step 2: Upload the file to presigned URL
   const file = new File([blob], fileName, { type: "image/png" });
   await uploadFile(initResp.presigned_url, file, initResp.headers);

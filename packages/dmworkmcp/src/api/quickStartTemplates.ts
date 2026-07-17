@@ -63,7 +63,11 @@ function serverKey(qs: McpQuickStart): string {
 function buildJson(qs: McpQuickStart): string {
   const key = serverKey(qs);
   if (isRemote(qs)) {
-    // User-supplied headers first, so the auth line (if any) wins on collision.
+    // Bearer token overrides any user-supplied Authorization header: we set
+    // it AFTER spreading the user headers, so `merged.Authorization` is the
+    // masked bearer line regardless of what came in. yujiawei PR#851 P2:
+    // the previous comment claimed user headers won on collision, which the
+    // code contradicts.
     const merged: Record<string, string> = maskSecrets(qs.headers ?? {});
     if (qs.authType === "bearer") {
       merged.Authorization = `Bearer ${TOKEN_PLACEHOLDER}`;
