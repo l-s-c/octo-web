@@ -21,6 +21,7 @@
   "list": {
     "mine": "Mine",
     "publish": "Publish",
+    "publishSkill": "Publish Skill",
     "search": "Search",
     "errorTitle": "Failed to load",
     "retry": "Retry",
@@ -32,6 +33,22 @@
     "navAriaLabel": "Skill Market Navigation",
     "loadingAriaLabel": "Loading skills",
     "closeToast": "Close notification"
+  },
+  "filter": {
+    "searchNameDescription": "Search name or description...",
+    "tags": "Tags",
+    "searchTags": "Search tags",
+    "noTags": "No matching tags",
+    "noTagsSelected": "No tags selected",
+    "tagsSelected": "Tags selected",
+    "clear": "Clear"
+  },
+  "sort": {
+    "ariaLabel": "Skill sort",
+    "label": "Sort:",
+    "comprehensive": "Recommended",
+    "latest": "Latest",
+    "downloads": "Most downloaded"
   },
   "card": {
     "editAriaLabel": "Edit {{name}}",

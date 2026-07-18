@@ -132,6 +132,8 @@ describe("skillApiReal", () => {
     const result = await getSkills({
       q: "CI",
       categoryId: "dev-tools",
+      tags: ["CI", "质量"],
+      sort: "latest",
       limit: 10,
     });
 
@@ -146,6 +148,8 @@ describe("skillApiReal", () => {
     const url = mockFetch.mock.calls[0][0] as string;
     expect(url).toContain("q=CI");
     expect(url).toContain("category_id=dev-tools");
+    expect(url).toContain("tags=CI%2C%E8%B4%A8%E9%87%8F");
+    expect(url).toContain("sort=latest");
     expect(url).toContain("page_size=10");
   });
 
@@ -187,13 +191,19 @@ describe("skillApiReal", () => {
   it("getMySkills calls /skill/mine endpoint", async () => {
     mockFetch.mockReturnValueOnce(jsonResponse([], 200, { has_more: false }));
 
-    const result = await getMySkills({ q: "test" });
+    const result = await getMySkills({
+      q: "test",
+      tags: ["协作"],
+      sort: "downloads",
+    });
 
     expect(result.items).toEqual([]);
     expect(result.nextCursor).toBeNull();
     const url = mockFetch.mock.calls[0][0] as string;
     expect(url).toContain("/market/api/v1/skills/mine");
     expect(url).toContain("q=test");
+    expect(url).toContain("tags=%E5%8D%8F%E4%BD%9C");
+    expect(url).toContain("sort=downloads");
   });
 
   it("getSkill maps a single skill", async () => {

@@ -1,4 +1,5 @@
 export type Visibility = "public" | "space" | "private";
+export type SkillSort = "comprehensive" | "latest" | "downloads";
 
 // ─── Frontend (camelCase) types ────────────────────────────────────────────
 
@@ -35,6 +36,8 @@ export interface Skill {
 export interface SkillListQuery {
   q?: string;
   categoryId?: string;
+  tags?: string[];
+  sort?: SkillSort;
   cursor?: string;
   limit?: number;
   mine?: boolean;

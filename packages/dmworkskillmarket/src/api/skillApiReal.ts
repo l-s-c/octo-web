@@ -106,7 +106,7 @@ async function requestEnvelope<T>(
   // Handle 401 — redirect to login
   if (res.status === 401) {
     const loginPath =
-      ((WKApp.loginInfo as Record<string, unknown>)?.loginUrl as
+      ((WKApp.loginInfo as unknown as Record<string, unknown>)?.loginUrl as
         | string
         | undefined) ?? "/login";
     if (typeof window !== "undefined") window.location.href = loginPath;
@@ -252,6 +252,8 @@ export function getSkills(
   if (query.q) params.set("q", query.q);
   if (query.categoryId && query.categoryId !== "all")
     params.set("category_id", query.categoryId);
+  if (query.tags?.length) params.set("tags", query.tags.join(","));
+  if (query.sort) params.set("sort", query.sort);
   if (query.cursor) params.set("cursor", query.cursor);
   if (query.limit) params.set("page_size", String(query.limit));
   const qs = params.toString();
@@ -272,6 +274,8 @@ export function getMySkills(
 ): Promise<PagedResult<Skill>> {
   const params = new URLSearchParams();
   if (query.q) params.set("q", query.q);
+  if (query.tags?.length) params.set("tags", query.tags.join(","));
+  if (query.sort) params.set("sort", query.sort);
   if (query.cursor) params.set("cursor", query.cursor);
   if (query.limit) params.set("page_size", String(query.limit));
   const qs = params.toString();

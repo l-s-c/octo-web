@@ -33,12 +33,17 @@ describe("skillApi mock contract", () => {
       "其他",
       "全部",
     ]);
-    expect(categories.find((category) => category.id === "dev-tools")?.skillCount).toBeGreaterThan(5);
+    expect(
+      categories.find((category) => category.id === "dev-tools")?.skillCount
+    ).toBeGreaterThan(5);
   });
 
   it("pages skills and returns a cursor for the next batch", async () => {
     const firstPage = await getSkills({ limit: 20 });
-    const secondPage = await getSkills({ limit: 20, cursor: firstPage.nextCursor ?? undefined });
+    const secondPage = await getSkills({
+      limit: 20,
+      cursor: firstPage.nextCursor ?? undefined,
+    });
 
     expect(firstPage.items).toHaveLength(20);
     expect(firstPage.nextCursor).toBe("20");
@@ -53,12 +58,16 @@ describe("skillApi mock contract", () => {
 
     expect(
       searched.items.every((skill) =>
-        `${skill.name} ${skill.description} ${skill.ownerName} ${skill.visibility} ${skill.categoryId} ${skill.tags.join(" ")}`
+        `${skill.name} ${skill.description} ${skill.ownerName} ${
+          skill.visibility
+        } ${skill.categoryId} ${skill.tags.join(" ")}`
           .toLowerCase()
-          .includes("ci"),
-      ),
+          .includes("ci")
+      )
     ).toBe(true);
-    expect(category.items.every((skill) => skill.categoryId === "quality")).toBe(true);
+    expect(
+      category.items.every((skill) => skill.categoryId === "quality")
+    ).toBe(true);
     expect(mine.items.length).toBeGreaterThanOrEqual(3);
     expect(mine.items.every((skill) => skill.ownerId === "me")).toBe(true);
   });
@@ -67,7 +76,20 @@ describe("skillApi mock contract", () => {
     const tags = await getSkillTags("ci");
 
     expect(tags.length).toBeGreaterThan(0);
-    expect(tags.every((tag) => tag.name.toLowerCase().includes("ci"))).toBe(true);
+    expect(tags.every((tag) => tag.name.toLowerCase().includes("ci"))).toBe(
+      true
+    );
+  });
+
+  it("filters mock skills by all selected tags", async () => {
+    const filtered = await getSkills({ tags: ["纪要", "协作"], limit: 50 });
+
+    expect(filtered.items.length).toBeGreaterThan(0);
+    expect(
+      filtered.items.every(
+        (skill) => skill.tags.includes("纪要") && skill.tags.includes("协作")
+      )
+    ).toBe(true);
   });
 
   it("search matches category name so users can find skills by visible category label", async () => {
@@ -75,9 +97,13 @@ describe("skillApi mock contract", () => {
     const office = await getSkills({ q: "办公协作", limit: 50 });
 
     expect(devTools.items.length).toBeGreaterThan(0);
-    expect(devTools.items.every((skill) => skill.categoryId === "dev-tools")).toBe(true);
+    expect(
+      devTools.items.every((skill) => skill.categoryId === "dev-tools")
+    ).toBe(true);
     expect(office.items.length).toBeGreaterThan(0);
-    expect(office.items.every((skill) => skill.categoryId === "office")).toBe(true);
+    expect(office.items.every((skill) => skill.categoryId === "office")).toBe(
+      true
+    );
   });
 
   it("creates, updates, loads, and deletes a skill in the mock store", async () => {

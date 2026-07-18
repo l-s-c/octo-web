@@ -82,6 +82,8 @@ export default function SkillCard({ skill, categories: _categories, onOpen, onEd
   const hiddenTagCount = Math.max(0, skill.tags.length - visibleTags.length);
   const isOwnerCard = Boolean(onEdit || onDelete);
   const descriptionTooltipId = `skill-card-desc-${skill.id}`;
+  const displayName = skill.displayName || skill.name;
+  const ownerLabel = `@${skill.ownerName}`;
 
   useLayoutEffect(() => {
     const description = descriptionRef.current;
@@ -156,15 +158,15 @@ export default function SkillCard({ skill, categories: _categories, onOpen, onEd
           )}
         </span>
         <div className="skill-market-card__info">
-          <h3>{skill.displayName || skill.name}</h3>
+          <h3 title={displayName}>{displayName}</h3>
           <div className="skill-market-card__tags">
             {visibleTags.map((tag) => (
-              <span key={tag}>{tag}</span>
+              <span key={tag} title={tag}>{tag}</span>
             ))}
             {hiddenTagCount > 0 && <span>+{hiddenTagCount}</span>}
           </div>
         </div>
-        <span className="skill-market-card__owner">@{skill.ownerName}</span>
+        <span className="skill-market-card__owner" title={ownerLabel}>{ownerLabel}</span>
         {(onEdit || onDelete) && (
           <div className="skill-market-card__actions" onClick={(event) => event.stopPropagation()}>
             {onEdit && (
