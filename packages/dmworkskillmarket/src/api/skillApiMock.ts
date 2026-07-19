@@ -4,6 +4,7 @@ import type {
   PagedResult,
   Skill,
   SkillListQuery,
+  SkillTag,
   SkillVersion,
   UpdateSkillForm,
 } from "../types/skill";
@@ -59,11 +60,22 @@ function matchesQuery(skill: Skill, q: string): boolean {
 
 function applySkillQuery(query: SkillListQuery): Skill[] {
   const q = normalizeQuery(query.q);
+  const selectedTags = query.tags?.filter(Boolean) ?? [];
   return skills
     .filter((skill) => !query.mine || skill.ownerId === CURRENT_USER_ID)
-    .filter((skill) => !query.categoryId || query.categoryId === "all" || skill.categoryId === query.categoryId)
+    .filter(
+      (skill) =>
+        !query.categoryId ||
+        query.categoryId === "all" ||
+        skill.categoryId === query.categoryId
+    )
+    .filter((skill) => selectedTags.every((tag) => skill.tags.includes(tag)))
     .filter((skill) => matchesQuery(skill, q))
-    .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+    .sort((a, b) => {
+      if (query.sort === "latest")
+        return b.createdAt.localeCompare(a.createdAt);
+      return b.updatedAt.localeCompare(a.updatedAt);
+    });
 }
 
 function pageSkills(items: Skill[], query: SkillListQuery): PagedResult<Skill> {
@@ -77,7 +89,9 @@ function pageSkills(items: Skill[], query: SkillListQuery): PagedResult<Skill> {
   };
 }
 
-export function getCategories(_opts?: { signal?: AbortSignal }): Promise<Category[]> {
+export function getCategories(_opts?: {
+  signal?: AbortSignal;
+}): Promise<Category[]> {
   const counted = CATEGORY_SEEDS.map((category) => ({
     ...category,
     skillCount:
@@ -88,12 +102,31 @@ export function getCategories(_opts?: { signal?: AbortSignal }): Promise<Categor
   return withDelay(counted);
 }
 
-export function getSkills(query: SkillListQuery = {}, _opts?: { signal?: AbortSignal }): Promise<PagedResult<Skill>> {
+export function getSkills(
+  query: SkillListQuery = {},
+  _opts?: { signal?: AbortSignal }
+): Promise<PagedResult<Skill>> {
   return withDelay(pageSkills(applySkillQuery(query), query));
 }
 
-export function getMySkills(query: SkillListQuery = {}, _opts?: { signal?: AbortSignal }): Promise<PagedResult<Skill>> {
+export function getMySkills(
+  query: SkillListQuery = {},
+  _opts?: { signal?: AbortSignal }
+): Promise<PagedResult<Skill>> {
   return getSkills({ ...query, mine: true });
+}
+
+export function getSkillTags(
+  q = "",
+  _opts?: { signal?: AbortSignal }
+): Promise<SkillTag[]> {
+  const query = normalizeQuery(q);
+  const names = Array.from(new Set(skills.flatMap((skill) => skill.tags)))
+    .filter((name) => !query || name.toLowerCase().includes(query))
+    .sort((a, b) => a.localeCompare(b))
+    .slice(0, 20)
+    .map((name) => ({ name, createdBy: CURRENT_USER_ID }));
+  return withDelay(names);
 }
 
 export function getSkill(id: string): Promise<Skill> {
@@ -104,7 +137,12 @@ export function getSkill(id: string): Promise<Skill> {
 
 export function createSkill(form: NewSkillForm): Promise<Skill> {
   const now = new Date().toISOString();
-  const baseId = form.name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") || "new-skill";
+  const baseId =
+    form.name
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/(^-|-$)/g, "") || "new-skill";
   let id = baseId;
   let suffix = 2;
   while (skills.some((skill) => skill.id === id)) {

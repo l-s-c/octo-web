@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { t } from "@octo/base";
-import type { Category, Skill } from "../types/skill";
+import type { Category, Skill, SkillSort } from "../types/skill";
 import { getCategories, getMySkills, getSkills } from "../api/skillApi";
 
 interface UseSkillsOptions {
   mine?: boolean;
+  selectedTags?: string[];
+  sort?: SkillSort;
 }
 
 export interface UseSkillsResult {
@@ -23,6 +25,9 @@ export interface UseSkillsResult {
 }
 
 export function useSkills(options: UseSkillsOptions = {}): UseSkillsResult {
+  const selectedTags = options.selectedTags ?? [];
+  const sort = options.sort ?? "comprehensive";
+  const tagKey = selectedTags.join("\u0001");
   const [categories, setCategories] = useState<Category[]>([]);
   const [skills, setSkills] = useState<Skill[]>([]);
   const [query, setQueryState] = useState("");
@@ -53,17 +58,43 @@ export function useSkills(options: UseSkillsOptions = {}): UseSkillsResult {
         const [categoryItems, page] = await Promise.all([
           getCategories({ signal }),
           options.mine
-            ? getMySkills({ q: debouncedQuery, categoryId, cursor: nextCursor ?? undefined, limit: 20 }, { signal })
-            : getSkills({ q: debouncedQuery, categoryId, cursor: nextCursor ?? undefined, limit: 20 }, { signal }),
+            ? getMySkills(
+                {
+                  q: debouncedQuery,
+                  categoryId,
+                  tags: selectedTags,
+                  sort,
+                  cursor: nextCursor ?? undefined,
+                  limit: 20,
+                },
+                { signal }
+              )
+            : getSkills(
+                {
+                  q: debouncedQuery,
+                  categoryId,
+                  tags: selectedTags,
+                  sort,
+                  cursor: nextCursor ?? undefined,
+                  limit: 20,
+                },
+                { signal }
+              ),
         ]);
         if (controller.signal.aborted) return;
         setCategories(categoryItems);
-        setSkills((current: Skill[]) => (isMore ? [...current, ...page.items] : page.items));
+        setSkills((current: Skill[]) =>
+          isMore ? [...current, ...page.items] : page.items
+        );
         setCursor(page.nextCursor);
       } catch (err) {
         if (controller.signal.aborted) return;
         if (err instanceof DOMException && err.name === "AbortError") return;
-        setError(err instanceof Error ? err.message : t("skillMarket.common.loadFailed"));
+        setError(
+          err instanceof Error
+            ? err.message
+            : t("skillMarket.common.loadFailed")
+        );
       } finally {
         if (!controller.signal.aborted) {
           setLoading(false);
@@ -71,7 +102,7 @@ export function useSkills(options: UseSkillsOptions = {}): UseSkillsResult {
         }
       }
     },
-    [categoryId, debouncedQuery, options.mine],
+    [categoryId, debouncedQuery, options.mine, sort, tagKey]
   );
 
   useEffect(() => {

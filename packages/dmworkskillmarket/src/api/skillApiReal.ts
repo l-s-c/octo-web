@@ -14,9 +14,11 @@ import type {
   RawCategory,
   RawPagedResult,
   RawSkill,
+  RawSkillTag,
   RawSkillVersion,
   Skill,
   SkillListQuery,
+  SkillTag,
   SkillVersion,
   TriggerParseResult,
   UpdateSkillForm,
@@ -104,7 +106,7 @@ async function requestEnvelope<T>(
   // Handle 401 — redirect to login
   if (res.status === 401) {
     const loginPath =
-      ((WKApp.loginInfo as Record<string, unknown>)?.loginUrl as
+      ((WKApp.loginInfo as unknown as Record<string, unknown>)?.loginUrl as
         | string
         | undefined) ?? "/login";
     if (typeof window !== "undefined") window.location.href = loginPath;
@@ -213,6 +215,15 @@ function mapSkill(raw: RawSkill): Skill {
   };
 }
 
+function mapSkillTag(raw: RawSkillTag): SkillTag {
+  return {
+    name: raw.name,
+    createdBy: raw.created_by,
+    createdAt: raw.created_at,
+    updatedAt: raw.updated_at,
+  };
+}
+
 function mapPagedResult(raw: RawPagedResult<RawSkill>): PagedResult<Skill> {
   return {
     items: (raw.items ?? []).map(mapSkill),
@@ -241,6 +252,8 @@ export function getSkills(
   if (query.q) params.set("q", query.q);
   if (query.categoryId && query.categoryId !== "all")
     params.set("category_id", query.categoryId);
+  if (query.tags?.length) params.set("tags", query.tags.join(","));
+  if (query.sort) params.set("sort", query.sort);
   if (query.cursor) params.set("cursor", query.cursor);
   if (query.limit) params.set("page_size", String(query.limit));
   const qs = params.toString();
@@ -261,6 +274,8 @@ export function getMySkills(
 ): Promise<PagedResult<Skill>> {
   const params = new URLSearchParams();
   if (query.q) params.set("q", query.q);
+  if (query.tags?.length) params.set("tags", query.tags.join(","));
+  if (query.sort) params.set("sort", query.sort);
   if (query.cursor) params.set("cursor", query.cursor);
   if (query.limit) params.set("page_size", String(query.limit));
   const qs = params.toString();
@@ -273,6 +288,21 @@ export function getMySkills(
       next_cursor: pagination?.next_cursor ?? null,
     })
   );
+}
+
+export function getSkillTags(
+  q = "",
+  opts?: RequestOptions
+): Promise<SkillTag[]> {
+  const params = new URLSearchParams();
+  const query = q.trim();
+  if (query) params.set("q", query);
+  params.set("page_size", "20");
+  const qs = params.toString();
+  return request<{ items: RawSkillTag[] }>(
+    `/skills/tags${qs ? `?${qs}` : ""}`,
+    opts?.signal ? { signal: opts.signal } : undefined
+  ).then((data) => (data.items ?? []).map(mapSkillTag));
 }
 
 export function getSkill(id: string): Promise<Skill> {
@@ -291,6 +321,7 @@ export function createSkill(form: NewSkillForm): Promise<Skill> {
       tags: form.tags,
       visibility: form.visibility,
       version: form.version,
+      changelog: form.changelog,
       icon_url: form.iconUrl ?? "",
     }),
   }).then(mapSkill);

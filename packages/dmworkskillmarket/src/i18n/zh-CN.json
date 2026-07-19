@@ -21,6 +21,7 @@
   "list": {
     "mine": "我的",
     "publish": "上架",
+    "publishSkill": "上架 Skill",
     "search": "搜索",
     "errorTitle": "加载失败",
     "retry": "重试",
@@ -32,6 +33,22 @@
     "navAriaLabel": "Skill 市场导航",
     "loadingAriaLabel": "Skill 加载中",
     "closeToast": "关闭提示"
+  },
+  "filter": {
+    "searchNameDescription": "搜索名称、描述...",
+    "tags": "标签",
+    "searchTags": "搜索标签",
+    "noTags": "没有匹配标签",
+    "noTagsSelected": "未选择标签",
+    "tagsSelected": "已选择标签",
+    "clear": "清空"
+  },
+  "sort": {
+    "ariaLabel": "Skill 排序",
+    "label": "排序：",
+    "comprehensive": "综合",
+    "latest": "最新发布",
+    "downloads": "下载最多"
   },
   "card": {
     "editAriaLabel": "编辑 {{name}}",
@@ -48,9 +65,6 @@
     "promptCopied": "安装 Prompt 已复制",
     "downloadStarted": "下载已打开",
     "downloadFailed": "下载失败",
-    "visibilityPrivate": "私有",
-    "visibilitySpace": "空间可见",
-    "visibilityPublic": "公开",
     "updatedAt": "{{time}}更新",
     "tabIntro": "Skill 介绍",
     "tabVersions": "版本历史",
@@ -79,14 +93,16 @@
     "category": "分类",
     "categoryPlaceholder": "请选择分类",
     "tags": "标签",
-    "tagPlaceholder": "输入标签后回车",
-    "visibility": "可见性",
-    "visibilityPublic": "公开",
-    "visibilityPublicHint": "Space 内所有成员可见",
-    "visibilityPrivate": "非公开",
-    "visibilityPrivateHint": "仅自己可见",
+    "tagPlaceholder": "输入或选择标签",
+    "tagSuggestions": "标签候选",
+    "tagLimit": "最多添加 {{count}} 个标签",
+    "tagLengthLimit": "单个标签最多 {{count}} 个字符",
+    "tagInvalidChars": "标签仅支持文字、数字、空格和 - _ . / # +",
+    "tagDuplicate": "标签已存在",
+    "initialChangelog": "首次上架 Skill。",
+    "currentVersionChangelog": "当前线上版本。",
     "docNote": "由 SKILL.md 自动解析，如需修改请重新上传 zip 包",
-    "validationRequired": "请填写展示名称和分类",
+    "validationRequired": "请填写版本号、更新说明、展示名称和分类",
     "validationNoUpload": "请先上传并解析 Skill 压缩包",
     "saveFailed": "保存失败",
     "createFailed": "创建失败"
@@ -94,8 +110,10 @@
   "upload": {
     "invalidFormat": "文件格式不正确",
     "fileTooLarge": "文件超过 20MB",
-    "dropzoneTitle": "上传 Skill 压缩包（.zip，≤20MB）",
+    "dropzoneTitle": "上传 Skill 压缩包（.zip）",
     "dropzoneHint": "zip 内需包含 SKILL.md 文件",
+    "parseAutofillHint": "zip 内需包含 SKILL.md，解析后自动填充下方信息",
+    "selectFileAction": "选择文件",
     "selectFileAriaLabel": "选择 Skill zip 文件",
     "selectNewFileAriaLabel": "选择新的 Skill zip 文件",
     "uploading": "上传中",
@@ -109,7 +127,10 @@
     "reupload": "重新上传 zip 包",
     "reuploadShort": "重新上传",
     "parsed": "已解析 SKILL.md",
-    "currentPackage": "当前 Skill 包"
+    "parsedWithName": "已解析 SKILL.md · 英文名 {{name}}",
+    "currentPackage": "当前 Skill 包",
+    "currentPackageWithName": "当前 Skill 包 · 英文名 {{name}}",
+    "newVersionParsedWithName": "已解析新版本 · 英文名 {{name}}"
   },
   "confirm": {
     "title": "确定离开？",

@@ -1,4 +1,5 @@
 export type Visibility = "public" | "space" | "private";
+export type SkillSort = "comprehensive" | "latest" | "downloads";
 
 // ─── Frontend (camelCase) types ────────────────────────────────────────────
 
@@ -35,9 +36,18 @@ export interface Skill {
 export interface SkillListQuery {
   q?: string;
   categoryId?: string;
+  tags?: string[];
+  sort?: SkillSort;
   cursor?: string;
   limit?: number;
   mine?: boolean;
+}
+
+export interface SkillTag {
+  name: string;
+  createdBy?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface PagedResult<T> {
@@ -60,6 +70,7 @@ export interface NewSkillForm {
   tags: string[];
   visibility: Visibility;
   version?: string;
+  changelog?: string;
   readmeContent: string;
   iconUrl?: string;
   fileName: string;
@@ -152,6 +163,13 @@ export interface RawSkill {
   file_sha256: string;
   created_at: string;
   updated_at: string;
+}
+
+export interface RawSkillTag {
+  name: string;
+  created_by?: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 /** Raw paged response from list endpoints */

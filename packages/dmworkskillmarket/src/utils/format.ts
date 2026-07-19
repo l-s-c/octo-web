@@ -29,5 +29,26 @@ export function tagsFromInput(value: string): string[] {
     .split(/[,，\s]+/)
     .map((tag) => tag.trim())
     .filter(Boolean)
-    .slice(0, 5);
+    .slice(0, MAX_SKILL_TAGS);
+}
+
+export const MAX_SKILL_TAGS = 5;
+export const MAX_SKILL_TAG_LENGTH = 24;
+
+const SKILL_TAG_PATTERN = /^[\p{L}\p{N} _./#+-]+$/u;
+
+export function tagLength(value: string): number {
+  return Array.from(value).length;
+}
+
+export function validateSkillTag(value: string): string | null {
+  const tag = value.trim();
+  if (!tag) return null;
+  if (tagLength(tag) > MAX_SKILL_TAG_LENGTH) {
+    return t("skillMarket.form.tagLengthLimit", { values: { count: MAX_SKILL_TAG_LENGTH } });
+  }
+  if (!SKILL_TAG_PATTERN.test(tag)) {
+    return t("skillMarket.form.tagInvalidChars");
+  }
+  return null;
 }

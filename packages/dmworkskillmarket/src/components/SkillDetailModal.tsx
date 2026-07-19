@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import rehypeSanitize from "rehype-sanitize";
 import remarkGfm from "remark-gfm";
-import { Copy, Download, FileArchive, Lock, Pencil, Terminal, Trash2, Users } from "lucide-react";
+import { Copy, Download, FileArchive, Pencil, Terminal, Trash2 } from "lucide-react";
 import { t, useI18n, WKApp, WKButton, WKModal } from "@octo/base";
 import type { Category, Skill, SkillVersion } from "../types/skill";
 import { downloadSkill, getSkill, listVersions } from "../api/skillApi";
@@ -21,12 +21,6 @@ interface SkillDetailModalProps {
 }
 
 type DetailTab = "intro" | "versions";
-
-function visibilityText(value: Skill["visibility"]): string {
-  if (value === "private") return t("skillMarket.detail.visibilityPrivate");
-  if (value === "space") return t("skillMarket.detail.visibilitySpace");
-  return t("skillMarket.detail.visibilityPublic");
-}
 
 function formatDate(iso: string): string {
   if (!iso) return "";
@@ -164,10 +158,6 @@ export default function SkillDetailModal({
               <div className="skill-market-detail-header__meta">
                 <span>@{skill.ownerName}</span>
                 <span>{t("skillMarket.detail.updatedAt", { values: { time: formatRelativeTime(skill.updatedAt) } })}</span>
-                <span>
-                  {skill.visibility === "private" ? <Lock size={12} /> : <Users size={12} />}
-                  {visibilityText(skill.visibility)}
-                </span>
               </div>
             )}
             {hasOwnerActions && skill && (

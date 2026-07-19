@@ -9,6 +9,13 @@ const categories: Category[] = [
   { id: "office", name: "办公协作", iconKey: "FolderKanban", sortOrder: 1, skillCount: 1 },
 ];
 
+const copyPromptButton = /复制安装 Prompt|skillMarket\.detail\.copyPrompt/;
+const downloadButton = /下载 Skill 包|skillMarket\.detail\.downloadBtn/;
+const versionsButton = /版本历史|skillMarket\.detail\.tabVersions/;
+const latestText = /最新|skillMarket\.detail\.latest/;
+const noVersionsText = /暂无历史版本|skillMarket\.detail\.noVersions/;
+const editTitle = /编辑|skillMarket\.common\.edit/;
+
 const skill: Skill = {
   id: "meeting-note-cleaner",
   name: "meeting-note-cleaner",
@@ -51,13 +58,20 @@ describe("SkillDetailModal", () => {
 
     expect(await screen.findByText("meeting-note-cleaner.zip")).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "复制安装 Prompt" }));
+    fireEvent.click(screen.getByRole("button", { name: copyPromptButton }));
     await waitFor(() => expect(navigator.clipboard.writeText).toHaveBeenCalled());
-    expect(onFeedback).toHaveBeenCalledWith("安装 Prompt 已复制");
+    expect(onFeedback).toHaveBeenCalledWith("skillMarket.detail.promptCopied");
 
-    fireEvent.click(screen.getByRole("button", { name: "下载 Skill 包" }));
+    fireEvent.click(screen.getByRole("button", { name: downloadButton }));
     await waitFor(() => expect(api.downloadSkill).toHaveBeenCalledWith(skill.id));
-    expect(onFeedback).toHaveBeenCalledWith("下载已打开");
+    expect(onFeedback).toHaveBeenCalledWith("skillMarket.detail.downloadStarted");
+  });
+
+  it("does not show visibility metadata", async () => {
+    render(<SkillDetailModal skillId={skill.id} categories={categories} onClose={vi.fn()} />);
+
+    expect(await screen.findByText("meeting-note-cleaner.zip")).toBeInTheDocument();
+    expect(screen.queryByText(/空间可见|公开|私有|skillMarket\.detail\.visibility/)).not.toBeInTheDocument();
   });
 
   it("shows version history tab with current version", async () => {
@@ -68,32 +82,31 @@ describe("SkillDetailModal", () => {
     render(<SkillDetailModal skillId={skill.id} categories={categories} onClose={vi.fn()} />);
 
     await screen.findByText("meeting-note-cleaner.zip");
-    fireEvent.click(screen.getByRole("button", { name: "版本历史" }));
+    fireEvent.click(screen.getByRole("button", { name: versionsButton }));
 
-    await waitFor(() => expect(screen.getByText("最新")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(latestText)).toBeInTheDocument());
     expect(screen.getByText("v1.1.3")).toBeInTheDocument();
     expect(screen.getByText("v1.0.0")).toBeInTheDocument();
     expect(screen.getByText("初始发布")).toBeInTheDocument();
   });
 
-  it("shows upload button for owner", async () => {
-    render(<SkillDetailModal skillId={skill.id} categories={categories} onClose={vi.fn()} />);
+  it("shows edit action for owner", async () => {
+    render(<SkillDetailModal skillId={skill.id} categories={categories} onClose={vi.fn()} onEdit={vi.fn()} />);
 
     await screen.findByText("meeting-note-cleaner.zip");
-    fireEvent.click(screen.getByRole("button", { name: "版本历史" }));
 
-    await waitFor(() => expect(screen.getByTitle("上传新版本")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByTitle(editTitle)).toBeInTheDocument());
   });
 
-  it("hides upload button for non-owner", async () => {
+  it("hides owner actions for non-owner", async () => {
     const otherSkill = { ...skill, ownerId: "someone-else" };
     vi.mocked(api.getSkill).mockResolvedValue(otherSkill);
-    render(<SkillDetailModal skillId={skill.id} categories={categories} onClose={vi.fn()} />);
+    render(<SkillDetailModal skillId={skill.id} categories={categories} onClose={vi.fn()} onEdit={vi.fn()} />);
 
     await screen.findByText("meeting-note-cleaner.zip");
-    fireEvent.click(screen.getByRole("button", { name: "版本历史" }));
+    fireEvent.click(screen.getByRole("button", { name: versionsButton }));
 
-    await waitFor(() => expect(screen.getByText("暂无历史版本")).toBeInTheDocument());
-    expect(screen.queryByTitle("上传新版本")).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText(noVersionsText)).toBeInTheDocument());
+    expect(screen.queryByTitle(editTitle)).not.toBeInTheDocument();
   });
 });
