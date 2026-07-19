@@ -16,6 +16,7 @@ interface EditSkillModalProps {
 type UploadStage = "idle" | "uploading" | "parsing" | "error";
 
 const MAX_ZIP_SIZE = 20 * 1024 * 1024;
+const SKILL_PACKAGE_ACCEPT = ".zip,.skill";
 
 function bumpPatch(ver: string): string {
   const parts = ver.split(".");
@@ -26,7 +27,8 @@ function bumpPatch(ver: string): string {
 }
 
 function validateZipFile(file: File): string | null {
-  if (!file.name.toLowerCase().endsWith(".zip")) return t("skillMarket.upload.invalidFormat");
+  const name = file.name.toLowerCase();
+  if (!name.endsWith(".zip") && !name.endsWith(".skill")) return t("skillMarket.upload.invalidFormat");
   if (file.size > MAX_ZIP_SIZE) return t("skillMarket.upload.fileTooLarge");
   return null;
 }
@@ -316,7 +318,7 @@ export default function EditSkillModal({ skill, categories, onClose, onUpdated }
               aria-label={t("skillMarket.upload.selectNewFileAriaLabel")}
               className="skill-market-upload-file__input"
               type="file"
-              accept=".zip"
+              accept={SKILL_PACKAGE_ACCEPT}
               onChange={handleFileChange}
             />
           </div>

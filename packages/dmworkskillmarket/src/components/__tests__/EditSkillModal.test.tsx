@@ -14,8 +14,8 @@ const categories: Category[] = [
 const displayNamePlaceholder = /请输入展示名称，最多20个字符|skillMarket\.form\.displayNamePlaceholder/;
 const changelogPlaceholder = /简述此版本变更内容|skillMarket\.form\.changelogPlaceholder/;
 const saveButton = /保存|skillMarket\.common\.save/;
-const reuploadButton = /重新上传 zip 包|skillMarket\.upload\.reupload/;
-const selectNewZipLabel = /选择新的 Skill zip 文件|skillMarket\.upload\.selectNewFileAriaLabel/;
+const reuploadButton = /重新上传 Skill 包|skillMarket\.upload\.reupload/;
+const selectNewZipLabel = /选择新的 Skill 包文件|skillMarket\.upload\.selectNewFileAriaLabel/;
 const dirtyEditMessage = /确定离开？尚未完成编辑，已上传的文件和填写的信息将丢失。|skillMarket\.confirm\.dirtyEditMessage/;
 const keepEditing = /继续编辑|skillMarket\.confirm\.keepEditing/;
 const leaveButton = /确认离开|skillMarket\.confirm\.leave/;
@@ -126,23 +126,23 @@ describe("EditSkillModal", () => {
     expect(onClose).toHaveBeenCalled();
   });
 
-  it("can re-upload a zip package and save the new file metadata", async () => {
+  it("can re-upload a Skill package and save the new file metadata", async () => {
     render(<EditSkillModal skill={skill} categories={categories} onClose={vi.fn()} onUpdated={vi.fn()} />);
 
     fireEvent.click(screen.getByText(reuploadButton));
 
     await act(async () => {
       fireEvent.change(screen.getByLabelText(selectNewZipLabel), {
-        target: { files: [new File(["zip"], "updated-skill.zip", { type: "application/zip" })] },
+        target: { files: [new File(["zip"], "updated-skill.skill", { type: "application/zip" })] },
       });
     });
 
     // Wait for the upload/parse flow to complete
     await waitFor(() => {
-      expect(screen.getByText("updated-skill.zip")).toBeInTheDocument();
+      expect(screen.getByText("updated-skill.skill")).toBeInTheDocument();
     });
 
-    expect(api.initReupload).toHaveBeenCalledWith("meeting-note-cleaner", "updated-skill.zip", 3);
+    expect(api.initReupload).toHaveBeenCalledWith("meeting-note-cleaner", "updated-skill.skill", 3);
     expect(api.uploadFile).toHaveBeenCalled();
     expect(api.triggerParse).toHaveBeenCalledWith("reupload-456");
     expect(api.pollParse).toHaveBeenCalledWith("task-456");

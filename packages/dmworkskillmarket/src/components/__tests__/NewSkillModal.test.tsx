@@ -13,7 +13,7 @@ const categories: Category[] = [
 
 vi.mock("../../api/skillApi");
 
-const selectZipLabel = /选择 Skill zip 文件|skillMarket\.upload\.selectFileAriaLabel/;
+const selectZipLabel = /选择 Skill 包文件|skillMarket\.upload\.selectFileAriaLabel/;
 const displayNamePlaceholder = /请输入展示名称，最多20个字符|skillMarket\.form\.displayNamePlaceholder/;
 const categoryLabel = /分类|skillMarket\.form\.category/;
 const tagPlaceholder = /输入或选择标签|skillMarket\.form\.tagPlaceholder/;
@@ -29,6 +29,10 @@ const tagLengthLimit = /单个标签最多 24 个字符|skillMarket\.form\.tagLe
 const tagInvalidChars = /标签仅支持文字、数字、空格和 - _ \. \/ # \+|skillMarket\.form\.tagInvalidChars/;
 
 function zipFile(name = "skill-pack.zip", size = 1024 * 1024) {
+  return new File(["x".repeat(Math.min(size, 1024))], name, { type: "application/zip" });
+}
+
+function skillFile(name = "skill-pack.skill", size = 1024 * 1024) {
   return new File(["x".repeat(Math.min(size, 1024))], name, { type: "application/zip" });
 }
 
@@ -64,7 +68,7 @@ describe("NewSkillModal", () => {
     });
   });
 
-  it("validates zip files before upload starts", () => {
+  it("validates Skill package files before upload starts", () => {
     render(<NewSkillModal visible categories={categories} onClose={vi.fn()} onCreated={vi.fn()} />);
 
     fireEvent.change(screen.getByLabelText(selectZipLabel), {
@@ -82,17 +86,17 @@ describe("NewSkillModal", () => {
 
     await act(async () => {
       fireEvent.change(screen.getByLabelText(selectZipLabel), {
-        target: { files: [zipFile()] },
+        target: { files: [skillFile()] },
       });
     });
 
     // Wait for the async upload/parse flow to complete
     await waitFor(() => {
-      expect(screen.getByText("skill-pack.zip")).toBeInTheDocument();
+      expect(screen.getByText("skill-pack.skill")).toBeInTheDocument();
     });
 
-    expect(screen.getByText("skill-pack.zip")).toBeInTheDocument();
-    expect(api.initUpload).toHaveBeenCalledWith("skill-pack.zip", expect.any(Number));
+    expect(screen.getByText("skill-pack.skill")).toBeInTheDocument();
+    expect(api.initUpload).toHaveBeenCalledWith("skill-pack.skill", expect.any(Number));
     expect(api.uploadFile).toHaveBeenCalled();
     expect(api.triggerParse).toHaveBeenCalledWith("upload-123");
     expect(api.pollParse).toHaveBeenCalledWith("task-123");

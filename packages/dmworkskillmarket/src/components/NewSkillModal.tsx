@@ -17,13 +17,15 @@ type UploadStage = "idle" | "uploading" | "parsing" | "form" | "error";
 
 const MAX_ZIP_SIZE = 20 * 1024 * 1024;
 const DEFAULT_CREATE_VERSION = "0.1.0";
+const SKILL_PACKAGE_ACCEPT = ".zip,.skill";
 
 function createReadme(name: string, description: string, version: string): string {
   return `# ${name}\n\n${description}\n\n## Version\n\n${version}\n`;
 }
 
 function validateZipFile(file: File): string | null {
-  if (!file.name.toLowerCase().endsWith(".zip")) return t("skillMarket.upload.invalidFormat");
+  const name = file.name.toLowerCase();
+  if (!name.endsWith(".zip") && !name.endsWith(".skill")) return t("skillMarket.upload.invalidFormat");
   if (file.size > MAX_ZIP_SIZE) return t("skillMarket.upload.fileTooLarge");
   return null;
 }
@@ -438,7 +440,7 @@ export default function NewSkillModal({ visible, categories, onClose, onCreated 
               aria-label={t("skillMarket.upload.selectFileAriaLabel")}
               className="skill-market-upload-file__input"
               type="file"
-              accept=".zip"
+              accept={SKILL_PACKAGE_ACCEPT}
               onChange={handleFileChange}
             />
           </div>
