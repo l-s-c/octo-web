@@ -225,7 +225,8 @@ export default function SkillDetailModal({
   const parsedMarkdown = skill ? parseFrontmatter(mdContent ?? skill.readmeContent) : { rows: [], body: "" };
   const frontmatterRows = skill ? (parsedMarkdown.rows.length > 0 ? parsedMarkdown.rows : fallbackFrontmatterRows(skill)) : [];
   const readmeBody = skill ? (parsedMarkdown.body || t("skillMarket.detail.noDetail")) : "";
-  const ownerLabel = skill ? `@${skill.ownerName}` : "";
+  const creatorName = skill ? (skill.creatorName || skill.ownerName) : "";
+  const ownerLabel = skill ? `@${creatorName}` : "";
   const displayName = skill ? (skill.displayName || skill.name) : t("skillMarket.detail.title");
   const versionLabel = skill?.version ? `v${skill.version}` : "";
   const viewCountLabel = formatCount(skill?.viewCount ?? 0);

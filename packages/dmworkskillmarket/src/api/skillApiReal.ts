@@ -201,6 +201,8 @@ function mapSkill(raw: RawSkill): Skill {
     tags: normalizeTags(raw.tags),
     ownerId: raw.owner_id,
     ownerName: raw.owner_name ?? "",
+    creatorId: raw.creator_id ?? raw.owner_id,
+    creatorName: raw.creator_name ?? raw.owner_name ?? "",
     spaceId: raw.space_id,
     visibility: raw.visibility ?? "space",
     version: raw.version ?? "1.0.0",

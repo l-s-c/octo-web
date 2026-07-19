@@ -87,7 +87,8 @@ export default function SkillCard({ skill, categories: _categories, onOpen, onEd
   const isOwnerCard = Boolean(onEdit || onDelete);
   const descriptionTooltipId = `skill-card-desc-${skill.id}`;
   const displayName = skill.displayName || skill.name;
-  const ownerLabel = `@${skill.ownerName}`;
+  const creatorName = skill.creatorName || skill.ownerName;
+  const ownerLabel = `@${creatorName}`;
   const rawViewCount = skill.viewCount ?? 0;
   const rawDownloadCount = skill.downloadCount ?? 0;
   const viewCount = formatCount(rawViewCount);
@@ -148,7 +149,7 @@ export default function SkillCard({ skill, categories: _categories, onOpen, onEd
       className={isOwnerCard ? "skill-market-card skill-market-card--owner" : "skill-market-card"}
       role="button"
       tabIndex={0}
-      aria-label={`${skill.name} @${skill.ownerName}`}
+      aria-label={`${skill.name} ${ownerLabel}`}
       onClick={() => onOpen(skill)}
       onKeyDown={handleKeyDown}
     >

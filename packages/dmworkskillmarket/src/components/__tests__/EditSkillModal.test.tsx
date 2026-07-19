@@ -161,6 +161,45 @@ describe("EditSkillModal", () => {
     });
   });
 
+  it("keeps existing tags when re-upload parsing returns no tags", async () => {
+    vi.mocked(api.pollParse).mockResolvedValue({
+      status: "success",
+      result: {
+        name: "updated-skill",
+        description: "updated-skill 提供可复用的自动化工作流。",
+        tags: [],
+        version: "1.2.0",
+        readmeContent: "# updated-skill",
+        fileName: "updated-skill.zip",
+        fileSize: 3,
+        fileSha256: "def456",
+      },
+    });
+
+    render(<EditSkillModal skill={skill} categories={categories} onClose={vi.fn()} onUpdated={vi.fn()} />);
+
+    fireEvent.click(screen.getByText(reuploadButton));
+
+    await act(async () => {
+      fireEvent.change(screen.getByLabelText(selectNewZipLabel), {
+        target: { files: [new File(["zip"], "updated-skill.zip", { type: "application/zip" })] },
+      });
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("updated-skill.zip")).toBeInTheDocument();
+    });
+
+    fireEvent.change(screen.getByPlaceholderText(changelogPlaceholder), { target: { value: "修复环境检测逻辑" } });
+    fireEvent.click(screen.getByRole("button", { name: saveButton }));
+
+    await waitFor(() => {
+      expect(api.updateSkill).toHaveBeenCalledWith("meeting-note-cleaner", expect.objectContaining({
+        tags: ["纪要", "协作"],
+      }));
+    });
+  });
+
   it("does not save file metadata when re-upload parsing fails", async () => {
     vi.mocked(api.pollParse).mockResolvedValue({
       status: "failed",

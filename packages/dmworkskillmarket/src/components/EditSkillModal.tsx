@@ -201,7 +201,9 @@ export default function EditSkillModal({ skill, categories, onClose, onUpdated }
           setParseTaskId(taskId);
           setName(status.result.name);
           setDescription(status.result.description);
-          setTags(status.result.tags);
+          if (status.result.tags.length > 0) {
+            setTags(status.result.tags);
+          }
           setVersion(bumpPatch(skill.version));
           setChangelog("");
           setUploadStage("idle");

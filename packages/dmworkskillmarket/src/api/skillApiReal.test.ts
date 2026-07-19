@@ -114,6 +114,8 @@ describe("skillApiReal", () => {
             tags: ["CI"],
             owner_id: "jian",
             owner_name: "jian",
+            creator_id: "bot-1",
+            creator_name: "CI Bot",
             space_id: "dev-space",
             visibility: "space",
             version: "1.0.2",
@@ -143,6 +145,7 @@ describe("skillApiReal", () => {
 
     expect(result.items).toHaveLength(1);
     expect(result.items[0].categoryId).toBe("dev-tools");
+    expect(result.items[0].creatorName).toBe("CI Bot");
     expect(result.items[0].fileSha256).toBe("abc123");
     expect(result.items[0].viewCount).toBe(7);
     expect(result.items[0].downloadCount).toBe(3);

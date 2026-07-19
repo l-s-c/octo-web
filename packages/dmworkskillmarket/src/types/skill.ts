@@ -20,6 +20,8 @@ export interface Skill {
   tags: string[];
   ownerId: string;
   ownerName: string;
+  creatorId?: string;
+  creatorName?: string;
   spaceId: string;
   visibility: Visibility;
   version: string;
@@ -154,6 +156,8 @@ export interface RawSkill {
   tags: string[];
   owner_id: string;
   owner_name: string;
+  creator_id?: string | null;
+  creator_name?: string | null;
   space_id: string;
   visibility: Visibility;
   version: string;
