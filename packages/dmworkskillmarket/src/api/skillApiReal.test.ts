@@ -6,6 +6,7 @@ import {
   getMySkills,
   getSkillTags,
   getSkill,
+  getSkillMd,
   createSkill,
   updateSkill,
   deleteSkill,
@@ -835,5 +836,60 @@ describe("skillApiReal", () => {
     await expect(
       getCategories({ signal: controller.signal })
     ).rejects.toMatchObject({ name: "AbortError" });
+  });
+
+  describe("getSkillMd", () => {
+    it("returns markdown text on success", async () => {
+      const mdText = "# My Skill\n\nThis is a skill description.";
+      mockFetch.mockReturnValueOnce(
+        Promise.resolve({
+          ok: true,
+          status: 200,
+          text: () => Promise.resolve(mdText),
+        })
+      );
+
+      const result = await getSkillMd("skill-123");
+      expect(result).toBe(mdText);
+      expect(mockFetch).toHaveBeenCalledWith(
+        "/market/api/v1/skills/skill-123/skill-md",
+        expect.objectContaining({
+          headers: expect.objectContaining({ token: "test-token" }),
+        })
+      );
+    });
+
+    it("throws with status 404 when skill-md not found", async () => {
+      mockFetch.mockReturnValueOnce(
+        Promise.resolve({
+          ok: false,
+          status: 404,
+          statusText: "Not Found",
+          text: () => Promise.resolve(""),
+        })
+      );
+
+      await expect(getSkillMd("skill-missing")).rejects.toMatchObject({
+        status: 404,
+        code: "not_found",
+      });
+    });
+
+    it("throws on network error", async () => {
+      mockFetch.mockReturnValueOnce(Promise.reject(new Error("Network failure")));
+
+      await expect(getSkillMd("skill-123")).rejects.toMatchObject({
+        code: "network_error",
+      });
+    });
+
+    it("propagates AbortError without wrapping", async () => {
+      const abortError = new DOMException("Aborted", "AbortError");
+      mockFetch.mockReturnValueOnce(Promise.reject(abortError));
+
+      await expect(getSkillMd("skill-123")).rejects.toMatchObject({
+        name: "AbortError",
+      });
+    });
   });
 });

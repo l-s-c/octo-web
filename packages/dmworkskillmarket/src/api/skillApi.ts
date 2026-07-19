@@ -25,3 +25,4 @@ export const pollParse = realApi.pollParse;
 export const initReupload = realApi.initReupload;
 export const getDownloadUrl = realApi.getDownloadUrl;
 export const downloadSkill = realApi.downloadSkill;
+export const getSkillMd = realApi.getSkillMd;

@@ -74,7 +74,9 @@
     "downloadTitle": "下载",
     "downloadBtn": "下载 Skill 包",
     "latest": "最新",
-    "noVersions": "暂无历史版本"
+    "noVersions": "暂无历史版本",
+    "retry": "重试",
+    "noDetail": "暂无详情"
   },
   "form": {
     "editTitle": "编辑 {{name}}",

@@ -43,6 +43,7 @@ describe("SkillDetailModal", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(api.getSkill).mockResolvedValue(skill);
+    vi.mocked(api.getSkillMd).mockResolvedValue("# meeting-note-cleaner\n\n- 输出待办");
     vi.mocked(api.listVersions).mockResolvedValue([]);
     Object.assign(navigator, {
       clipboard: {
@@ -108,5 +109,35 @@ describe("SkillDetailModal", () => {
 
     await waitFor(() => expect(screen.getByText(noVersionsText)).toBeInTheDocument());
     expect(screen.queryByTitle(editTitle)).not.toBeInTheDocument();
+  });
+
+  it("renders SKILL.md content from the dedicated endpoint", async () => {
+    vi.mocked(api.getSkillMd).mockResolvedValue("# Skill MD Content\n\nFrom endpoint.");
+    render(<SkillDetailModal skillId={skill.id} categories={categories} onClose={vi.fn()} />);
+
+    await waitFor(() => expect(screen.getByText("Skill MD Content")).toBeInTheDocument());
+    expect(screen.getByText("From endpoint.")).toBeInTheDocument();
+  });
+
+  it("falls back to readmeContent when skill-md returns 404", async () => {
+    const error = new Error("SKILL.md not found");
+    Object.assign(error, { status: 404 });
+    vi.mocked(api.getSkillMd).mockRejectedValue(error);
+    render(<SkillDetailModal skillId={skill.id} categories={categories} onClose={vi.fn()} />);
+
+    // Should fall back to readmeContent from the skill object (contains "输出待办")
+    await waitFor(() => expect(screen.getByText(/输出待办/)).toBeInTheDocument());
+    // Should NOT show error/retry state
+    expect(screen.queryByText("skillMarket.common.loadFailed")).not.toBeInTheDocument();
+  });
+
+  it("shows retry button on skill-md network error", async () => {
+    const error = new Error("Network error");
+    Object.assign(error, { status: 500 });
+    vi.mocked(api.getSkillMd).mockRejectedValue(error);
+    render(<SkillDetailModal skillId={skill.id} categories={categories} onClose={vi.fn()} />);
+
+    await waitFor(() => expect(screen.getByText("skillMarket.common.loadFailed")).toBeInTheDocument());
+    expect(screen.getByRole("button", { name: /skillMarket\.detail\.retry/ })).toBeInTheDocument();
   });
 });

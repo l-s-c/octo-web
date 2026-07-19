@@ -1,11 +1,11 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import rehypeSanitize from "rehype-sanitize";
 import remarkGfm from "remark-gfm";
-import { Copy, Download, FileArchive, Pencil, Terminal, Trash2 } from "lucide-react";
+import { Copy, Download, FileArchive, Lock, Pencil, RefreshCw, Terminal, Trash2, Users } from "lucide-react";
 import { t, useI18n, WKApp, WKButton, WKModal } from "@octo/base";
 import type { Category, Skill, SkillVersion } from "../types/skill";
-import { downloadSkill, getSkill, listVersions } from "../api/skillApi";
+import { downloadSkill, getSkill, getSkillMd, listVersions } from "../api/skillApi";
 import { formatFileSize, formatRelativeTime } from "../utils/format";
 import { buildInstallPrompt, resolveAPIBaseURL } from "../utils/installPrompt";
 import { getSkillAvatarColor, getSkillAvatarText } from "../utils/skillAvatar";
@@ -45,12 +45,19 @@ export default function SkillDetailModal({
   const [versions, setVersions] = useState<SkillVersion[]>([]);
   const [versionsLoading, setVersionsLoading] = useState(false);
 
+  // SKILL.md content fetched from the new endpoint
+  const [mdContent, setMdContent] = useState<string | null>(null);
+  const [mdLoading, setMdLoading] = useState(false);
+  const [mdError, setMdError] = useState(false);
+
   useEffect(() => {
     if (!skillId) {
       setSkill(null);
       setActiveTab("intro");
       setVersions([]);
       setIconError(false);
+      setMdContent(null);
+      setMdError(false);
       return;
     }
     let alive = true;
@@ -76,6 +83,37 @@ export default function SkillDetailModal({
       alive = false;
     };
   }, [skillId, refreshKey]);
+
+  // Fetch SKILL.md content from the dedicated endpoint
+  const fetchSkillMd = useCallback((id: string) => {
+    let alive = true;
+    setMdLoading(true);
+    setMdError(false);
+    setMdContent(null);
+    getSkillMd(id)
+      .then((text) => {
+        if (alive) setMdContent(text);
+      })
+      .catch((err) => {
+        if (!alive) return;
+        const status = (err as { status?: number }).status;
+        if (status === 404) {
+          // Fallback: no SKILL.md available, will use readmeContent
+          setMdContent(null);
+        } else {
+          setMdError(true);
+        }
+      })
+      .finally(() => {
+        if (alive) setMdLoading(false);
+      });
+    return () => { alive = false; };
+  }, []);
+
+  useEffect(() => {
+    if (!skillId) return;
+    return fetchSkillMd(skillId);
+  }, [skillId, refreshKey, fetchSkillMd]);
 
   // Fetch versions when tab switches to versions
   useEffect(() => {
@@ -207,9 +245,27 @@ export default function SkillDetailModal({
           {activeTab === "intro" && (
             <div className="skill-market-detail__layout">
               <div className="skill-market-detail__readme">
-                <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeSanitize]}>
-                  {skill.readmeContent}
-                </ReactMarkdown>
+                {mdLoading && (
+                  <div className="skill-market-modal-state">{t("skillMarket.common.loading")}</div>
+                )}
+                {mdError && (
+                  <div className="skill-market-modal-state is-error">
+                    <span>{t("skillMarket.common.loadFailed")}</span>
+                    <WKButton
+                      variant="secondary"
+                      size="small"
+                      icon={<RefreshCw size={14} />}
+                      onClick={() => skillId && fetchSkillMd(skillId)}
+                    >
+                      {t("skillMarket.detail.retry")}
+                    </WKButton>
+                  </div>
+                )}
+                {!mdLoading && !mdError && (
+                  <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeSanitize]}>
+                    {mdContent ?? (skill.readmeContent || t("skillMarket.detail.noDetail"))}
+                  </ReactMarkdown>
+                )}
               </div>
               <aside className="skill-market-install">
                 <section className="skill-market-install__section">

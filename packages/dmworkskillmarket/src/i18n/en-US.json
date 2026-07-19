@@ -74,7 +74,9 @@
     "downloadTitle": "Download",
     "downloadBtn": "Download Skill Package",
     "latest": "Latest",
-    "noVersions": "No version history"
+    "noVersions": "No version history",
+    "retry": "Retry",
+    "noDetail": "No details available"
   },
   "form": {
     "editTitle": "Edit {{name}}",

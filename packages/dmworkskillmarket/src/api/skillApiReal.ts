@@ -309,6 +309,39 @@ export function getSkill(id: string): Promise<Skill> {
   return request<RawSkill>(`/skills/${encodeURIComponent(id)}`).then(mapSkill);
 }
 
+/**
+ * Fetch the SKILL.md content for the current version of a skill.
+ * Returns the markdown string on success, or throws (404 means no SKILL.md available).
+ */
+export async function getSkillMd(
+  id: string,
+  opts?: RequestOptions
+): Promise<string> {
+  const url = `${API_BASE_URL}/skills/${encodeURIComponent(id)}/skill-md`;
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      headers: getAuthHeaders(),
+      signal: opts?.signal,
+    });
+  } catch (err) {
+    if (err instanceof DOMException && err.name === "AbortError") throw err;
+    const message = err instanceof Error ? err.message : "Network error";
+    throw normalizeError({ code: "network_error", message, details: err });
+  }
+  if (res.status === 404) {
+    throw normalizeError({ code: "not_found", message: "SKILL.md not found", status: 404 });
+  }
+  if (!res.ok) {
+    throw normalizeError({
+      code: `http_${res.status}`,
+      message: res.statusText || "Request failed",
+      status: res.status,
+    });
+  }
+  return res.text();
+}
+
 export function createSkill(form: NewSkillForm): Promise<Skill> {
   return request<RawSkill>("/skills", {
     method: "POST",
