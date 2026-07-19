@@ -137,7 +137,7 @@ describe("SkillDetailModal", () => {
     vi.mocked(api.getSkillMd).mockRejectedValue(error);
     render(<SkillDetailModal skillId={skill.id} categories={categories} onClose={vi.fn()} />);
 
-    await waitFor(() => expect(screen.getByText("skillMarket.common.loadFailed")).toBeInTheDocument());
-    expect(screen.getByRole("button", { name: /skillMarket\.detail\.retry/ })).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText("加载失败")).toBeInTheDocument());
+    expect(screen.getByRole("button", { name: /重试/ })).toBeInTheDocument();
   });
 });

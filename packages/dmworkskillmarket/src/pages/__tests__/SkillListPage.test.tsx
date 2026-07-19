@@ -75,6 +75,7 @@ describe("SkillListPage", () => {
       { name: "代码" },
     ]);
     vi.mocked(api.getSkill).mockResolvedValue(skill);
+    vi.mocked(api.getSkillMd).mockResolvedValue(skill.readmeContent);
     vi.mocked(api.updateSkill).mockResolvedValue(skill);
     vi.mocked(api.deleteSkill).mockResolvedValue();
   });

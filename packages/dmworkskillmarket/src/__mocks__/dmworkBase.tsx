@@ -95,12 +95,35 @@ export const WKApp = {
   },
 };
 
+import zhCN from "../i18n/zh-CN.json";
+
+const flattenMessages = (obj: Record<string, unknown>, prefix = ""): Record<string, string> => {
+  const result: Record<string, string> = {};
+  for (const [key, value] of Object.entries(obj)) {
+    const fullKey = prefix ? `${prefix}.${key}` : key;
+    if (typeof value === "string") {
+      result[fullKey] = value;
+    } else if (typeof value === "object" && value !== null) {
+      Object.assign(result, flattenMessages(value as Record<string, unknown>, fullKey));
+    }
+  }
+  return result;
+};
+
+const messages = flattenMessages(zhCN, "skillMarket");
+
 export const i18n = {
   registerNamespace: () => undefined,
 };
 
-export function t(value: string) {
-  return value;
+export function t(key: string, opts?: { values?: Record<string, string | number> }) {
+  let text = messages[key] ?? key;
+  if (opts?.values) {
+    for (const [k, v] of Object.entries(opts.values)) {
+      text = text.replace(new RegExp(`\\{\\{${k}\\}\\}`, "g"), String(v));
+    }
+  }
+  return text;
 }
 
 export function useI18n() {
