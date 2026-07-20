@@ -1,9 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { AlertCircle, Box, CheckCircle2, FileArchive, ImagePlus, Loader2, XCircle } from "lucide-react";
+import { AlertCircle, Box, FileArchive, Loader2, XCircle } from "lucide-react";
 import { t, useI18n, WKButton, WKInput, WKModal } from "@octo/base";
-import type { Category, Skill, Visibility } from "../types/skill";
+import type { Category, Skill } from "../types/skill";
 import { updateSkill, uploadIcon, initReupload, uploadFile, triggerParse, pollParse } from "../api/skillApi";
-import { formatFileSize } from "../utils/format";
+import { MAX_SKILL_TAGS, validateSkillTag } from "../utils/format";
 import IconCropModal from "./IconCropModal";
 
 interface EditSkillModalProps {
@@ -16,6 +16,7 @@ interface EditSkillModalProps {
 type UploadStage = "idle" | "uploading" | "parsing" | "error";
 
 const MAX_ZIP_SIZE = 20 * 1024 * 1024;
+const SKILL_PACKAGE_ACCEPT = ".zip,.skill";
 
 function bumpPatch(ver: string): string {
   const parts = ver.split(".");
@@ -26,7 +27,8 @@ function bumpPatch(ver: string): string {
 }
 
 function validateZipFile(file: File): string | null {
-  if (!file.name.toLowerCase().endsWith(".zip")) return t("skillMarket.upload.invalidFormat");
+  const name = file.name.toLowerCase();
+  if (!name.endsWith(".zip") && !name.endsWith(".skill")) return t("skillMarket.upload.invalidFormat");
   if (file.size > MAX_ZIP_SIZE) return t("skillMarket.upload.fileTooLarge");
   return null;
 }
@@ -45,7 +47,7 @@ export default function EditSkillModal({ skill, categories, onClose, onUpdated }
   const [categoryId, setCategoryId] = useState("dev-tools");
   const [tags, setTags] = useState<string[]>([]);
   const [tagDraft, setTagDraft] = useState("");
-  const [visibility, setVisibility] = useState<Visibility>("space");
+  const [tagError, setTagError] = useState<string | null>(null);
   const [version, setVersion] = useState("1.0.0");
   const [uploadStage, setUploadStage] = useState<UploadStage>("idle");
   const [progress, setProgress] = useState(0);
@@ -73,7 +75,7 @@ export default function EditSkillModal({ skill, categories, onClose, onUpdated }
     setCategoryId(skill.categoryId);
     setTags(skill.tags);
     setTagDraft("");
-    setVisibility(skill.visibility);
+    setTagError(null);
     setVersion(skill.version);
     setUploadStage("idle");
     setProgress(0);
@@ -82,6 +84,7 @@ export default function EditSkillModal({ skill, categories, onClose, onUpdated }
     setIconPreview(skill.iconUrl || null);
     setIconBlob(null);
     setIconCropFile(null);
+    setChangelog(t("skillMarket.form.currentVersionChangelog"));
     setError(null);
     setConfirmClose(false);
     setTimeout(() => { abortRef.current = false; }, 0);
@@ -92,10 +95,29 @@ export default function EditSkillModal({ skill, categories, onClose, onUpdated }
     name !== skill?.name ||
     displayName !== (skill?.displayName ?? "") ||
     categoryId !== skill?.categoryId ||
-    visibility !== skill?.visibility ||
     JSON.stringify(tags) !== JSON.stringify(skill?.tags) ||
+    Boolean(tagDraft.trim()) ||
     Boolean(uploadedFile) ||
     Boolean(iconBlob)
+  );
+
+  function getTagDraftError() {
+    const next = tagDraft.trim();
+    if (!next) return null;
+    if (validateSkillTag(next)) return validateSkillTag(next);
+    if (tags.includes(next)) return t("skillMarket.form.tagDuplicate");
+    if (tags.length >= MAX_SKILL_TAGS) return t("skillMarket.form.tagLimit", { values: { count: MAX_SKILL_TAGS } });
+    return null;
+  }
+
+  const tagSubmitError = tagError ?? getTagDraftError();
+  const canSave = Boolean(
+    !busy &&
+    uploadStage !== "error" &&
+    name.trim() &&
+    displayName.trim() &&
+    (!parseTaskId || (version.trim() && changelog.trim())) &&
+    !tagSubmitError,
   );
 
   function requestClose() {
@@ -121,9 +143,23 @@ export default function EditSkillModal({ skill, categories, onClose, onUpdated }
 
   function addTag() {
     const next = tagDraft.trim();
-    if (!next || tags.includes(next)) return;
-    setTags([...tags, next].slice(0, 5));
+    if (!next) return;
+    const validationError = validateSkillTag(next);
+    if (validationError) {
+      setTagError(validationError);
+      return;
+    }
+    if (tags.includes(next)) {
+      setTagError(t("skillMarket.form.tagDuplicate"));
+      return;
+    }
+    if (tags.length >= MAX_SKILL_TAGS) {
+      setTagError(t("skillMarket.form.tagLimit", { values: { count: MAX_SKILL_TAGS } }));
+      return;
+    }
+    setTags([...tags, next].slice(0, MAX_SKILL_TAGS));
     setTagDraft("");
+    setTagError(null);
   }
 
   async function startUpload(nextFile: File) {
@@ -164,10 +200,21 @@ export default function EditSkillModal({ skill, categories, onClose, onUpdated }
         if (abortRef.current) return;
 
         if (status.status === "success" && status.result) {
+          if (status.result.name !== skill.name) {
+            setUploadStage("error");
+            setUploadedFile(null);
+            setParseTaskId(null);
+            setError(t("skillMarket.upload.nameMismatch", {
+              values: { expected: skill.name, actual: status.result.name },
+            }));
+            return;
+          }
           setParseTaskId(taskId);
           setName(status.result.name);
           setDescription(status.result.description);
-          setTags(status.result.tags);
+          if (status.result.tags.length > 0) {
+            setTags(status.result.tags);
+          }
           setVersion(bumpPatch(skill.version));
           setChangelog("");
           setUploadStage("idle");
@@ -202,10 +249,18 @@ export default function EditSkillModal({ skill, categories, onClose, onUpdated }
 
   async function submit() {
     if (!skill) return;
-    if (!name.trim() || !displayName.trim() || !categoryId) {
+    if (!name.trim() || !displayName.trim() || !categoryId || (parseTaskId && (!version.trim() || !changelog.trim()))) {
       setError(t("skillMarket.form.validationRequired"));
       return;
     }
+    const draftError = getTagDraftError();
+    if (tagError || draftError) {
+      setTagError(tagError ?? draftError);
+      return;
+    }
+    const submittedTags = tagDraft.trim()
+      ? [...tags, tagDraft.trim()].slice(0, MAX_SKILL_TAGS)
+      : tags;
     setSaving(true);
     setError(null);
     try {
@@ -219,8 +274,7 @@ export default function EditSkillModal({ skill, categories, onClose, onUpdated }
         displayName,
         description,
         categoryId,
-        tags,
-        visibility,
+        tags: submittedTags,
         ...(iconUrl !== undefined ? { iconUrl } : {}),
       });
       onUpdated(updated);
@@ -247,7 +301,7 @@ export default function EditSkillModal({ skill, categories, onClose, onUpdated }
               variant="primary"
               onClick={() => void submit()}
               loading={saving}
-              disabled={busy || uploadStage === "error" || !name.trim() || !displayName.trim() || (!!parseTaskId && !changelog.trim())}
+              disabled={!canSave}
             >
               {t("skillMarket.common.save")}
             </WKButton>
@@ -265,10 +319,7 @@ export default function EditSkillModal({ skill, categories, onClose, onUpdated }
             <FileArchive size={18} />
             <div>
               <strong>{uploadedFile?.name ?? skill?.fileName}</strong>
-              <span>
-                {uploadedFile ? formatFileSize(uploadedFile.size) : skill ? formatFileSize(skill.fileSize) : "-"}
-                {uploadedFile ? " · " + t("skillMarket.upload.parsed") : " · " + t("skillMarket.upload.currentPackage")}
-              </span>
+              <span>{uploadedFile ? t("skillMarket.upload.newVersionParsedWithName", { values: { name } }) : t("skillMarket.upload.currentPackageWithName", { values: { name } })}</span>
             </div>
             <button type="button" onClick={() => fileInputRef.current?.click()}>{t("skillMarket.upload.reupload")}</button>
             <input
@@ -276,7 +327,7 @@ export default function EditSkillModal({ skill, categories, onClose, onUpdated }
               aria-label={t("skillMarket.upload.selectNewFileAriaLabel")}
               className="skill-market-upload-file__input"
               type="file"
-              accept=".zip"
+              accept={SKILL_PACKAGE_ACCEPT}
               onChange={handleFileChange}
             />
           </div>
@@ -301,27 +352,31 @@ export default function EditSkillModal({ skill, categories, onClose, onUpdated }
             <WKButton variant="secondary" onClick={() => fileInputRef.current?.click()}>{t("skillMarket.upload.reselect")}</WKButton>
           )}
 
-          {parseTaskId && (
-            <div className="skill-market-form__version-section">
-              <h3 className="skill-market-form__section-title">{t("skillMarket.form.versionSection")}</h3>
-              <div className="skill-market-form__row">
-                <label>
-                  <span>{t("skillMarket.form.versionLabel")}<i className="skill-market-required">*</i></span>
-                  <WKInput value={version} onChange={setVersion} placeholder={t("skillMarket.form.versionPlaceholder")} />
-                </label>
-                <label>
-                  <span>{t("skillMarket.form.changelogLabel")}<i className="skill-market-required">*</i></span>
-                  <textarea
-                    value={changelog}
-                    onChange={(e) => setChangelog(e.target.value)}
-                    placeholder={t("skillMarket.form.changelogPlaceholder")}
-                    rows={3}
-                    className="skill-market-form__textarea"
-                  />
-                </label>
-              </div>
+          <div className="skill-market-form__version-section">
+            <h3 className="skill-market-form__section-title">{t("skillMarket.form.versionSection")}</h3>
+            <div className="skill-market-form__row">
+              <label>
+                <span>{t("skillMarket.form.versionLabel")}<i className="skill-market-required">*</i></span>
+                <WKInput
+                  value={version}
+                  onChange={setVersion}
+                  placeholder={t("skillMarket.form.versionPlaceholder")}
+                  readOnly={!parseTaskId}
+                  className={!parseTaskId ? "skill-market-input-readonly" : undefined}
+                />
+              </label>
+              <label>
+                <span>{t("skillMarket.form.changelogLabel")}<i className="skill-market-required">*</i></span>
+                <WKInput
+                  value={changelog}
+                  onChange={setChangelog}
+                  placeholder={t("skillMarket.form.changelogPlaceholder")}
+                  readOnly={!parseTaskId}
+                  className={!parseTaskId ? "skill-market-input-readonly" : undefined}
+                />
+              </label>
             </div>
-          )}
+          </div>
 
           <h3 className="skill-market-form__section-title">{t("skillMarket.form.basicInfoSection")}</h3>
 
@@ -342,13 +397,9 @@ export default function EditSkillModal({ skill, categories, onClose, onUpdated }
                 <Box size={24} />
               )}
             </label>
-            <label className="skill-market-field-readonly">
-              <span>{t("skillMarket.form.englishName")}</span>
-              <span className="skill-market-field-readonly__value">{name}</span>
-            </label>
             <label>
               <span>{t("skillMarket.form.displayName")}<i className="skill-market-required">*</i></span>
-              <WKInput value={displayName} onChange={(v) => setDisplayName(v.slice(0, 20))} placeholder={t("skillMarket.form.displayNamePlaceholder")} maxLength={20} />
+              <WKInput value={displayName} onChange={(v: string) => setDisplayName(v.slice(0, 20))} placeholder={t("skillMarket.form.displayNamePlaceholder")} maxLength={20} />
             </label>
           </div>
           <div className="skill-market-form__row">
@@ -371,7 +422,11 @@ export default function EditSkillModal({ skill, categories, onClose, onUpdated }
                 ))}
                 <input
                   value={tagDraft}
-                  onChange={(event) => setTagDraft(event.target.value)}
+                  onChange={(event) => {
+                    const next = event.target.value;
+                    setTagDraft(next);
+                    setTagError(validateSkillTag(next));
+                  }}
                   onKeyDown={(event) => {
                     if (event.key === "Enter") {
                       event.preventDefault();
@@ -380,30 +435,15 @@ export default function EditSkillModal({ skill, categories, onClose, onUpdated }
                   }}
                   onBlur={addTag}
                   placeholder={t("skillMarket.form.tagPlaceholder")}
+                  aria-describedby={(tagError || tags.length >= MAX_SKILL_TAGS) ? "skill-market-edit-tag-hint" : undefined}
                 />
               </div>
+              {(tagError || tags.length >= MAX_SKILL_TAGS) && (
+                <small id="skill-market-edit-tag-hint" className={tagError ? "skill-market-tag-hint is-error" : "skill-market-tag-hint"}>
+                  {tagError ?? t("skillMarket.form.tagLimit", { values: { count: MAX_SKILL_TAGS } })}
+                </small>
+              )}
             </label>
-          </div>
-          <fieldset className="skill-market-radio-group">
-            <legend>{t("skillMarket.form.visibility")}<i className="skill-market-required">*</i></legend>
-            {[
-              ["space", t("skillMarket.form.visibilityPublic"), t("skillMarket.form.visibilityPublicHint")],
-              ["private", t("skillMarket.form.visibilityPrivate"), t("skillMarket.form.visibilityPrivateHint")],
-            ].map(([value, label, hint]) => (
-              <label key={value}>
-                <input
-                  type="radio"
-                  checked={visibility === value}
-                  onChange={() => setVisibility(value as Visibility)}
-                />
-                <span>{label}</span>
-                <small className="skill-market-radio-hint">{hint}</small>
-              </label>
-            ))}
-          </fieldset>
-          <div className="skill-market-doc-note">
-            <CheckCircle2 size={15} />
-            <span>{t("skillMarket.form.docNote")}</span>
           </div>
         </div>
       </WKModal>

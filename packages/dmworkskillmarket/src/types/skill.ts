@@ -1,4 +1,5 @@
 export type Visibility = "public" | "space" | "private";
+export type SkillSort = "comprehensive" | "latest" | "views" | "downloads";
 
 // ─── Frontend (camelCase) types ────────────────────────────────────────────
 
@@ -19,6 +20,8 @@ export interface Skill {
   tags: string[];
   ownerId: string;
   ownerName: string;
+  creatorId?: string;
+  creatorName?: string;
   spaceId: string;
   visibility: Visibility;
   version: string;
@@ -28,6 +31,8 @@ export interface Skill {
   fileUrl: string;
   fileSize: number;
   fileSha256?: string;
+  viewCount?: number;
+  downloadCount?: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -35,14 +40,24 @@ export interface Skill {
 export interface SkillListQuery {
   q?: string;
   categoryId?: string;
+  tags?: string[];
+  sort?: SkillSort;
   cursor?: string;
   limit?: number;
   mine?: boolean;
 }
 
+export interface SkillTag {
+  name: string;
+  createdBy?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export interface PagedResult<T> {
   items: T[];
   nextCursor: string | null;
+  total: number;
 }
 
 export interface ApiResponse<T> {
@@ -60,6 +75,7 @@ export interface NewSkillForm {
   tags: string[];
   visibility: Visibility;
   version?: string;
+  changelog?: string;
   readmeContent: string;
   iconUrl?: string;
   fileName: string;
@@ -141,6 +157,8 @@ export interface RawSkill {
   tags: string[];
   owner_id: string;
   owner_name: string;
+  creator_id?: string | null;
+  creator_name?: string | null;
   space_id: string;
   visibility: Visibility;
   version: string;
@@ -150,14 +168,24 @@ export interface RawSkill {
   file_url: string;
   file_size: number;
   file_sha256: string;
+  view_count?: number;
+  download_count?: number;
   created_at: string;
   updated_at: string;
+}
+
+export interface RawSkillTag {
+  name: string;
+  created_by?: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 /** Raw paged response from list endpoints */
 export interface RawPagedResult<T> {
   items: T[];
   next_cursor: string | null;
+  total?: number;
 }
 
 // ─── Version history types ──────────────────────────────────────────────────

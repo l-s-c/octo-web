@@ -14,9 +14,11 @@ import type {
   RawCategory,
   RawPagedResult,
   RawSkill,
+  RawSkillTag,
   RawSkillVersion,
   Skill,
   SkillListQuery,
+  SkillTag,
   SkillVersion,
   TriggerParseResult,
   UpdateSkillForm,
@@ -25,7 +27,7 @@ import type {
 
 interface SuccessEnvelope<T> {
   data: T;
-  pagination?: { has_more: boolean; next_cursor?: string };
+  pagination?: { has_more: boolean; next_cursor?: string; total?: number };
 }
 
 interface ErrorEnvelope {
@@ -81,15 +83,20 @@ function normalizeError(input: {
 
 async function requestEnvelope<T>(
   path: string,
-  init?: RequestInit
+  init?: RequestInit,
+  options?: { auth?: boolean }
 ): Promise<SuccessEnvelope<T>> {
   const url = `${API_BASE_URL}${path}`;
+  const defaultHeaders =
+    options?.auth === false
+      ? { "Content-Type": "application/json" }
+      : getAuthHeaders();
   let res: Response;
   try {
     res = await fetch(url, {
       ...init,
       headers: {
-        ...getAuthHeaders(),
+        ...defaultHeaders,
         ...(init?.headers as Record<string, string> | undefined),
       },
     });
@@ -104,7 +111,7 @@ async function requestEnvelope<T>(
   // Handle 401 — redirect to login
   if (res.status === 401) {
     const loginPath =
-      ((WKApp.loginInfo as Record<string, unknown>)?.loginUrl as
+      ((WKApp.loginInfo as unknown as Record<string, unknown>)?.loginUrl as
         | string
         | undefined) ?? "/login";
     if (typeof window !== "undefined") window.location.href = loginPath;
@@ -152,8 +159,12 @@ async function requestEnvelope<T>(
   return body as SuccessEnvelope<T>;
 }
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  return (await requestEnvelope<T>(path, init)).data;
+async function request<T>(
+  path: string,
+  init?: RequestInit,
+  options?: { auth?: boolean }
+): Promise<T> {
+  return (await requestEnvelope<T>(path, init, options)).data;
 }
 
 function wait(ms: number): Promise<void> {
@@ -222,6 +233,8 @@ function mapSkill(raw: RawSkill): Skill {
     tags: normalizeTags(raw.tags),
     ownerId: raw.owner_id,
     ownerName: raw.owner_name ?? "",
+    creatorId: raw.creator_id ?? raw.owner_id,
+    creatorName: raw.creator_name ?? raw.owner_name ?? "",
     spaceId: raw.space_id,
     visibility: raw.visibility ?? "space",
     version: raw.version ?? "1.0.0",
@@ -231,6 +244,17 @@ function mapSkill(raw: RawSkill): Skill {
     fileUrl: raw.file_url ?? "",
     fileSize: raw.file_size ?? 0,
     fileSha256: raw.file_sha256,
+    viewCount: raw.view_count ?? 0,
+    downloadCount: raw.download_count ?? 0,
+    createdAt: raw.created_at,
+    updatedAt: raw.updated_at,
+  };
+}
+
+function mapSkillTag(raw: RawSkillTag): SkillTag {
+  return {
+    name: raw.name,
+    createdBy: raw.created_by,
     createdAt: raw.created_at,
     updatedAt: raw.updated_at,
   };
@@ -240,6 +264,7 @@ function mapPagedResult(raw: RawPagedResult<RawSkill>): PagedResult<Skill> {
   return {
     items: (raw.items ?? []).map(mapSkill),
     nextCursor: raw.next_cursor,
+    total: raw.total ?? raw.items?.length ?? 0,
   };
 }
 
@@ -252,7 +277,8 @@ export interface RequestOptions {
 export function getCategories(opts?: RequestOptions): Promise<Category[]> {
   return request<RawCategory[]>(
     "/skill_categories",
-    opts?.signal ? { signal: opts.signal } : undefined
+    opts?.signal ? { signal: opts.signal } : undefined,
+    { auth: false }
   ).then((items) => items.map(mapCategory));
 }
 
@@ -264,16 +290,20 @@ export function getSkills(
   if (query.q) params.set("q", query.q);
   if (query.categoryId && query.categoryId !== "all")
     params.set("category_id", query.categoryId);
+  if (query.tags?.length) params.set("tags", query.tags.join(","));
+  if (query.sort) params.set("sort", query.sort);
   if (query.cursor) params.set("cursor", query.cursor);
   if (query.limit) params.set("page_size", String(query.limit));
   const qs = params.toString();
   return requestEnvelope<RawSkill[]>(
     `/skills${qs ? `?${qs}` : ""}`,
-    opts?.signal ? { signal: opts.signal } : undefined
+    opts?.signal ? { signal: opts.signal } : undefined,
+    { auth: false }
   ).then(({ data, pagination }) =>
     mapPagedResult({
       items: data,
       next_cursor: pagination?.next_cursor ?? null,
+      total: pagination?.total,
     })
   );
 }
@@ -284,6 +314,8 @@ export function getMySkills(
 ): Promise<PagedResult<Skill>> {
   const params = new URLSearchParams();
   if (query.q) params.set("q", query.q);
+  if (query.tags?.length) params.set("tags", query.tags.join(","));
+  if (query.sort) params.set("sort", query.sort);
   if (query.cursor) params.set("cursor", query.cursor);
   if (query.limit) params.set("page_size", String(query.limit));
   const qs = params.toString();
@@ -294,12 +326,99 @@ export function getMySkills(
     mapPagedResult({
       items: data,
       next_cursor: pagination?.next_cursor ?? null,
+      total: pagination?.total,
     })
   );
 }
 
+export function getSkillTags(
+  q = "",
+  opts?: RequestOptions
+): Promise<SkillTag[]> {
+  const params = new URLSearchParams();
+  const query = q.trim();
+  if (query) params.set("q", query);
+  params.set("page_size", "20");
+  const qs = params.toString();
+  return request<{ items: RawSkillTag[] }>(
+    `/skills/tags${qs ? `?${qs}` : ""}`,
+    opts?.signal ? { signal: opts.signal } : undefined,
+    { auth: false }
+  ).then((data) => (data.items ?? []).map(mapSkillTag));
+}
+
 export function getSkill(id: string): Promise<Skill> {
-  return request<RawSkill>(`/skills/${encodeURIComponent(id)}`).then(mapSkill);
+  return request<RawSkill>(
+    `/skills/${encodeURIComponent(id)}`,
+    undefined,
+    { auth: false }
+  ).then(mapSkill);
+}
+
+export async function trackSkillView(id: string): Promise<void> {
+  const url = `${API_BASE_URL}/metrics/track`;
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method: "POST",
+      headers: getAuthHeaders(),
+      body: JSON.stringify({
+        resource_type: "skill",
+        resource_id: id,
+        event_type: "view",
+      }),
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Network error";
+    throw normalizeError({ code: "network_error", message, details: err });
+  }
+
+  const ok =
+    typeof res.ok === "boolean"
+      ? res.ok
+      : res.status >= 200 && res.status < 300;
+  if (!ok) {
+    const body = (await parseJson(res)) as ErrorEnvelope | null;
+    throw normalizeError({
+      code: body?.error?.code ?? `http_${res.status}`,
+      message: body?.error?.message ?? res.statusText ?? "Request failed",
+      status: res.status,
+      details: body?.error?.details ?? body,
+    });
+  }
+}
+
+/**
+ * Fetch the SKILL.md content for the current version of a skill.
+ * Returns the markdown string on success, or throws (404 means no SKILL.md available).
+ */
+export async function getSkillMd(
+  id: string,
+  opts?: RequestOptions
+): Promise<string> {
+  const url = `${API_BASE_URL}/skills/${encodeURIComponent(id)}/skill-md`;
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      headers: { "Content-Type": "application/json" },
+      signal: opts?.signal,
+    });
+  } catch (err) {
+    if (err instanceof DOMException && err.name === "AbortError") throw err;
+    const message = err instanceof Error ? err.message : "Network error";
+    throw normalizeError({ code: "network_error", message, details: err });
+  }
+  if (res.status === 404) {
+    throw normalizeError({ code: "not_found", message: "SKILL.md not found", status: 404 });
+  }
+  if (!res.ok) {
+    throw normalizeError({
+      code: `http_${res.status}`,
+      message: res.statusText || "Request failed",
+      status: res.status,
+    });
+  }
+  return res.text();
 }
 
 export function createSkill(form: NewSkillForm): Promise<Skill> {
@@ -314,6 +433,7 @@ export function createSkill(form: NewSkillForm): Promise<Skill> {
       tags: form.tags,
       visibility: form.visibility,
       version: form.version,
+      changelog: form.changelog,
       icon_url: form.iconUrl ?? "",
     }),
   }).then(mapSkill);

@@ -1,8 +1,8 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { AlertCircle, PackageOpen, Plus, RefreshCw } from "lucide-react";
+import { AlertCircle, PackageOpen, RefreshCw, Upload } from "lucide-react";
 import { t, useI18n, WKButton } from "@octo/base";
-import type { Skill } from "../types/skill";
+import type { Skill, SkillSort } from "../types/skill";
 import { useSkills } from "../hooks/useSkills";
 import CategoryChips from "../components/CategoryChips";
 import DeleteConfirmModal from "../components/DeleteConfirmModal";
@@ -17,12 +17,20 @@ import SkillDetailModal from "../components/SkillDetailModal";
 type TabId = "skills" | "mine";
 
 const TOAST_DURATION = 3000;
+const SORT_OPTIONS: Array<{ value: SkillSort; labelKey: string }> = [
+  { value: "comprehensive", labelKey: "skillMarket.sort.comprehensive" },
+  { value: "latest", labelKey: "skillMarket.sort.latest" },
+  { value: "views", labelKey: "skillMarket.sort.views" },
+  { value: "downloads", labelKey: "skillMarket.sort.downloads" },
+];
 
 export default function SkillListPage() {
   useI18n();
   const [tab, setTab] = useState<TabId>("skills");
   const mine = tab === "mine";
-  const list = useSkills({ mine });
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [sort, setSort] = useState<SkillSort>("comprehensive");
+  const list = useSkills({ mine, selectedTags, sort });
   const [createVisible, setCreateVisible] = useState(false);
   const [detailId, setDetailId] = useState<string | null>(null);
   const [editing, setEditing] = useState<Skill | null>(null);
@@ -52,11 +60,14 @@ export default function SkillListPage() {
   useEffect(() => {
     const node = sentinelRef.current;
     if (!node) return undefined;
-    const observer = new IntersectionObserver((entries) => {
-      if (entries.some((entry) => entry.isIntersecting)) {
-        list.loadMore();
-      }
-    }, { rootMargin: "160px" });
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          list.loadMore();
+        }
+      },
+      { rootMargin: "160px" }
+    );
     observer.observe(node);
     return () => observer.disconnect();
   }, [list]);
@@ -84,10 +95,18 @@ export default function SkillListPage() {
     setDetailRefreshKey((current) => current + 1);
   }
 
+  function openDetail(item: Skill) {
+    list.markSkillViewed(item.id);
+    setDetailId(item.id);
+  }
+
   return (
     <div className="skill-market-page">
       <header className="skill-market-topbar">
-        <nav className="skill-market-tabs" aria-label={t("skillMarket.list.navAriaLabel")}>
+        <nav
+          className="skill-market-tabs"
+          aria-label={t("skillMarket.list.navAriaLabel")}
+        >
           <button
             type="button"
             className={tab === "skills" ? "is-active" : ""}
@@ -104,32 +123,91 @@ export default function SkillListPage() {
           </button>
         </nav>
         <div className="skill-market-topbar__actions">
-          <WKButton variant="primary" icon={<Plus size={15} />} onClick={() => setCreateVisible(true)}>
-            {t("skillMarket.list.publish")}
-          </WKButton>
           <SearchBar
             ref={searchInputRef}
             value={list.query}
             onChange={list.setQuery}
-            placeholder={t("skillMarket.common.search")}
+            placeholder={t("skillMarket.filter.searchNameDescription")}
+            selectedTags={selectedTags}
+            onSelectedTagsChange={setSelectedTags}
             autoFocus
           />
+          <WKButton
+            variant="primary"
+            icon={<Upload size={15} />}
+            onClick={() => setCreateVisible(true)}
+          >
+            {t("skillMarket.list.publishSkill")}
+          </WKButton>
         </div>
       </header>
 
-      <section className={mine ? "skill-market-toolbar skill-market-toolbar--mine" : "skill-market-toolbar"}>
+      <section
+        className={
+          mine
+            ? "skill-market-toolbar skill-market-toolbar--mine"
+            : "skill-market-toolbar"
+        }
+      >
         {!mine && (
-          <CategoryChips
-            categories={list.categories}
-            activeId={list.categoryId}
-            onChange={list.setCategoryId}
-          />
+          <>
+            <CategoryChips
+              categories={list.categories}
+              activeId={list.categoryId}
+              onChange={list.setCategoryId}
+            />
+            <div
+              className="skill-market-sort"
+              aria-label={t("skillMarket.sort.ariaLabel")}
+            >
+              <span className="skill-market-sort__label">
+                {t("skillMarket.sort.label")}
+              </span>
+              <div className="skill-market-sort__options">
+                {SORT_OPTIONS.map((option, index) => (
+                  <React.Fragment key={option.value}>
+                    {index > 0 && (
+                      <span className="skill-market-sort__separator">·</span>
+                    )}
+                    <button
+                      type="button"
+                      className={
+                        sort === option.value ? "is-active" : undefined
+                      }
+                      onClick={() => setSort(option.value)}
+                    >
+                      {t(option.labelKey)}
+                    </button>
+                  </React.Fragment>
+                ))}
+              </div>
+            </div>
+          </>
         )}
       </section>
 
       <main className="skill-market-content">
+        {!list.loading && !list.error && (
+          <div className="skill-market-result-summary" aria-live="polite">
+            <span className="skill-market-result-summary__total">
+              {t("skillMarket.list.totalCount", {
+                values: { count: list.total },
+              })}
+            </span>
+            {list.total > list.skills.length && (
+              <span className="skill-market-result-summary__shown">
+                {t("skillMarket.list.shownCount", {
+                  values: { count: list.skills.length },
+                })}
+              </span>
+            )}
+          </div>
+        )}
         {list.loading && (
-          <div className="skill-market-grid" aria-label={t("skillMarket.list.loadingAriaLabel")}>
+          <div
+            className="skill-market-grid"
+            aria-label={t("skillMarket.list.loadingAriaLabel")}
+          >
             {Array.from({ length: 6 }).map((_, index) => (
               <SkillCardSkeleton key={index} />
             ))}
@@ -140,7 +218,11 @@ export default function SkillListPage() {
             <AlertCircle size={28} />
             <strong>{t("skillMarket.common.loadFailed")}</strong>
             <span>{list.error}</span>
-            <WKButton variant="secondary" icon={<RefreshCw size={15} />} onClick={list.refresh}>
+            <WKButton
+              variant="secondary"
+              icon={<RefreshCw size={15} />}
+              onClick={list.refresh}
+            >
               {t("skillMarket.list.retry")}
             </WKButton>
           </div>
@@ -158,7 +240,7 @@ export default function SkillListPage() {
                 key={skill.id}
                 skill={skill}
                 categories={list.categories}
-                onOpen={(item) => setDetailId(item.id)}
+                onOpen={openDetail}
                 onEdit={mine ? setEditing : undefined}
                 onDelete={mine ? setDeleting : undefined}
                 onInstall={(item) => setInstallSkillId(item.id)}
@@ -183,7 +265,6 @@ export default function SkillListPage() {
         onClose={() => setDetailId(null)}
         onEdit={mine ? setEditing : undefined}
         onDelete={mine ? setDeleting : undefined}
-        onFeedback={showToast}
       />
       <NewSkillModal
         visible={createVisible}
@@ -206,13 +287,20 @@ export default function SkillListPage() {
         onClose={() => setDeleting(null)}
         onDeleted={handleDeleted}
       />
-      {toast && createPortal(
-        <div className="skill-market-toast" role="status">
-          {toast}
-          <button type="button" onClick={() => setToast(null)} aria-label={t("skillMarket.list.closeToast")}>×</button>
-        </div>,
-        document.body,
-      )}
+      {toast &&
+        createPortal(
+          <div className="skill-market-toast" role="status">
+            {toast}
+            <button
+              type="button"
+              onClick={() => setToast(null)}
+              aria-label={t("skillMarket.list.closeToast")}
+            >
+              ×
+            </button>
+          </div>,
+          document.body
+        )}
     </div>
   );
 }

@@ -21,10 +21,13 @@
   "list": {
     "mine": "Mine",
     "publish": "Publish",
+    "publishSkill": "Publish Skill",
     "search": "Search",
     "errorTitle": "Failed to load",
     "retry": "Retry",
     "empty": "No data",
+    "totalCount": "Total {{count}} Skills",
+    "shownCount": "Showing {{count}}",
     "loadMore": "Load more...",
     "deleted": "Deleted",
     "created": "Created successfully",
@@ -33,10 +36,32 @@
     "loadingAriaLabel": "Loading skills",
     "closeToast": "Close notification"
   },
+  "filter": {
+    "searchNameDescription": "Search name or description...",
+    "tags": "Tags",
+    "searchTags": "Search tags",
+    "noTags": "No matching tags",
+    "noTagsSelected": "No tags selected",
+    "tagsSelected": "Tags selected",
+    "clear": "Clear"
+  },
+  "sort": {
+    "ariaLabel": "Skill sort",
+    "label": "Sort:",
+    "comprehensive": "Recommended",
+    "latest": "Latest",
+    "views": "Most viewed",
+    "downloads": "Most downloaded"
+  },
   "card": {
     "editAriaLabel": "Edit {{name}}",
     "deleteAriaLabel": "Delete {{name}}",
-    "install": "Install to Agent"
+    "statsAriaLabel": "Skill stats",
+    "viewsLabel": "Views",
+    "viewsTitle": "Views: {{count}}",
+    "downloadsLabel": "Downloads",
+    "downloadsTitle": "Downloads: {{count}}",
+    "install": "Install"
   },
   "category": {
     "ariaLabel": "Skill categories",
@@ -48,9 +73,6 @@
     "promptCopied": "Install prompt copied",
     "downloadStarted": "Download started",
     "downloadFailed": "Download failed",
-    "visibilityPrivate": "Private",
-    "visibilitySpace": "Space visible",
-    "visibilityPublic": "Public",
     "updatedAt": "Updated {{time}}",
     "tabIntro": "Introduction",
     "tabVersions": "Version History",
@@ -60,7 +82,9 @@
     "downloadTitle": "Download",
     "downloadBtn": "Download Skill Package",
     "latest": "Latest",
-    "noVersions": "No version history"
+    "noVersions": "No version history",
+    "retry": "Retry",
+    "noDetail": "No details available"
   },
   "form": {
     "editTitle": "Edit {{name}}",
@@ -79,14 +103,16 @@
     "category": "Category",
     "categoryPlaceholder": "Select a category",
     "tags": "Tags",
-    "tagPlaceholder": "Type a tag and press Enter",
-    "visibility": "Visibility",
-    "visibilityPublic": "Public",
-    "visibilityPublicHint": "Visible to all Space members",
-    "visibilityPrivate": "Private",
-    "visibilityPrivateHint": "Only visible to yourself",
-    "docNote": "Auto-parsed from SKILL.md. Re-upload the zip to modify.",
-    "validationRequired": "Please fill in the display name and category",
+    "tagPlaceholder": "Type or select a tag",
+    "tagSuggestions": "Tag suggestions",
+    "tagLimit": "Add up to {{count}} tags",
+    "tagLengthLimit": "Each tag can be up to {{count}} characters",
+    "tagInvalidChars": "Tags support letters, numbers, spaces, and - _ . / # +",
+    "tagDuplicate": "Tag already exists",
+    "initialChangelog": "Initial Skill publish.",
+    "currentVersionChangelog": "Current published version.",
+    "docNote": "Auto-parsed from SKILL.md. Re-upload the Skill package to modify.",
+    "validationRequired": "Please fill in the version, changelog, display name, and category",
     "validationNoUpload": "Please upload and parse a Skill package first",
     "saveFailed": "Failed to save",
     "createFailed": "Failed to create"
@@ -94,10 +120,12 @@
   "upload": {
     "invalidFormat": "Invalid file format",
     "fileTooLarge": "File exceeds 20MB",
-    "dropzoneTitle": "Upload Skill package (.zip, ≤20MB)",
-    "dropzoneHint": "The zip must contain a SKILL.md file",
-    "selectFileAriaLabel": "Select Skill zip file",
-    "selectNewFileAriaLabel": "Select a new Skill zip file",
+    "dropzoneTitle": "Upload Skill package (.zip / .skill)",
+    "dropzoneHint": "The Skill package must contain a SKILL.md file",
+    "parseAutofillHint": "The Skill package must contain SKILL.md. Parsed fields will be filled automatically.",
+    "selectFileAction": "Select file",
+    "selectFileAriaLabel": "Select Skill package file",
+    "selectNewFileAriaLabel": "Select a new Skill package file",
     "uploading": "Uploading",
     "uploadProgress": "Upload progress",
     "progressBarAriaLabel": "Upload progress bar",
@@ -106,10 +134,14 @@
     "parseTimeout": "Parse timed out, please retry",
     "uploadFailed": "Upload failed",
     "reselect": "Reselect file",
-    "reupload": "Re-upload zip package",
+    "reupload": "Re-upload Skill package",
     "reuploadShort": "Re-upload",
     "parsed": "SKILL.md parsed",
-    "currentPackage": "Current Skill package"
+    "parsedWithName": "SKILL.md parsed · English name {{name}}",
+    "currentPackage": "Current Skill package",
+    "currentPackageWithName": "Current Skill package · English name {{name}}",
+    "newVersionParsedWithName": "New version parsed · English name {{name}}",
+    "nameMismatch": "The name in SKILL.md must remain {{expected}}. Current value: {{actual}}"
   },
   "confirm": {
     "title": "Leave this page?",

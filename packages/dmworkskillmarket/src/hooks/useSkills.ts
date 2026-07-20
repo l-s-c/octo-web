@@ -1,15 +1,18 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { t } from "@octo/base";
-import type { Category, Skill } from "../types/skill";
+import type { Category, Skill, SkillSort } from "../types/skill";
 import { getCategories, getMySkills, getSkills } from "../api/skillApi";
 
 interface UseSkillsOptions {
   mine?: boolean;
+  selectedTags?: string[];
+  sort?: SkillSort;
 }
 
 export interface UseSkillsResult {
   categories: Category[];
   skills: Skill[];
+  total: number;
   loading: boolean;
   loadingMore: boolean;
   error: string | null;
@@ -18,13 +21,18 @@ export interface UseSkillsResult {
   hasMore: boolean;
   setQuery: (query: string) => void;
   setCategoryId: (categoryId: string) => void;
+  markSkillViewed: (skillId: string) => void;
   refresh: () => void;
   loadMore: () => void;
 }
 
 export function useSkills(options: UseSkillsOptions = {}): UseSkillsResult {
+  const selectedTags = options.selectedTags ?? [];
+  const sort = options.sort ?? "comprehensive";
+  const tagKey = selectedTags.join("\u0001");
   const [categories, setCategories] = useState<Category[]>([]);
   const [skills, setSkills] = useState<Skill[]>([]);
+  const [total, setTotal] = useState(0);
   const [query, setQueryState] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [categoryId, setCategoryIdState] = useState("all");
@@ -53,17 +61,68 @@ export function useSkills(options: UseSkillsOptions = {}): UseSkillsResult {
         const [categoryItems, page] = await Promise.all([
           getCategories({ signal }),
           options.mine
-            ? getMySkills({ q: debouncedQuery, categoryId, cursor: nextCursor ?? undefined, limit: 20 }, { signal })
-            : getSkills({ q: debouncedQuery, categoryId, cursor: nextCursor ?? undefined, limit: 20 }, { signal }),
+            ? getMySkills(
+                {
+                  q: debouncedQuery,
+                  categoryId,
+                  tags: selectedTags,
+                  sort,
+                  cursor: nextCursor ?? undefined,
+                  limit: 20,
+                },
+                { signal }
+              )
+            : getSkills(
+                {
+                  q: debouncedQuery,
+                  categoryId,
+                  tags: selectedTags,
+                  sort,
+                  cursor: nextCursor ?? undefined,
+                  limit: 20,
+                },
+                { signal }
+              ),
         ]);
         if (controller.signal.aborted) return;
-        setCategories(categoryItems);
-        setSkills((current: Skill[]) => (isMore ? [...current, ...page.items] : page.items));
+        const normalizedCategories = [
+          {
+            id: "all",
+            name: "全部",
+            iconKey: "LayoutGrid",
+            sortOrder: 0,
+            skillCount: categoryItems.reduce(
+              (total, category) =>
+                category.id === "all" || category.name === "全部"
+                  ? total
+                  : total + (category.skillCount ?? 0),
+              0
+            ),
+          },
+          ...categoryItems.filter(
+            (category) => category.id !== "all" && category.name !== "全部"
+          ),
+        ];
+        if (
+          categoryId !== "all" &&
+          !normalizedCategories.some((category) => category.id === categoryId)
+        ) {
+          setCategoryIdState("all");
+        }
+        setCategories(normalizedCategories);
+        setSkills((current: Skill[]) =>
+          isMore ? [...current, ...page.items] : page.items
+        );
+        setTotal(page.total);
         setCursor(page.nextCursor);
       } catch (err) {
         if (controller.signal.aborted) return;
         if (err instanceof DOMException && err.name === "AbortError") return;
-        setError(err instanceof Error ? err.message : t("skillMarket.common.loadFailed"));
+        setError(
+          err instanceof Error
+            ? err.message
+            : t("skillMarket.common.loadFailed")
+        );
       } finally {
         if (!controller.signal.aborted) {
           setLoading(false);
@@ -71,7 +130,7 @@ export function useSkills(options: UseSkillsOptions = {}): UseSkillsResult {
         }
       }
     },
-    [categoryId, debouncedQuery, options.mine],
+    [categoryId, debouncedQuery, options.mine, sort, tagKey]
   );
 
   useEffect(() => {
@@ -102,9 +161,20 @@ export function useSkills(options: UseSkillsOptions = {}): UseSkillsResult {
     setLoading(true);
   }, []);
 
+  const markSkillViewed = useCallback((skillId: string) => {
+    setSkills((current) =>
+      current.map((skill) =>
+        skill.id === skillId
+          ? { ...skill, viewCount: (skill.viewCount ?? 0) + 1 }
+          : skill
+      )
+    );
+  }, []);
+
   return {
     categories,
     skills,
+    total,
     loading,
     loadingMore,
     error,
@@ -113,6 +183,7 @@ export function useSkills(options: UseSkillsOptions = {}): UseSkillsResult {
     hasMore: Boolean(cursor),
     setQuery,
     setCategoryId,
+    markSkillViewed,
     refresh: () => void fetchPage(null),
     loadMore: () => {
       if (!cursor || loading || loadingMore) return;

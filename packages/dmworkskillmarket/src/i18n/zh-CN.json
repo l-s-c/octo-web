@@ -21,10 +21,13 @@
   "list": {
     "mine": "我的",
     "publish": "上架",
+    "publishSkill": "上架 Skill",
     "search": "搜索",
     "errorTitle": "加载失败",
     "retry": "重试",
     "empty": "暂无数据",
+    "totalCount": "共 {{count}} 个 Skill",
+    "shownCount": "已展示 {{count}} 个",
     "loadMore": "继续加载...",
     "deleted": "已删除",
     "created": "创建成功",
@@ -33,10 +36,32 @@
     "loadingAriaLabel": "Skill 加载中",
     "closeToast": "关闭提示"
   },
+  "filter": {
+    "searchNameDescription": "搜索名称、描述...",
+    "tags": "标签",
+    "searchTags": "搜索标签",
+    "noTags": "没有匹配标签",
+    "noTagsSelected": "未选择标签",
+    "tagsSelected": "已选择标签",
+    "clear": "清空"
+  },
+  "sort": {
+    "ariaLabel": "Skill 排序",
+    "label": "排序：",
+    "comprehensive": "综合",
+    "latest": "最新发布",
+    "views": "浏览最多",
+    "downloads": "下载最多"
+  },
   "card": {
     "editAriaLabel": "编辑 {{name}}",
     "deleteAriaLabel": "删除 {{name}}",
-    "install": "Agent 安装"
+    "statsAriaLabel": "Skill 统计",
+    "viewsLabel": "浏览",
+    "viewsTitle": "浏览次数：{{count}}",
+    "downloadsLabel": "下载",
+    "downloadsTitle": "下载次数：{{count}}",
+    "install": "安装"
   },
   "category": {
     "ariaLabel": "Skill 分类",
@@ -48,9 +73,6 @@
     "promptCopied": "安装 Prompt 已复制",
     "downloadStarted": "下载已打开",
     "downloadFailed": "下载失败",
-    "visibilityPrivate": "私有",
-    "visibilitySpace": "空间可见",
-    "visibilityPublic": "公开",
     "updatedAt": "{{time}}更新",
     "tabIntro": "Skill 介绍",
     "tabVersions": "版本历史",
@@ -60,7 +82,9 @@
     "downloadTitle": "下载",
     "downloadBtn": "下载 Skill 包",
     "latest": "最新",
-    "noVersions": "暂无历史版本"
+    "noVersions": "暂无历史版本",
+    "retry": "重试",
+    "noDetail": "暂无详情"
   },
   "form": {
     "editTitle": "编辑 {{name}}",
@@ -79,14 +103,16 @@
     "category": "分类",
     "categoryPlaceholder": "请选择分类",
     "tags": "标签",
-    "tagPlaceholder": "输入标签后回车",
-    "visibility": "可见性",
-    "visibilityPublic": "公开",
-    "visibilityPublicHint": "Space 内所有成员可见",
-    "visibilityPrivate": "非公开",
-    "visibilityPrivateHint": "仅自己可见",
-    "docNote": "由 SKILL.md 自动解析，如需修改请重新上传 zip 包",
-    "validationRequired": "请填写展示名称和分类",
+    "tagPlaceholder": "输入或选择标签",
+    "tagSuggestions": "标签候选",
+    "tagLimit": "最多添加 {{count}} 个标签",
+    "tagLengthLimit": "单个标签最多 {{count}} 个字符",
+    "tagInvalidChars": "标签仅支持文字、数字、空格和 - _ . / # +",
+    "tagDuplicate": "标签已存在",
+    "initialChangelog": "首次上架 Skill。",
+    "currentVersionChangelog": "当前线上版本。",
+    "docNote": "由 SKILL.md 自动解析，如需修改请重新上传 Skill 包",
+    "validationRequired": "请填写版本号、更新说明、展示名称和分类",
     "validationNoUpload": "请先上传并解析 Skill 压缩包",
     "saveFailed": "保存失败",
     "createFailed": "创建失败"
@@ -94,10 +120,12 @@
   "upload": {
     "invalidFormat": "文件格式不正确",
     "fileTooLarge": "文件超过 20MB",
-    "dropzoneTitle": "上传 Skill 压缩包（.zip，≤20MB）",
-    "dropzoneHint": "zip 内需包含 SKILL.md 文件",
-    "selectFileAriaLabel": "选择 Skill zip 文件",
-    "selectNewFileAriaLabel": "选择新的 Skill zip 文件",
+    "dropzoneTitle": "上传 Skill 包（.zip / .skill）",
+    "dropzoneHint": "Skill 包内需包含 SKILL.md 文件",
+    "parseAutofillHint": "Skill 包内需包含 SKILL.md，解析后自动填充下方信息",
+    "selectFileAction": "选择文件",
+    "selectFileAriaLabel": "选择 Skill 包文件",
+    "selectNewFileAriaLabel": "选择新的 Skill 包文件",
     "uploading": "上传中",
     "uploadProgress": "上传进度",
     "progressBarAriaLabel": "上传进度条",
@@ -106,10 +134,14 @@
     "parseTimeout": "解析超时，请重试",
     "uploadFailed": "上传失败",
     "reselect": "重新选择文件",
-    "reupload": "重新上传 zip 包",
+    "reupload": "重新上传 Skill 包",
     "reuploadShort": "重新上传",
     "parsed": "已解析 SKILL.md",
-    "currentPackage": "当前 Skill 包"
+    "parsedWithName": "已解析 SKILL.md · 英文名 {{name}}",
+    "currentPackage": "当前 Skill 包",
+    "currentPackageWithName": "当前 Skill 包 · 英文名 {{name}}",
+    "newVersionParsedWithName": "已解析新版本 · 英文名 {{name}}",
+    "nameMismatch": "SKILL.md 中的 name 必须保持为 {{expected}}，当前为 {{actual}}"
   },
   "confirm": {
     "title": "确定离开？",

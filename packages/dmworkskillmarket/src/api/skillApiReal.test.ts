@@ -4,7 +4,10 @@ import {
   getCategories,
   getSkills,
   getMySkills,
+  getSkillTags,
   getSkill,
+  trackSkillView,
+  getSkillMd,
   createSkill,
   updateSkill,
   deleteSkill,
@@ -79,11 +82,7 @@ describe("skillApiReal", () => {
     expect(mockFetch).toHaveBeenCalledWith(
       "/market/api/v1/skill_categories",
       expect.objectContaining({
-        headers: expect.objectContaining({
-          "Content-Type": "application/json",
-          token: "test-token",
-          "X-Space-Id": "space-123",
-        }),
+        headers: { "Content-Type": "application/json" },
       })
     );
   });
@@ -111,6 +110,8 @@ describe("skillApiReal", () => {
             tags: ["CI"],
             owner_id: "jian",
             owner_name: "jian",
+            creator_id: "bot-1",
+            creator_name: "CI Bot",
             space_id: "dev-space",
             visibility: "space",
             version: "1.0.2",
@@ -119,25 +120,33 @@ describe("skillApiReal", () => {
             file_url: "http://localhost/files/ci.zip",
             file_size: 1024,
             file_sha256: "abc123",
+            view_count: 7,
+            download_count: 3,
             created_at: "2026-06-01T00:00:00Z",
             updated_at: "2026-07-10T00:00:00Z",
           },
         ],
         200,
-        { has_more: true, next_cursor: "abc" }
+        { has_more: true, next_cursor: "abc", total: 42 }
       )
     );
 
     const result = await getSkills({
       q: "CI",
       categoryId: "dev-tools",
+      tags: ["CI", "质量"],
+      sort: "latest",
       limit: 10,
     });
 
     expect(result.items).toHaveLength(1);
     expect(result.items[0].categoryId).toBe("dev-tools");
+    expect(result.items[0].creatorName).toBe("CI Bot");
     expect(result.items[0].fileSha256).toBe("abc123");
+    expect(result.items[0].viewCount).toBe(7);
+    expect(result.items[0].downloadCount).toBe(3);
     expect(result.nextCursor).toBe("abc");
+    expect(result.total).toBe(42);
     expect(mockFetch).toHaveBeenCalledWith(
       expect.stringContaining("/market/api/v1/skills?"),
       expect.anything()
@@ -145,19 +154,59 @@ describe("skillApiReal", () => {
     const url = mockFetch.mock.calls[0][0] as string;
     expect(url).toContain("q=CI");
     expect(url).toContain("category_id=dev-tools");
+    expect(url).toContain("tags=CI%2C%E8%B4%A8%E9%87%8F");
+    expect(url).toContain("sort=latest");
     expect(url).toContain("page_size=10");
+  });
+
+  it("getSkillTags fetches current-space tag suggestions", async () => {
+    mockFetch.mockReturnValueOnce(
+      jsonResponse({
+        items: [
+          {
+            name: "ui-case",
+            created_by: "dev-user",
+            created_at: "2026-07-17T09:04:23Z",
+            updated_at: "2026-07-17T09:04:23Z",
+          },
+        ],
+      })
+    );
+
+    const tags = await getSkillTags("ui");
+
+    expect(tags).toEqual([
+      {
+        name: "ui-case",
+        createdBy: "dev-user",
+        createdAt: "2026-07-17T09:04:23Z",
+        updatedAt: "2026-07-17T09:04:23Z",
+      },
+    ]);
+    expect(mockFetch).toHaveBeenCalledWith(
+      "/market/api/v1/skills/tags?q=ui&page_size=20",
+      expect.objectContaining({
+        headers: { "Content-Type": "application/json" },
+      })
+    );
   });
 
   it("getMySkills calls /skill/mine endpoint", async () => {
     mockFetch.mockReturnValueOnce(jsonResponse([], 200, { has_more: false }));
 
-    const result = await getMySkills({ q: "test" });
+    const result = await getMySkills({
+      q: "test",
+      tags: ["协作"],
+      sort: "downloads",
+    });
 
     expect(result.items).toEqual([]);
     expect(result.nextCursor).toBeNull();
     const url = mockFetch.mock.calls[0][0] as string;
     expect(url).toContain("/market/api/v1/skills/mine");
     expect(url).toContain("q=test");
+    expect(url).toContain("tags=%E5%8D%8F%E4%BD%9C");
+    expect(url).toContain("sort=downloads");
   });
 
   it("getSkill maps a single skill", async () => {
@@ -208,6 +257,35 @@ describe("skillApiReal", () => {
     await expect(getSkill("legacy-skill")).resolves.toMatchObject({
       id: "legacy-skill",
     });
+  });
+
+  it("trackSkillView sends a best-effort view metric", async () => {
+    mockFetch.mockReturnValueOnce(
+      Promise.resolve({
+        ok: true,
+        status: 204,
+        json: () => Promise.resolve(null),
+      })
+    );
+
+    await expect(trackSkillView("skill/with space")).resolves.toBeUndefined();
+
+    expect(mockFetch).toHaveBeenCalledWith(
+      "/market/api/v1/metrics/track",
+      expect.objectContaining({
+        method: "POST",
+        headers: expect.objectContaining({
+          "Content-Type": "application/json",
+          token: "test-token",
+          "X-Space-Id": "space-123",
+        }),
+        body: JSON.stringify({
+          resource_type: "skill",
+          resource_id: "skill/with space",
+          event_type: "view",
+        }),
+      })
+    );
   });
 
   it("deleteSkill handles empty success envelope", async () => {
@@ -789,5 +867,60 @@ describe("skillApiReal", () => {
     await expect(
       getCategories({ signal: controller.signal })
     ).rejects.toMatchObject({ name: "AbortError" });
+  });
+
+  describe("getSkillMd", () => {
+    it("returns markdown text on success", async () => {
+      const mdText = "# My Skill\n\nThis is a skill description.";
+      mockFetch.mockReturnValueOnce(
+        Promise.resolve({
+          ok: true,
+          status: 200,
+          text: () => Promise.resolve(mdText),
+        })
+      );
+
+      const result = await getSkillMd("skill-123");
+      expect(result).toBe(mdText);
+      expect(mockFetch).toHaveBeenCalledWith(
+        "/market/api/v1/skills/skill-123/skill-md",
+        expect.objectContaining({
+          headers: { "Content-Type": "application/json" },
+        })
+      );
+    });
+
+    it("throws with status 404 when skill-md not found", async () => {
+      mockFetch.mockReturnValueOnce(
+        Promise.resolve({
+          ok: false,
+          status: 404,
+          statusText: "Not Found",
+          text: () => Promise.resolve(""),
+        })
+      );
+
+      await expect(getSkillMd("skill-missing")).rejects.toMatchObject({
+        status: 404,
+        code: "not_found",
+      });
+    });
+
+    it("throws on network error", async () => {
+      mockFetch.mockReturnValueOnce(Promise.reject(new Error("Network failure")));
+
+      await expect(getSkillMd("skill-123")).rejects.toMatchObject({
+        code: "network_error",
+      });
+    });
+
+    it("propagates AbortError without wrapping", async () => {
+      const abortError = new DOMException("Aborted", "AbortError");
+      mockFetch.mockReturnValueOnce(Promise.reject(abortError));
+
+      await expect(getSkillMd("skill-123")).rejects.toMatchObject({
+        name: "AbortError",
+      });
+    });
   });
 });
