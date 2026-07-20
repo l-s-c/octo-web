@@ -62,10 +62,11 @@ describe("SkillCard", () => {
     expect(screen.queryByText("@我")).not.toBeInTheDocument();
   });
 
-  it("supports keyboard open and owner actions from the more menu without opening the card", () => {
+  it("supports keyboard open and exposed owner actions without opening the card", () => {
     const onOpen = vi.fn();
     const onEdit = vi.fn();
     const onDelete = vi.fn();
+    const onInstall = vi.fn();
 
     render(
       <SkillCard
@@ -74,22 +75,24 @@ describe("SkillCard", () => {
         onOpen={onOpen}
         onEdit={onEdit}
         onDelete={onDelete}
+        onInstall={onInstall}
       />,
     );
 
     fireEvent.keyDown(screen.getByRole("button", { name: "ci-helper @我" }), { key: "Enter" });
     expect(onOpen).toHaveBeenCalledWith(skill);
 
-    expect(screen.queryByRole("menuitem", { name: "编辑 ci-helper" })).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "更多" }));
-    fireEvent.click(screen.getByRole("menuitem", { name: "编辑 ci-helper" }));
+    expect(screen.queryByRole("button", { name: "安装" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "更多" })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "编辑 ci-helper" }));
     expect(onEdit).toHaveBeenCalledWith(skill);
     expect(onOpen).toHaveBeenCalledTimes(1);
 
-    fireEvent.click(screen.getByRole("button", { name: "更多" }));
-    fireEvent.click(screen.getByRole("menuitem", { name: "删除 ci-helper" }));
+    fireEvent.click(screen.getByRole("button", { name: "删除 ci-helper" }));
     expect(onDelete).toHaveBeenCalledWith(skill);
     expect(onOpen).toHaveBeenCalledTimes(1);
+    expect(onInstall).not.toHaveBeenCalled();
   });
 
   it("shows the full description tooltip only when the description is truncated", async () => {
@@ -108,7 +111,7 @@ describe("SkillCard", () => {
     expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
   });
 
-  it("hides the description tooltip before opening owner actions", async () => {
+  it("hides the description tooltip before using owner actions", async () => {
     render(
       <SkillCard
         skill={skill}
@@ -125,7 +128,7 @@ describe("SkillCard", () => {
     fireEvent.mouseEnter(description);
     expect(await screen.findByRole("tooltip")).toHaveTextContent(skill.description);
 
-    fireEvent.click(screen.getByRole("button", { name: "更多" }));
+    fireEvent.click(screen.getByRole("button", { name: "编辑 ci-helper" }));
     expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
   });
 

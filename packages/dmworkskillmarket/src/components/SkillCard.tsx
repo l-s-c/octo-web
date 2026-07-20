@@ -1,5 +1,5 @@
-import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { Download, Eye, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import React, { useLayoutEffect, useRef, useState } from "react";
+import { Download, Eye, Pencil, Trash2 } from "lucide-react";
 import { t, useI18n } from "@octo/base";
 import type { Category, Skill } from "../types/skill";
 import { formatCount } from "../utils/format";
@@ -79,10 +79,8 @@ export default function SkillCard({ skill, categories: _categories, onOpen, onEd
     visible: false,
     style: {},
   });
-  const [actionsOpen, setActionsOpen] = useState(false);
   const descriptionRef = useRef<HTMLParagraphElement>(null);
   const descriptionTooltipRef = useRef<HTMLDivElement>(null);
-  const actionsRef = useRef<HTMLDivElement>(null);
   const visibleTags = skill.tags.slice(0, CARD_VISIBLE_TAG_LIMIT);
   const hiddenTagCount = Math.max(0, skill.tags.length - visibleTags.length);
   const hiddenTags = skill.tags.slice(visibleTags.length);
@@ -97,27 +95,6 @@ export default function SkillCard({ skill, categories: _categories, onOpen, onEd
   const rawDownloadCount = skill.downloadCount ?? 0;
   const viewCount = formatCount(rawViewCount);
   const downloadCount = formatCount(rawDownloadCount);
-
-  useEffect(() => {
-    if (!actionsOpen) return undefined;
-
-    function handlePointerDown(event: PointerEvent) {
-      if (!actionsRef.current?.contains(event.target as Node)) {
-        setActionsOpen(false);
-      }
-    }
-
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") setActionsOpen(false);
-    }
-
-    document.addEventListener("pointerdown", handlePointerDown);
-    document.addEventListener("keydown", handleKeyDown);
-    return () => {
-      document.removeEventListener("pointerdown", handlePointerDown);
-      document.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [actionsOpen]);
 
   useLayoutEffect(() => {
     const description = descriptionRef.current;
@@ -272,68 +249,49 @@ export default function SkillCard({ skill, categories: _categories, onOpen, onEd
           </span>
         </div>
         <div className="skill-market-card__footer-actions">
-          <button
-            type="button"
-            className="skill-market-card__install"
-            onClick={() => {
-              hideDescriptionTooltip();
-              onInstall?.(skill);
-            }}
-          >
-            {t("skillMarket.card.install")}
-          </button>
-          {(onEdit || onDelete) && (
-            <div className="skill-market-card__actions-menu" ref={actionsRef}>
-              <button
-                type="button"
-                className="skill-market-card__more"
-                aria-label={t("skillMarket.common.more")}
-                aria-haspopup="menu"
-                aria-expanded={actionsOpen}
-                title={t("skillMarket.common.more")}
-                onClick={() => {
-                  hideDescriptionTooltip();
-                  setActionsOpen((open) => !open);
-                }}
-              >
-                <MoreHorizontal size={16} />
-              </button>
-              {actionsOpen && (
-                <div className="skill-market-card__actions-panel" role="menu">
-                  {onEdit && (
-                    <button
-                      type="button"
-                      role="menuitem"
-                      aria-label={t("skillMarket.card.editAriaLabel", { values: { name: skill.name } })}
-                      onClick={() => {
-                        hideDescriptionTooltip();
-                        setActionsOpen(false);
-                        onEdit(skill);
-                      }}
-                    >
-                      <Pencil size={15} />
-                      {t("skillMarket.common.edit")}
-                    </button>
-                  )}
-                  {onDelete && (
-                    <button
-                      type="button"
-                      role="menuitem"
-                      className="is-danger"
-                      aria-label={t("skillMarket.card.deleteAriaLabel", { values: { name: skill.name } })}
-                      onClick={() => {
-                        hideDescriptionTooltip();
-                        setActionsOpen(false);
-                        onDelete(skill);
-                      }}
-                    >
-                      <Trash2 size={15} />
-                      {t("skillMarket.common.delete")}
-                    </button>
-                  )}
-                </div>
+          {!isOwnerCard && onInstall && (
+            <button
+              type="button"
+              className="skill-market-card__install"
+              onClick={() => {
+                hideDescriptionTooltip();
+                onInstall(skill);
+              }}
+            >
+              {t("skillMarket.card.install")}
+            </button>
+          )}
+          {isOwnerCard && (
+            <>
+              {onEdit && (
+                <button
+                  type="button"
+                  className="skill-market-card__action-button"
+                  aria-label={t("skillMarket.card.editAriaLabel", { values: { name: skill.name } })}
+                  title={t("skillMarket.common.edit")}
+                  onClick={() => {
+                    hideDescriptionTooltip();
+                    onEdit(skill);
+                  }}
+                >
+                  <Pencil size={15} />
+                </button>
               )}
-            </div>
+              {onDelete && (
+                <button
+                  type="button"
+                  className="skill-market-card__action-button is-danger"
+                  aria-label={t("skillMarket.card.deleteAriaLabel", { values: { name: skill.name } })}
+                  title={t("skillMarket.common.delete")}
+                  onClick={() => {
+                    hideDescriptionTooltip();
+                    onDelete(skill);
+                  }}
+                >
+                  <Trash2 size={15} />
+                </button>
+              )}
+            </>
           )}
         </div>
       </div>
