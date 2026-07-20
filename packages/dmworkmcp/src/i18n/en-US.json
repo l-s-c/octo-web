@@ -64,6 +64,7 @@
   "card": {
     "hitTool": "Matched tool",
     "hitTag": "Matched tag",
+    "matchReason": { "name": "Matched name", "description": "Matched summary", "tool": "Matched tool", "tag": "Matched tag", "category": "Matched category", "usage": "Matched usage example", "creator": "Matched publisher", "other": "Matched content" },
     "toolCount": "Tools: {{count}}",
     "viewDetail": "View details"
   },

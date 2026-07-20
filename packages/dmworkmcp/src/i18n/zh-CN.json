@@ -64,6 +64,7 @@
   "card": {
     "hitTool": "命中工具",
     "hitTag": "命中标签",
+    "matchReason": { "name": "命中名称", "description": "命中简介", "tool": "命中工具", "tag": "命中标签", "category": "命中分类", "usage": "命中使用示例", "creator": "命中发布者", "other": "命中内容" },
     "toolCount": "工具数量: {{count}} 个",
     "viewDetail": "查看详情"
   },

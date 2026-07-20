@@ -10,6 +10,7 @@ import McpDetailModal from "../components/McpDetailModal";
 import McpCreateModal from "../components/McpCreateModal";
 import "../index.css";
 import { parseMcpListQuery, serializeMcpListQuery } from "./mcpListQuery";
+import TagMultiInput from "../components/TagMultiInput";
 
 /** Which slice of the marketplace the list view is showing. */
 type ListMode = "all" | "mine";
@@ -342,7 +343,7 @@ export default class McpMarketListPage extends Component<
             {["system", "space", "mine"].map((v) => <button key={v} className={sources.includes(v) ? "wk-mcp__pill wk-mcp__pill--active" : "wk-mcp__pill"} onClick={() => this.toggleFilter("sources", v)}>{t(`mcp.list.source.${v}`)}</button>)}
             {["public", "private"].map((v) => <button key={v} className={visibilities.includes(v) ? "wk-mcp__pill wk-mcp__pill--active" : "wk-mcp__pill"} onClick={() => this.toggleFilter("visibilities", v)}>{t(`mcp.list.visibility.${v}`)}</button>)}
             {["verified", "unverified", "error"].map((v) => <button key={v} className={verificationStatuses.includes(v) ? "wk-mcp__pill wk-mcp__pill--active" : "wk-mcp__pill"} onClick={() => this.toggleFilter("verificationStatuses", v)}>{t(`mcp.list.verification.${v}`)}</button>)}
-            <input value={tags.join(", ")} placeholder={t("mcp.list.tagsPlaceholder")} onChange={(e) => this.setState({ tags: e.target.value.split(",").map((v) => v.trim()).filter(Boolean) })} onBlur={() => this.loadData()} />
+            <TagMultiInput tags={tags} placeholder={t("mcp.list.tagsPlaceholder")} onCommit={(next) => this.setState({ tags: next }, () => this.loadData())} />
             <select value={sort} onChange={(e) => this.setState({ sort: e.target.value as typeof sort }, () => this.loadData())} aria-label={t("mcp.list.sort.label")}>
               <option value="relevance">{t("mcp.list.sort.relevance")}</option><option value="updated">{t("mcp.list.sort.updated")}</option><option value="verified">{t("mcp.list.sort.verified")}</option>
             </select>
