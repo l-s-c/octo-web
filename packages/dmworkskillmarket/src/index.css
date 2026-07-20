@@ -2536,24 +2536,39 @@
   cursor: pointer;
   overflow: hidden;
   transition: border-color var(--wk-dur-fast) var(--wk-ease);
+  padding: 0;
 }
 
 .skill-market-icon-upload:hover {
   border-color: var(--wk-border-strong);
 }
 
-.skill-market-icon-upload input {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
+.skill-market-icon-upload:focus-visible {
+  outline: 2px solid var(--wk-border-glow);
+  outline-offset: 2px;
+}
+
+.skill-market-icon-upload__input {
+  display: none;
 }
 
 .skill-market-icon-upload img {
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+
+.skill-market-icon-upload__default {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  color: #fff;
+  font-weight: 600;
+  font-size: 20px;
+  letter-spacing: 0.5px;
 }
 
 /* --- Readonly field --- */

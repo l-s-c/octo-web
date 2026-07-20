@@ -43,6 +43,17 @@ const skill: Skill = {
 };
 
 vi.mock("../../api/skillApi");
+vi.mock("react-avatar-editor", async () => {
+  const React = await import("react");
+  const AvatarEditor = React.forwardRef((_props: unknown, ref: React.ForwardedRef<{ getImageScaledToCanvas: () => HTMLCanvasElement }>) => {
+    React.useImperativeHandle(ref, () => ({
+      getImageScaledToCanvas: () => document.createElement("canvas"),
+    }));
+    return React.createElement("canvas", { "data-testid": "avatar-editor" });
+  });
+  AvatarEditor.displayName = "AvatarEditorMock";
+  return { default: AvatarEditor };
+});
 
 describe("EditSkillModal", () => {
   beforeEach(() => {
@@ -103,6 +114,22 @@ describe("EditSkillModal", () => {
     })));
     expect(onUpdated).toHaveBeenCalled();
     expect(onClose).toHaveBeenCalled();
+  });
+
+  it("opens the hidden icon file input and shows the crop dialog after selecting an image", async () => {
+    const { container } = render(<EditSkillModal skill={skill} categories={categories} onClose={vi.fn()} onUpdated={vi.fn()} />);
+    const iconInput = container.querySelector<HTMLInputElement>(".skill-market-icon-upload__input");
+    expect(iconInput).toBeTruthy();
+    const clickSpy = vi.spyOn(iconInput!, "click").mockImplementation(() => undefined);
+
+    fireEvent.click(screen.getByRole("button", { name: /上传图标|skillMarket\.form\.uploadIcon/ }));
+    expect(clickSpy).toHaveBeenCalledTimes(1);
+
+    fireEvent.change(iconInput!, {
+      target: { files: [new File(["png"], "icon.png", { type: "image/png" })] },
+    });
+
+    expect(screen.getByRole("dialog", { name: /裁剪图标|skillMarket\.crop\.title/ })).toBeInTheDocument();
   });
 
   it("ignores duplicate save clicks while the update is pending", async () => {
