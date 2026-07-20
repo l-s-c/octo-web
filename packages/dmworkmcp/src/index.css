@@ -296,6 +296,12 @@
   font-size: var(--wk-text-size-base);
 }
 
+.wk-mcp__state--error {
+  flex-direction: column;
+  gap: 12px;
+  text-align: center;
+}
+
 /* ═══ Detail modal ═════════════════════════════════════════════════════════ */
 .wk-mcp-detail__meta {
   display: flex;

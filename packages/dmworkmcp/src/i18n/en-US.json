@@ -36,7 +36,9 @@
   "list": {
     "desc": "Browse and connect MCP servers to extend your agent's tools.",
     "create": "New MCP",
-    "searchPlaceholder": "Search by name / summary",
+    "searchPlaceholder": "Search MCPs, tools, or capabilities",
+    "errorTitle": "Failed to load MCPs",
+    "retry": "Retry",
     "empty": "No matching MCP servers",
     "loadMore": "Scroll down to load more",
     "reachedEnd": "You've reached the end",

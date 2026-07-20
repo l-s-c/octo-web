@@ -22,6 +22,7 @@ interface McpMarketListPageState {
   categories: McpCategory[];
   loading: boolean;
   loadingMore: boolean;
+  error: string | null;
   keyword: string;
   category: string;
   mode: ListMode;
@@ -51,6 +52,7 @@ export default class McpMarketListPage extends Component<
     categories: [],
     loading: false,
     loadingMore: false,
+    error: null,
     keyword: "",
     category: "all",
     mode: "all",
@@ -62,6 +64,7 @@ export default class McpMarketListPage extends Component<
   };
 
   private searchTimer: ReturnType<typeof setTimeout> | null = null;
+  private requestVersion = 0;
   private bodyRef = React.createRef<HTMLDivElement>();
 
   componentDidMount() {
@@ -86,7 +89,8 @@ export default class McpMarketListPage extends Component<
 
   /** Initial / filtered load. Resets offset and replaces items. */
   async loadData() {
-    this.setState({ loading: true, offset: 0 });
+    const requestVersion = ++this.requestVersion;
+    this.setState({ loading: true, offset: 0, error: null });
     try {
       const fetcher = this.state.mode === "mine" ? fetchMcpMine : fetchMcpList;
       const resp = await fetcher({
@@ -95,6 +99,7 @@ export default class McpMarketListPage extends Component<
         limit: PAGE_SIZE,
         offset: 0,
       });
+      if (requestVersion !== this.requestVersion) return;
       this.setState({
         items: resp.items,
         categories: resp.categories,
@@ -103,10 +108,12 @@ export default class McpMarketListPage extends Component<
         loading: false,
       });
     } catch (err: unknown) {
-      this.setState({ loading: false });
-      Toast.error(
-        err instanceof Error ? err.message : t("mcp.common.loadFailed")
-      );
+      if (requestVersion !== this.requestVersion) return;
+      this.setState({
+        loading: false,
+        items: [],
+        error: err instanceof Error ? err.message : t("mcp.common.loadFailed"),
+      });
     }
   }
 
@@ -222,6 +229,7 @@ export default class McpMarketListPage extends Component<
       categories,
       loading,
       loadingMore,
+      error,
       keyword,
       category,
       mode,
@@ -309,6 +317,12 @@ export default class McpMarketListPage extends Component<
             {loading ? (
               <div className="wk-mcp__state">
                 <Spin />
+              </div>
+            ) : error ? (
+              <div className="wk-mcp__state wk-mcp__state--error" role="alert">
+                <strong>{t("mcp.list.errorTitle")}</strong>
+                <span>{error}</span>
+                <WKButton onClick={() => this.loadData()}>{t("mcp.list.retry")}</WKButton>
               </div>
             ) : items.length === 0 ? (
               <div className="wk-mcp__state">{t("mcp.list.empty")}</div>
