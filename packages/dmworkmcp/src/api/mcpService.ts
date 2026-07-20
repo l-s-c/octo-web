@@ -64,6 +64,32 @@ function delay<T>(value: T, ms = MOCK_DELAY_MS): Promise<T> {
   return new Promise((resolve) => setTimeout(() => resolve(value), ms));
 }
 
+/**
+ * Reject presigned upload / download URLs whose scheme is not http(s), or
+ * whose http-scheme host is not a loopback (dev proxy). Blocks the obvious
+ * bad schemes — `javascript:`, `data:`, `file:` — before an anchor.href /
+ * axios.put reaches them.
+ *
+ * Scope: this is scheme-level defense-in-depth only. An `https://` URL
+ * pointing at an internal / metadata host (`https://10.x`,
+ * `https://169.254.169.254`) still passes; that class of concern needs a
+ * host allowlist against the known storage origin, which the marketplace
+ * hasn't published yet. Blast radius is bounded either way — the PUT
+ * carries only the user-selected icon bytes with no app credentials (raw
+ * axios, no interceptors).
+ */
+function assertSafeUploadURL(raw: string): void {
+  let u: URL;
+  try {
+    u = new URL(raw);
+  } catch {
+    throw new Error(t("mcp.create.iconUploadFailed"));
+  }
+  if (u.protocol === "https:") return;
+  if (u.protocol === "http:" && (u.hostname === "localhost" || u.hostname === "127.0.0.1")) return;
+  throw new Error(t("mcp.create.iconUploadFailed"));
+}
+
 // ─── Mock implementations ──────────────────────────────────────────────────
 
 function buildCategories(): McpCategory[] {
@@ -665,6 +691,12 @@ async function uploadMcpIconReal(_id: string, file: File): Promise<string> {
     throw new Error(t("mcp.create.iconUploadFailed"));
   }
   const { presigned_url, download_url, headers } = init.data.data;
+  // Defense-in-depth: the presigned URLs come back from our own marketplace
+  // backend, but any downstream misconfiguration/compromise could point them
+  // at an internal address or a non-HTTPS host. Only allow https:// (or
+  // http:// on localhost for dev proxies).
+  assertSafeUploadURL(presigned_url);
+  assertSafeUploadURL(download_url);
 
   // PUT via raw axios (no interceptors) — the presigned URL points at
   // storage / local proxy, not marketplace, and any Accept-Language /

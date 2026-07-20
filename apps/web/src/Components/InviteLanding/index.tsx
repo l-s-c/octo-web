@@ -279,7 +279,10 @@ export default class InviteLanding extends Component<InviteLandingProps, InviteL
             const sid = this.findSid();
             // 使用安全的 basePath，避免当 pathname 为 /api/ 时跳到后端 API 路径（#1006）
             const basePath = this.getAppBasePath();
-            window.location.href = `${window.location.origin}${basePath}/${sid ? `?sid=${sid}` : ''}`;
+            // URL-encode the sid so values containing `&`/`#`/spaces don't
+            // inject extra query params or fragments (yujiawei PR#851 P2).
+            const query = sid ? `?${new URLSearchParams({ sid }).toString()}` : "";
+            window.location.href = `${window.location.origin}${basePath}/${query}`;
         } catch (e: any) {
             const body = this.getApiErrorData(e);
             if (this.isNeedSpaceResponse(this.getApiErrorStatus(e), body)) {

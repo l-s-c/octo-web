@@ -57,6 +57,9 @@ export default class MarketSidebar extends Component<{}, MarketSidebarState> {
       this.setState({ activeId: item.id });
     }
     WKApp.routeRight.replaceToRoot(item.render());
+    // Sync the URL so refresh/copy-link/back button land on this tab
+    // rather than whatever stale path was in the address bar before.
+    WKApp.route.syncPath(item.routePath);
   };
 
   render() {

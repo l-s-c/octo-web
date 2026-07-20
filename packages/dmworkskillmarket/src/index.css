@@ -2205,6 +2205,10 @@
     left: 0;
   }
 
+  .skill-market-install {
+    position: static;
+  }
+
   .skill-market-workflow-modal .wk-modal,
   .skill-market-workflow-modal .wk-modal-content {
     width: calc(100vw - 24px);
