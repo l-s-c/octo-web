@@ -118,6 +118,9 @@
    Sits below the topbar as its own row — mirrors dmworkskillmarket's
    `.skill-market-toolbar`. Hidden on the "mine" tab, same as skillmarket. */
 .wk-mcp__toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--wk-sp-3);
   flex: none;
   padding: var(--wk-sp-3) var(--wk-sp-4);
   border-bottom: 1px solid var(--wk-border-subtle);
@@ -137,6 +140,24 @@
   align-items: center;
   gap: var(--wk-sp-2);
   flex-wrap: wrap;
+}
+
+.wk-mcp__source-filter {
+  display: flex;
+  align-items: center;
+  gap: var(--wk-sp-2);
+  margin-left: auto;
+  color: var(--wk-text-secondary);
+  font-size: var(--wk-text-size-sm);
+}
+
+.wk-mcp__source-filter select {
+  height: 32px;
+  padding: 0 var(--wk-sp-3);
+  border: 1px solid var(--wk-border-default);
+  border-radius: var(--wk-r-sm);
+  background: var(--wk-bg-surface);
+  color: var(--wk-text-primary);
 }
 
 .wk-mcp__pill {
@@ -237,6 +258,36 @@
   margin-bottom: var(--wk-sp-1);
 }
 
+.wk-mcp-card__title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--wk-sp-2);
+}
+
+.wk-mcp-source {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--wk-sp-1);
+  max-width: 180px;
+  padding: var(--wk-sp-1) var(--wk-sp-2);
+  border-radius: var(--wk-r-full);
+  background: var(--wk-bg-elevated);
+  color: var(--wk-text-secondary);
+  font-size: var(--wk-text-size-xs);
+  white-space: nowrap;
+}
+
+.wk-mcp-source__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.wk-mcp-source--bot {
+  background: var(--wk-ai-glow);
+  color: var(--wk-text-accent);
+}
+
 .wk-mcp-card__tags {
   display: flex;
   gap: var(--wk-sp-1);
@@ -325,6 +376,15 @@
   font-size: var(--wk-text-size-sm);
   color: var(--wk-text-tertiary);
   margin-top: var(--wk-sp-1);
+}
+
+.wk-mcp-detail__source {
+  display: flex;
+  align-items: center;
+  gap: var(--wk-sp-2);
+  margin-top: var(--wk-sp-2);
+  color: var(--wk-text-tertiary);
+  font-size: var(--wk-text-size-sm);
 }
 
 .wk-mcp-detail__desc {

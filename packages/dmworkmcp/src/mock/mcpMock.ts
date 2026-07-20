@@ -361,6 +361,20 @@ export const MOCK_MCP_DETAILS: McpDetail[] = [
   },
 ];
 
+const PROTOTYPE_SOURCES = [
+  { createdByType: "bot" as const, createdByName: "GitHub Bot" },
+  { createdByType: "human" as const, createdByName: "数据平台组" },
+  { createdByType: "import" as const, createdByName: "Git 仓库导入" },
+  { createdByType: "bot" as const, createdByName: "MCP Catalog Bot" },
+  { createdByType: "human" as const, createdByName: "李世超" },
+] as const;
+
+MOCK_MCP_DETAILS.forEach((detail, index) => {
+  const source = PROTOTYPE_SOURCES[index % PROTOTYPE_SOURCES.length];
+  detail.createdByType = source.createdByType;
+  detail.createdByName = source.createdByName;
+});
+
 /** Card/list projection derived from the detail fixtures. */
 export const MOCK_MCP_LIST: McpListItem[] = MOCK_MCP_DETAILS.map((d) => ({
   id: d.id,
@@ -370,6 +384,9 @@ export const MOCK_MCP_LIST: McpListItem[] = MOCK_MCP_DETAILS.map((d) => ({
   tags: d.tags,
   toolCount: d.toolCount,
   icon: d.icon,
+  creatorName: d.creatorName,
+  createdByType: d.createdByType,
+  createdByName: d.createdByName,
 }));
 
 /**

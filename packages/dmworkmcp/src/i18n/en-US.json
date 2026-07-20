@@ -10,6 +10,13 @@
   "common": {
     "loadFailed": "Failed to load"
   },
+  "source": {
+    "all": "All sources",
+    "human": "Created by human",
+    "bot": "Created by bot",
+    "import": "Git import",
+    "unknown": "Unknown creator"
+  },
   "errors": {
     "nameTaken": "This name is already taken",
     "slugTaken": "This service slug is already taken in the current Space",
@@ -35,11 +42,13 @@
   },
   "list": {
     "desc": "Browse and connect MCP servers to extend your agent's tools.",
+    "navAria": "MCP market navigation",
     "create": "New MCP",
     "searchPlaceholder": "Search by name / summary",
     "empty": "No matching MCP servers",
     "loadMore": "Scroll down to load more",
     "reachedEnd": "You've reached the end",
+    "sourceFilter": "Source",
     "mode": {
       "all": "All",
       "mine": "Mine"
@@ -51,6 +60,7 @@
   },
   "detail": {
     "title": "MCP Details",
+    "createdBy": "Created by",
     "quickAccess": "Quick access",
     "qsTab": {
       "prompt": "Prompt",

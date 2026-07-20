@@ -55,7 +55,7 @@ import { CATEGORY_KEY_ALL, slugifyServerName } from "../utils/constants";
  * Single switch between mock and real implementations.
  * Keep as a const so the bundler tree-shakes the unused branch in prod.
  */
-const USE_MOCK = false;
+const USE_MOCK = true;
 
 // Simulate network latency so loading states are exercised during dev.
 const MOCK_DELAY_MS = 300;
@@ -86,7 +86,11 @@ function assertSafeUploadURL(raw: string): void {
     throw new Error(t("mcp.create.iconUploadFailed"));
   }
   if (u.protocol === "https:") return;
-  if (u.protocol === "http:" && (u.hostname === "localhost" || u.hostname === "127.0.0.1")) return;
+  if (
+    u.protocol === "http:" &&
+    (u.hostname === "localhost" || u.hostname === "127.0.0.1")
+  )
+    return;
   throw new Error(t("mcp.create.iconUploadFailed"));
 }
 
@@ -128,13 +132,16 @@ async function fetchMcpListMockFiltered(
 ): Promise<ListMcpResponse> {
   const keyword = (params.keyword ?? "").trim().toLowerCase();
   const category = params.category ?? "all";
+  const createdByType = params.createdByType ?? "all";
   const filtered = source.filter((item) => {
     const matchCategory = category === "all" || item.category === category;
+    const matchSource =
+      createdByType === "all" || item.createdByType === createdByType;
     const matchKeyword =
       !keyword ||
       item.name.toLowerCase().includes(keyword) ||
       item.slogan.toLowerCase().includes(keyword);
-    return matchCategory && matchKeyword;
+    return matchCategory && matchSource && matchKeyword;
   });
   const offset = params.offset && params.offset > 0 ? params.offset : 0;
   const limit =
@@ -257,6 +264,8 @@ function buildDetailFromCreate(id: string, params: CreateMcpParams): McpDetail {
     toolCount: params.tools.length,
     icon: params.icon,
     creatorName: WKApp.loginInfo?.name || "",
+    createdByType: "human",
+    createdByName: WKApp.loginInfo?.name || t("mcp.source.unknown"),
     quickStart,
     tools: params.tools,
     usageExamples: (params.usageExamples ?? []).filter((s) => s.trim()),
@@ -275,6 +284,9 @@ function projectListItem(d: McpDetail): McpListItem {
     tags: d.tags,
     toolCount: d.toolCount,
     icon: d.icon,
+    creatorName: d.creatorName,
+    createdByType: d.createdByType,
+    createdByName: d.createdByName,
   };
 }
 
@@ -684,10 +696,7 @@ async function uploadMcpIconReal(_id: string, file: File): Promise<string> {
       content_type: file.type || "application/octet-stream",
     }
   );
-  if (
-    !init.data?.data?.presigned_url ||
-    !init.data?.data?.download_url
-  ) {
+  if (!init.data?.data?.presigned_url || !init.data?.data?.download_url) {
     throw new Error(t("mcp.create.iconUploadFailed"));
   }
   const { presigned_url, download_url, headers } = init.data.data;

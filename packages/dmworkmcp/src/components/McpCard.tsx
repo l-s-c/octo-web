@@ -2,6 +2,7 @@ import React from "react";
 import type { McpListItem } from "../types/mcp";
 import { t } from "@octo/base";
 import { IconGlyph } from "../utils/icon";
+import CreatedByBadge from "./CreatedByBadge";
 
 interface McpCardProps {
   item: McpListItem;
@@ -25,10 +26,24 @@ const McpCard: React.FC<McpCardProps> = ({ item, onClick }) => {
     >
       <div className="wk-mcp-card__header">
         <div className="wk-mcp-card__icon">
-          <IconGlyph icon={item.icon} className="wk-mcp-card__icon-img" alt={item.name} />
+          <IconGlyph
+            icon={item.icon}
+            className="wk-mcp-card__icon-img"
+            alt={item.name}
+          />
         </div>
         <div className="wk-mcp-card__heading">
-          <div className="wk-mcp-card__name">{item.name}</div>
+          <div className="wk-mcp-card__title-row">
+            <div className="wk-mcp-card__name">{item.name}</div>
+            <CreatedByBadge
+              type={item.createdByType ?? "human"}
+              name={
+                item.createdByName ??
+                item.creatorName ??
+                t("mcp.source.unknown")
+              }
+            />
+          </div>
           <div className="wk-mcp-card__tags">
             {item.tags.map((tag) => (
               <span key={tag} className="wk-mcp-tag wk-mcp-tag--accent">

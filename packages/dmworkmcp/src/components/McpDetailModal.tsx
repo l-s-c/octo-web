@@ -5,6 +5,7 @@ import { deleteMcp, fetchMcpDetail } from "../api/mcpService";
 import { buildQuickStartTabs } from "../api/quickStartTemplates";
 import type { McpDetail, McpQuickStart } from "../types/mcp";
 import { IconGlyph } from "../utils/icon";
+import CreatedByBadge from "./CreatedByBadge";
 
 interface McpDetailModalProps {
   /** The id of the MCP to show; null closes the modal. */
@@ -228,10 +229,21 @@ const McpDetailModal: React.FC<McpDetailModalProps> = ({
                 ))}
               </div>
               <div className="wk-mcp-detail__toolcount">
-                {detail.creatorName ? `@${detail.creatorName} · ` : ""}
                 {t("mcp.card.toolCount", {
                   values: { count: detail.toolCount },
                 })}
+              </div>
+              <div className="wk-mcp-detail__source">
+                <span>{t("mcp.detail.createdBy")}</span>
+                <CreatedByBadge
+                  type={detail.createdByType ?? "human"}
+                  name={
+                    detail.createdByName ??
+                    detail.creatorName ??
+                    t("mcp.source.unknown")
+                  }
+                  showLabel
+                />
               </div>
             </div>
           </div>

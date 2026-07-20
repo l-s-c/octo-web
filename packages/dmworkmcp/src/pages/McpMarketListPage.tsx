@@ -3,7 +3,12 @@ import { Spin, Toast } from "@douyinfe/semi-ui";
 import { IconSearch, IconPlus } from "@douyinfe/semi-icons";
 import { I18nContext, t, WKApp, WKInput, WKButton } from "@octo/base";
 import { fetchMcpList, fetchMcpMine } from "../api/mcpService";
-import type { McpCategory, McpDetail, McpListItem } from "../types/mcp";
+import type {
+  McpCategory,
+  McpCreatedByType,
+  McpDetail,
+  McpListItem,
+} from "../types/mcp";
 import McpCard from "../components/McpCard";
 import McpDetailModal from "../components/McpDetailModal";
 import McpCreateModal from "../components/McpCreateModal";
@@ -24,6 +29,7 @@ interface McpMarketListPageState {
   loadingMore: boolean;
   keyword: string;
   category: string;
+  createdByType: McpCreatedByType | "all";
   mode: ListMode;
   offset: number;
   total: number;
@@ -53,6 +59,7 @@ export default class McpMarketListPage extends Component<
     loadingMore: false,
     keyword: "",
     category: "all",
+    createdByType: "all",
     mode: "all",
     offset: 0,
     total: 0,
@@ -92,6 +99,7 @@ export default class McpMarketListPage extends Component<
       const resp = await fetcher({
         keyword: this.state.keyword,
         category: this.state.category,
+        createdByType: this.state.createdByType,
         limit: PAGE_SIZE,
         offset: 0,
       });
@@ -122,6 +130,7 @@ export default class McpMarketListPage extends Component<
       const resp = await fetcher({
         keyword: this.state.keyword,
         category: this.state.category,
+        createdByType: this.state.createdByType,
         limit: PAGE_SIZE,
         offset,
       });
@@ -216,6 +225,10 @@ export default class McpMarketListPage extends Component<
     this.setState({ category: key }, () => this.loadData());
   };
 
+  private handleCreatedByType = (value: McpCreatedByType | "all") => {
+    this.setState({ createdByType: value }, () => this.loadData());
+  };
+
   render() {
     const {
       items,
@@ -224,6 +237,7 @@ export default class McpMarketListPage extends Component<
       loadingMore,
       keyword,
       category,
+      createdByType,
       mode,
       total,
       detailId,
@@ -241,7 +255,7 @@ export default class McpMarketListPage extends Component<
     return (
       <div className="wk-mcp">
         <header className="wk-mcp__topbar">
-          <nav className="wk-mcp__tabs" aria-label="MCP 市场导航">
+          <nav className="wk-mcp__tabs" aria-label={t("mcp.list.navAria")}>
             {(["all", "mine"] as ListMode[]).map((k) => (
               <button
                 key={k}
@@ -280,22 +294,43 @@ export default class McpMarketListPage extends Component<
           }
         >
           {mode !== "mine" && (
-            <div className="wk-mcp__pills">
-              {categories.map((cat) => (
-                <button
-                  key={cat.key}
-                  className={
-                    cat.key === category
-                      ? "wk-mcp__pill wk-mcp__pill--active"
-                      : "wk-mcp__pill"
+            <>
+              <div className="wk-mcp__pills">
+                {categories.map((cat) => (
+                  <button
+                    key={cat.key}
+                    className={
+                      cat.key === category
+                        ? "wk-mcp__pill wk-mcp__pill--active"
+                        : "wk-mcp__pill"
+                    }
+                    onClick={() => this.handleCategory(cat.key)}
+                  >
+                    {cat.label}
+                    <span className="wk-mcp__pill-count">{cat.count}</span>
+                  </button>
+                ))}
+              </div>
+              <label className="wk-mcp__source-filter">
+                <span>{t("mcp.list.sourceFilter")}</span>
+                <select
+                  value={createdByType}
+                  onChange={(event) =>
+                    this.handleCreatedByType(
+                      event.target.value as McpCreatedByType | "all"
+                    )
                   }
-                  onClick={() => this.handleCategory(cat.key)}
                 >
-                  {cat.label}
-                  <span className="wk-mcp__pill-count">{cat.count}</span>
-                </button>
-              ))}
-            </div>
+                  {(["all", "human", "bot", "import"] as const).map(
+                    (source) => (
+                      <option key={source} value={source}>
+                        {t(`mcp.source.${source}`)}
+                      </option>
+                    )
+                  )}
+                </select>
+              </label>
+            </>
           )}
         </div>
 
@@ -305,7 +340,6 @@ export default class McpMarketListPage extends Component<
           onScroll={this.handleScroll}
         >
           <div className="wk-mcp__inner">
-
             {loading ? (
               <div className="wk-mcp__state">
                 <Spin />
@@ -344,7 +378,11 @@ export default class McpMarketListPage extends Component<
           onEdit={(d) =>
             // Close the detail modal and hand off to the shared create/edit
             // modal in edit mode. State batching keeps this a single render.
-            this.setState({ detailId: null, editingDetail: d, createVisible: true })
+            this.setState({
+              detailId: null,
+              editingDetail: d,
+              createVisible: true,
+            })
           }
           onDeleted={this.handleItemDeleted}
         />

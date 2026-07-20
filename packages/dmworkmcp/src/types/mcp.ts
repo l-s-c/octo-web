@@ -7,6 +7,9 @@
 /** MCP transport kinds, per the MCP spec. */
 export type McpTransport = "stdio" | "streamable-http" | "sse";
 
+/** Creation source proposed by LSC-90. Prototype-only until the API lands. */
+export type McpCreatedByType = "human" | "bot" | "import";
+
 /** A single tool exposed by an MCP server. */
 export interface McpTool {
   name: string;
@@ -74,6 +77,9 @@ export interface McpListItem {
   /** Snapshot of the publisher's nickname at create time (mcp-v1.md §3.2).
    *  Optional so legacy fixtures without the field still type-check. */
   creatorName?: string;
+  /** Static prototype fields; the production API must populate these. */
+  createdByType?: McpCreatedByType;
+  createdByName?: string;
 }
 
 /** Full detail payload shown in the centered detail modal. */
@@ -109,6 +115,7 @@ export interface McpCategory {
 export interface ListMcpParams {
   keyword?: string;
   category?: string;
+  createdByType?: McpCreatedByType | "all";
   /** Page size; backend clamps to [1, 100], defaulting to 20 when 0/absent. */
   limit?: number;
   /** Row offset; defaults to 0. */
