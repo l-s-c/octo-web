@@ -182,6 +182,8 @@
   font-size: var(--wk-text-size-xs);
   opacity: 0.7;
 }
+.wk-mcp__filters { display: flex; align-items: center; gap: var(--wk-sp-2); flex-wrap: wrap; }
+.wk-mcp-card__reason { margin-bottom: var(--wk-sp-2); color: var(--wk-text-accent); font-size: var(--wk-text-size-sm); }
 
 /* ── Card grid ───────────────────────────────────────────────────────────── */
 .wk-mcp__grid {

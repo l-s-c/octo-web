@@ -39,15 +39,29 @@
     "searchPlaceholder": "Search MCPs, tools, or capabilities",
     "errorTitle": "Failed to load MCPs",
     "retry": "Retry",
+    "error": {
+      "auth": "Your session expired. Sign in and try again.",
+      "forbidden": "You do not have permission to access the MCP marketplace.",
+      "network": "Network connection failed. Check your connection and retry.",
+      "server": "The service is temporarily unavailable. Try again later.",
+      "unknown": "Failed to load. Try again later."
+    },
     "empty": "No matching MCP servers",
     "loadMore": "Scroll down to load more",
     "reachedEnd": "You've reached the end",
+    "clear": "Clear filters",
+    "total": "{{count}} results",
+    "sort": { "label": "Sort", "relevance": "Relevance", "updated": "Recently updated", "verified": "Recently verified" },
+    "source": { "system": "System", "space": "Space team", "mine": "Created by me" },
+    "visibility": { "public": "Space", "private": "Private" },
     "mode": {
       "all": "All",
       "mine": "Mine"
     }
   },
   "card": {
+    "hitTool": "Matched tool",
+    "hitTag": "Matched tag",
     "toolCount": "Tools: {{count}}",
     "viewDetail": "View details"
   },
