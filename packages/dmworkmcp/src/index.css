@@ -121,6 +121,7 @@
   display: flex;
   align-items: center;
   gap: var(--wk-sp-3);
+  flex-wrap: wrap;
   flex: none;
   padding: var(--wk-sp-3) var(--wk-sp-4);
   border-bottom: 1px solid var(--wk-border-subtle);
@@ -149,15 +150,26 @@
   margin-left: auto;
   color: var(--wk-text-secondary);
   font-size: var(--wk-text-size-sm);
+  border: 0;
+  padding: 0;
 }
 
-.wk-mcp__source-filter select {
-  height: 32px;
-  padding: 0 var(--wk-sp-3);
+.wk-mcp__source-filter legend {
+  float: left;
+  margin-right: var(--wk-sp-2);
+}
+
+.wk-mcp__source-filter label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--wk-sp-1);
+  min-height: 32px;
+  padding: 0 var(--wk-sp-2);
   border: 1px solid var(--wk-border-default);
-  border-radius: var(--wk-r-sm);
+  border-radius: var(--wk-r-full);
   background: var(--wk-bg-surface);
   color: var(--wk-text-primary);
+  cursor: pointer;
 }
 
 .wk-mcp__pill {
@@ -283,6 +295,18 @@
   text-overflow: ellipsis;
 }
 
+.wk-mcp-source__avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: var(--wk-r-full);
+  background: var(--wk-bg-surface);
+  color: var(--wk-text-primary);
+  font-weight: var(--wk-font-semibold);
+}
+
 .wk-mcp-source--bot {
   background: var(--wk-ai-glow);
   color: var(--wk-text-accent);
@@ -345,6 +369,50 @@
   min-height: 240px;
   color: var(--wk-text-tertiary);
   font-size: var(--wk-text-size-base);
+}
+
+.wk-mcp__empty {
+  flex-direction: column;
+  gap: var(--wk-sp-2);
+  text-align: center;
+}
+
+@media (max-width: 720px) {
+  .wk-mcp__topbar {
+    align-items: stretch;
+    flex-direction: column;
+    gap: var(--wk-sp-2);
+  }
+
+  .wk-mcp__topbar-actions,
+  .wk-mcp__source-filter {
+    width: 100%;
+    margin-left: 0;
+    flex-wrap: wrap;
+  }
+
+  .wk-mcp__search {
+    flex: 1;
+    width: auto;
+    min-width: 160px;
+  }
+
+  .wk-mcp__grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .wk-mcp-card__title-row {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .wk-mcp-detail-modal {
+    max-width: calc(100vw - var(--wk-sp-4));
+  }
+
+  .wk-mcp-tools {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 /* ═══ Detail modal ═════════════════════════════════════════════════════════ */

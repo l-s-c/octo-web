@@ -12,6 +12,11 @@ import type {
 import McpCard from "../components/McpCard";
 import McpDetailModal from "../components/McpDetailModal";
 import McpCreateModal from "../components/McpCreateModal";
+import {
+  countActiveFilters,
+  RESET_FILTERS,
+  toggleCreatedByType,
+} from "../utils/filterState";
 import "../index.css";
 
 /** Which slice of the marketplace the list view is showing. */
@@ -29,7 +34,7 @@ interface McpMarketListPageState {
   loadingMore: boolean;
   keyword: string;
   category: string;
-  createdByType: McpCreatedByType | "all";
+  createdByTypes: McpCreatedByType[];
   mode: ListMode;
   offset: number;
   total: number;
@@ -59,7 +64,7 @@ export default class McpMarketListPage extends Component<
     loadingMore: false,
     keyword: "",
     category: "all",
-    createdByType: "all",
+    createdByTypes: [],
     mode: "all",
     offset: 0,
     total: 0,
@@ -99,7 +104,7 @@ export default class McpMarketListPage extends Component<
       const resp = await fetcher({
         keyword: this.state.keyword,
         category: this.state.category,
-        createdByType: this.state.createdByType,
+        createdByTypes: this.state.createdByTypes,
         limit: PAGE_SIZE,
         offset: 0,
       });
@@ -130,7 +135,7 @@ export default class McpMarketListPage extends Component<
       const resp = await fetcher({
         keyword: this.state.keyword,
         category: this.state.category,
-        createdByType: this.state.createdByType,
+        createdByTypes: this.state.createdByTypes,
         limit: PAGE_SIZE,
         offset,
       });
@@ -163,7 +168,10 @@ export default class McpMarketListPage extends Component<
 
   private handleMode = (mode: ListMode) => {
     if (mode === this.state.mode) return;
-    this.setState({ mode, category: "all" }, () => this.loadData());
+    this.setState(
+      { mode, category: RESET_FILTERS.category, createdByTypes: [] },
+      () => this.loadData()
+    );
   };
 
   /** Patch a single row after a successful edit — keeps scroll position
@@ -225,8 +233,20 @@ export default class McpMarketListPage extends Component<
     this.setState({ category: key }, () => this.loadData());
   };
 
-  private handleCreatedByType = (value: McpCreatedByType | "all") => {
-    this.setState({ createdByType: value }, () => this.loadData());
+  private handleCreatedByType = (value: McpCreatedByType) => {
+    this.setState(
+      (prev) => ({
+        createdByTypes: toggleCreatedByType(prev.createdByTypes, value),
+      }),
+      () => this.loadData()
+    );
+  };
+
+  private clearFilters = () => {
+    if (this.searchTimer) clearTimeout(this.searchTimer);
+    this.setState({ ...RESET_FILTERS, createdByTypes: [] }, () =>
+      this.loadData()
+    );
   };
 
   render() {
@@ -237,7 +257,7 @@ export default class McpMarketListPage extends Component<
       loadingMore,
       keyword,
       category,
-      createdByType,
+      createdByTypes,
       mode,
       total,
       detailId,
@@ -311,25 +331,19 @@ export default class McpMarketListPage extends Component<
                   </button>
                 ))}
               </div>
-              <label className="wk-mcp__source-filter">
-                <span>{t("mcp.list.sourceFilter")}</span>
-                <select
-                  value={createdByType}
-                  onChange={(event) =>
-                    this.handleCreatedByType(
-                      event.target.value as McpCreatedByType | "all"
-                    )
-                  }
-                >
-                  {(["all", "human", "bot", "import"] as const).map(
-                    (source) => (
-                      <option key={source} value={source}>
-                        {t(`mcp.source.${source}`)}
-                      </option>
-                    )
-                  )}
-                </select>
-              </label>
+              <fieldset className="wk-mcp__source-filter">
+                <legend>{t("mcp.list.sourceFilter")}</legend>
+                {(["human", "bot", "import"] as const).map((source) => (
+                  <label key={source}>
+                    <input
+                      type="checkbox"
+                      checked={createdByTypes.includes(source)}
+                      onChange={() => this.handleCreatedByType(source)}
+                    />
+                    <span>{t(`mcp.source.${source}`)}</span>
+                  </label>
+                ))}
+              </fieldset>
             </>
           )}
         </div>
@@ -345,7 +359,23 @@ export default class McpMarketListPage extends Component<
                 <Spin />
               </div>
             ) : items.length === 0 ? (
-              <div className="wk-mcp__state">{t("mcp.list.empty")}</div>
+              <div className="wk-mcp__state wk-mcp__empty">
+                <strong>{t("mcp.list.empty")}</strong>
+                <span>
+                  {t("mcp.list.activeFilters", {
+                    values: {
+                      count: countActiveFilters(
+                        keyword,
+                        category,
+                        createdByTypes
+                      ),
+                    },
+                  })}
+                </span>
+                <WKButton variant="secondary" onClick={this.clearFilters}>
+                  {t("mcp.list.clearFilters")}
+                </WKButton>
+              </div>
             ) : (
               <>
                 <div className="wk-mcp__grid">

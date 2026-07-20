@@ -115,7 +115,7 @@ export interface McpCategory {
 export interface ListMcpParams {
   keyword?: string;
   category?: string;
-  createdByType?: McpCreatedByType | "all";
+  createdByTypes?: McpCreatedByType[];
   /** Page size; backend clamps to [1, 100], defaulting to 20 when 0/absent. */
   limit?: number;
   /** Row offset; defaults to 0. */

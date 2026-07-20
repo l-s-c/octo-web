@@ -20,6 +20,7 @@ import {
   MOCK_PROBED_TOOLS,
 } from "../mock/mcpMock";
 import { CATEGORY_KEY_ALL, slugifyServerName } from "../utils/constants";
+import { filterMcpItems } from "../utils/sourceFilter";
 
 // ═══════════════════════════════════════════════════════════════════════════
 // MCP Market service layer
@@ -130,19 +131,7 @@ async function fetchMcpListMockFiltered(
   params: ListMcpParams,
   source: McpListItem[]
 ): Promise<ListMcpResponse> {
-  const keyword = (params.keyword ?? "").trim().toLowerCase();
-  const category = params.category ?? "all";
-  const createdByType = params.createdByType ?? "all";
-  const filtered = source.filter((item) => {
-    const matchCategory = category === "all" || item.category === category;
-    const matchSource =
-      createdByType === "all" || item.createdByType === createdByType;
-    const matchKeyword =
-      !keyword ||
-      item.name.toLowerCase().includes(keyword) ||
-      item.slogan.toLowerCase().includes(keyword);
-    return matchCategory && matchSource && matchKeyword;
-  });
+  const filtered = filterMcpItems(source, params);
   const offset = params.offset && params.offset > 0 ? params.offset : 0;
   const limit =
     params.limit && params.limit > 0 ? params.limit : filtered.length;
