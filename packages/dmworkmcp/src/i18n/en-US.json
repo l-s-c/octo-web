@@ -46,6 +46,8 @@
     "create": "New MCP",
     "searchPlaceholder": "Search by name / summary",
     "empty": "No matching MCP servers",
+    "noData": "No MCP servers yet",
+    "noDataHint": "Create the first MCP server to extend your agent's tools.",
     "activeFilters": "{{count}} filters are active",
     "clearFilters": "Clear filters and show all",
     "loadMore": "Scroll down to load more",

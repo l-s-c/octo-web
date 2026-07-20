@@ -46,6 +46,8 @@
     "create": "新建 MCP",
     "searchPlaceholder": "搜索 MCP 名称 / 简介",
     "empty": "没有匹配的 MCP 服务",
+    "noData": "暂无 MCP",
+    "noDataHint": "创建第一个 MCP，开始扩展智能体的工具能力。",
     "activeFilters": "当前有 {{count}} 个筛选条件生效",
     "clearFilters": "清除筛选，查看全部",
     "loadMore": "向下滚动加载更多",

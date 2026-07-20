@@ -12,6 +12,7 @@ import type {
 import McpCard from "../components/McpCard";
 import McpDetailModal from "../components/McpDetailModal";
 import McpCreateModal from "../components/McpCreateModal";
+import McpListEmptyState from "../components/McpListEmptyState";
 import {
   countActiveFilters,
   RESET_FILTERS,
@@ -266,6 +267,11 @@ export default class McpMarketListPage extends Component<
     } = this.state;
 
     const hasMore = items.length < total;
+    const activeFilterCount = countActiveFilters(
+      keyword,
+      category,
+      createdByTypes
+    );
     // Ownership check: the "mine" tab is defined as caller-owned records
     // (backend enforces owner-only PATCH/DELETE — mcp-v1.md §4.5/§4.6), so
     // we can safely expose the manage actions on any card in this mode
@@ -359,23 +365,11 @@ export default class McpMarketListPage extends Component<
                 <Spin />
               </div>
             ) : items.length === 0 ? (
-              <div className="wk-mcp__state wk-mcp__empty">
-                <strong>{t("mcp.list.empty")}</strong>
-                <span>
-                  {t("mcp.list.activeFilters", {
-                    values: {
-                      count: countActiveFilters(
-                        keyword,
-                        category,
-                        createdByTypes
-                      ),
-                    },
-                  })}
-                </span>
-                <WKButton variant="secondary" onClick={this.clearFilters}>
-                  {t("mcp.list.clearFilters")}
-                </WKButton>
-              </div>
+              <McpListEmptyState
+                activeFilterCount={activeFilterCount}
+                onClearFilters={this.clearFilters}
+                onCreate={() => this.setState({ createVisible: true })}
+              />
             ) : (
               <>
                 <div className="wk-mcp__grid">
