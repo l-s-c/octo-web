@@ -214,7 +214,7 @@ describe("SkillListPage", () => {
     ).toBeInTheDocument();
     vi.mocked(api.getSkills).mockClear();
 
-    fireEvent.click(screen.getByRole("button", { name: "浏览最多" }));
+    fireEvent.click(screen.getByRole("button", { name: "浏览" }));
 
     await waitFor(() => {
       expect(api.getSkills).toHaveBeenCalledWith(

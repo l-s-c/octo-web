@@ -48,9 +48,9 @@
     "ariaLabel": "Skill 排序",
     "label": "排序：",
     "comprehensive": "综合",
-    "latest": "最新发布",
-    "views": "浏览最多",
-    "downloads": "下载最多"
+    "latest": "最新",
+    "views": "浏览",
+    "downloads": "下载"
   },
   "card": {
     "editAriaLabel": "编辑 {{name}}",

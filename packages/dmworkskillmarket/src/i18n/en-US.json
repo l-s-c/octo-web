@@ -49,8 +49,8 @@
     "label": "Sort:",
     "comprehensive": "Recommended",
     "latest": "Latest",
-    "views": "Most viewed",
-    "downloads": "Most downloaded"
+    "views": "Views",
+    "downloads": "Downloads"
   },
   "card": {
     "editAriaLabel": "Edit {{name}}",
