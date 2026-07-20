@@ -1,5 +1,5 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { AlertCircle, Box, FileArchive, Loader2, XCircle } from "lucide-react";
+import { AlertCircle, Box, Loader2, Upload, XCircle } from "lucide-react";
 import { t, useI18n, WKButton, WKInput, WKModal } from "@octo/base";
 import type { Category, Skill } from "../types/skill";
 import { updateSkill, uploadIcon, initReupload, uploadFile, triggerParse, pollParse, getSkillTags } from "../api/skillApi";
@@ -409,13 +409,22 @@ export default function EditSkillModal({ skill, categories, onClose, onUpdated }
               <span>{error}</span>
             </div>
           )}
-          <div className="skill-market-upload-file">
-            <FileArchive size={18} />
-            <div>
-              <strong>{uploadedFile?.name ?? skill?.fileName}</strong>
-              <span>{uploadedFile ? t("skillMarket.upload.newVersionParsedWithName", { values: { name } }) : t("skillMarket.upload.currentPackageWithName", { values: { name } })}</span>
+          <div className="skill-market-upload-file skill-market-upload-file--identity">
+            <span className="skill-market-upload-file__identity-icon" aria-hidden="true">
+              <Box size={16} />
+            </span>
+            <div className="skill-market-upload-file__identity">
+              <span>{t("skillMarket.upload.skillName")}</span>
+              <strong title={name}>{name}</strong>
             </div>
-            <button type="button" onClick={() => fileInputRef.current?.click()}>{t("skillMarket.upload.reupload")}</button>
+            <button
+              type="button"
+              aria-label={t("skillMarket.upload.reupload")}
+              onClick={() => fileInputRef.current?.click()}
+            >
+              <Upload size={14} aria-hidden="true" />
+              {t("skillMarket.upload.reuploadShort")}
+            </button>
             <input
               ref={fileInputRef}
               aria-label={t("skillMarket.upload.selectNewFileAriaLabel")}

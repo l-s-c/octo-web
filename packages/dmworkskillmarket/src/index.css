@@ -269,8 +269,34 @@
   font: 500 13px/1 var(--wk-font-sans);
 }
 
+.skill-market-search__control > input::-webkit-search-cancel-button {
+  appearance: none;
+}
+
 .skill-market-search__control > input::placeholder {
   color: var(--wk-text-tertiary);
+}
+
+.skill-market-search__clear {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  margin-right: var(--wk-sp-1);
+  border: 0;
+  border-radius: var(--wk-r-sm);
+  background: transparent;
+  color: var(--wk-text-tertiary);
+  cursor: pointer;
+}
+
+.skill-market-search__clear:hover,
+.skill-market-search__clear:focus-visible {
+  outline: none;
+  background: var(--wk-bg-item-hover);
+  color: var(--wk-text-secondary);
 }
 
 .skill-market-tag-filter {
@@ -2129,6 +2155,32 @@
   border-style: dashed;
 }
 
+.skill-market-upload-file--identity {
+  grid-template-columns: 32px minmax(0, 1fr) auto;
+  min-height: 56px;
+  padding: var(--wk-sp-2);
+  background: var(--wk-bg-base);
+}
+
+.skill-market-upload-file__identity {
+  display: grid;
+  align-content: center;
+  min-width: 0;
+  gap: 3px;
+}
+
+.skill-market-upload-file__identity span {
+  margin-top: 0;
+  color: var(--wk-text-tertiary);
+  font-size: 12px;
+  line-height: 1;
+}
+
+.skill-market-upload-file__identity strong {
+  min-width: 0;
+  line-height: 1.25;
+}
+
 .skill-market-upload-file strong,
 .skill-market-upload-file span {
   display: block;
@@ -2147,7 +2199,23 @@
   font-size: 12px;
 }
 
+.skill-market-upload-file .skill-market-upload-file__identity-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  margin-top: 0;
+  border-radius: var(--wk-r-sm);
+  background: var(--wk-bg-surface);
+  color: var(--wk-icon-muted);
+}
+
 .skill-market-upload-file button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
   height: 28px;
   padding: 0 var(--wk-sp-2);
   border: 0;
@@ -2369,9 +2437,17 @@
     grid-template-columns: 20px minmax(0, 1fr);
   }
 
+  .skill-market-upload-file--identity {
+    grid-template-columns: 32px minmax(0, 1fr) auto;
+  }
+
   .skill-market-upload-file button {
     grid-column: 2;
     justify-self: start;
+  }
+
+  .skill-market-upload-file--identity button {
+    justify-self: end;
   }
 
   .skill-market-grid,

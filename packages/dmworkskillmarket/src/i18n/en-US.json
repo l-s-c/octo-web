@@ -141,6 +141,7 @@
     "reselect": "Reselect file",
     "reupload": "Re-upload Skill package",
     "reuploadShort": "Re-upload",
+    "skillName": "Skill name",
     "parsed": "SKILL.md parsed",
     "parsedWithName": "SKILL.md parsed · English name {{name}}",
     "currentPackage": "Current Skill package",
