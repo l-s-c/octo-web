@@ -27,7 +27,6 @@
     "retry": "重试",
     "empty": "暂无数据",
     "totalCount": "共 {{count}} 个 Skill",
-    "shownCount": "已展示 {{count}} 个",
     "loadMore": "继续加载...",
     "deleted": "已删除",
     "created": "创建成功",

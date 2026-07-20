@@ -501,12 +501,6 @@
   color: var(--wk-text-secondary);
 }
 
-.skill-market-result-summary__shown::before {
-  content: "·";
-  margin-right: var(--wk-sp-2);
-  color: var(--wk-text-disabled);
-}
-
 .skill-market-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));

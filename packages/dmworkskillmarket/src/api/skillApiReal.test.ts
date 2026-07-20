@@ -26,6 +26,7 @@ const mockFetch = vi.fn();
 beforeEach(() => {
   mockFetch.mockReset();
   vi.stubGlobal("fetch", mockFetch);
+  localStorage.clear();
   WKApp.loginInfo.token = "test-token";
   WKApp.shared.currentSpaceId = "space-123";
 });
@@ -82,7 +83,11 @@ describe("skillApiReal", () => {
     expect(mockFetch).toHaveBeenCalledWith(
       "/market/api/v1/skill_categories",
       expect.objectContaining({
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          token: "test-token",
+          "X-Space-Id": "space-123",
+        },
       })
     );
   });
@@ -96,6 +101,25 @@ describe("skillApiReal", () => {
 
     const headers = mockFetch.mock.calls[0][1].headers;
     expect(headers).toEqual({ "Content-Type": "application/json" });
+  });
+
+  it("falls back to localStorage currentSpaceId when WKApp space is not hydrated", async () => {
+    WKApp.shared.currentSpaceId = "";
+    localStorage.setItem("currentSpaceId", "space-from-storage");
+    mockFetch.mockReturnValueOnce(jsonResponse([]));
+
+    await getSkills();
+
+    expect(mockFetch).toHaveBeenCalledWith(
+      "/market/api/v1/skills",
+      expect.objectContaining({
+        headers: {
+          "Content-Type": "application/json",
+          token: "test-token",
+          "X-Space-Id": "space-from-storage",
+        },
+      })
+    );
   });
 
   it("getSkills maps paged result and passes query params", async () => {
@@ -186,7 +210,11 @@ describe("skillApiReal", () => {
     expect(mockFetch).toHaveBeenCalledWith(
       "/market/api/v1/skills/tags?q=ui&page_size=20",
       expect.objectContaining({
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          token: "test-token",
+          "X-Space-Id": "space-123",
+        },
       })
     );
   });
@@ -885,7 +913,11 @@ describe("skillApiReal", () => {
       expect(mockFetch).toHaveBeenCalledWith(
         "/market/api/v1/skills/skill-123/skill-md",
         expect.objectContaining({
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            token: "test-token",
+            "X-Space-Id": "space-123",
+          },
         })
       );
     });

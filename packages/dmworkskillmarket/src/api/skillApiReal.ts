@@ -54,7 +54,11 @@ function getAuthHeaders(): Record<string, string> {
   };
   const token = WKApp.loginInfo?.token;
   if (token) headers.token = token;
-  const spaceId = WKApp.shared?.currentSpaceId;
+  const spaceId =
+    WKApp.shared?.currentSpaceId ||
+    (typeof localStorage !== "undefined"
+      ? localStorage.getItem("currentSpaceId") || ""
+      : "");
   if (spaceId) headers["X-Space-Id"] = spaceId;
   return headers;
 }
@@ -277,8 +281,7 @@ export interface RequestOptions {
 export function getCategories(opts?: RequestOptions): Promise<Category[]> {
   return request<RawCategory[]>(
     "/skill_categories",
-    opts?.signal ? { signal: opts.signal } : undefined,
-    { auth: false }
+    opts?.signal ? { signal: opts.signal } : undefined
   ).then((items) => items.map(mapCategory));
 }
 
@@ -297,8 +300,7 @@ export function getSkills(
   const qs = params.toString();
   return requestEnvelope<RawSkill[]>(
     `/skills${qs ? `?${qs}` : ""}`,
-    opts?.signal ? { signal: opts.signal } : undefined,
-    { auth: false }
+    opts?.signal ? { signal: opts.signal } : undefined
   ).then(({ data, pagination }) =>
     mapPagedResult({
       items: data,
@@ -342,17 +344,12 @@ export function getSkillTags(
   const qs = params.toString();
   return request<{ items: RawSkillTag[] }>(
     `/skills/tags${qs ? `?${qs}` : ""}`,
-    opts?.signal ? { signal: opts.signal } : undefined,
-    { auth: false }
+    opts?.signal ? { signal: opts.signal } : undefined
   ).then((data) => (data.items ?? []).map(mapSkillTag));
 }
 
 export function getSkill(id: string): Promise<Skill> {
-  return request<RawSkill>(
-    `/skills/${encodeURIComponent(id)}`,
-    undefined,
-    { auth: false }
-  ).then(mapSkill);
+  return request<RawSkill>(`/skills/${encodeURIComponent(id)}`).then(mapSkill);
 }
 
 export async function trackSkillView(id: string): Promise<void> {
@@ -400,7 +397,7 @@ export async function getSkillMd(
   let res: Response;
   try {
     res = await fetch(url, {
-      headers: { "Content-Type": "application/json" },
+      headers: getAuthHeaders(),
       signal: opts?.signal,
     });
   } catch (err) {
@@ -475,7 +472,7 @@ export async function downloadSkill(id: string): Promise<void> {
   if (!result.download_url) {
     throw normalizeError({ code: "invalid_response", message: "下载地址无效" });
   }
-  assertSafeExternalURL(result.url);
+  assertSafeExternalURL(result.download_url);
   const anchor = document.createElement("a");
   anchor.href = result.download_url;
   anchor.target = "_blank";
