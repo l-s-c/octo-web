@@ -2,7 +2,7 @@ import { EditorContent } from '@tiptap/react'
 import { useCollabEditor } from '../collab/useCollabEditor.ts'
 import type { CollabEditorOptions } from '../collab/createCollabEditor.ts'
 import { canManage } from '../auth/roles.ts'
-import { Toolbar, EditorBubbleMenu } from './Toolbar.tsx'
+import { Toolbar, EditorBubbleMenu, LinkBubbleMenu, MathBubbleMenu } from './Toolbar.tsx'
 import { TableContextMenu } from './TableControls.tsx'
 import { Outline } from './Outline.tsx'
 import { StatusBar } from './StatusBar.tsx'
@@ -11,7 +11,7 @@ import { MemberPanel } from '../members/MemberPanel.tsx'
 import { VersionPanel } from '../versions/VersionPanel.tsx'
 import { CommentPanel } from '../comments/CommentPanel.tsx'
 import { CommentBubble } from '../comments/CommentBubble.tsx'
-import { useDocComments } from '../comments/useDocComments.ts'
+import { useDocComments, useRefreshCommentsOnOpen } from '../comments/useDocComments.ts'
 import { useCommentHighlights } from '../comments/useCommentHighlights.ts'
 import { useDocDelete } from './useDocDelete.ts'
 import { useMemberNames } from '../members/useMemberNames.ts'
@@ -432,6 +432,8 @@ export function EditorShell(props: EditorShellProps) {
   // share it; highlights paint regardless of whether the panel is open.
   const comments = useDocComments(docId)
   useCommentHighlights(instance?.editor ?? null, comments.threads)
+  // Pull the latest threads each time the comments drawer opens (XIN-1323).
+  useRefreshCommentsOnOpen(comments, activePanel === 'comments')
 
   // A click on a comment highlight (decoration layer) opens the comments drawer on that thread.
   useEffect(() => {
@@ -796,6 +798,8 @@ export function EditorShell(props: EditorShellProps) {
 
           <div className="octo-editor-region">
             <EditorBubbleMenu editor={editor} />
+            <LinkBubbleMenu editor={editor} />
+            <MathBubbleMenu editor={editor} />
             <TableContextMenu editor={editor} />
             <CommentBubble editor={editor} onCreate={comments.createRoot} />
             <Outline editor={editor} />
