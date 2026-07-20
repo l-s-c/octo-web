@@ -1,6 +1,7 @@
 import { ChannelInfoListener, SubscriberChangeListener } from "wukongimjssdk";
 import {
   Channel,
+  ChannelTypeGroup,
   ChannelInfo,
   ChannelTypePerson,
   WKSDK,
@@ -10,11 +11,12 @@ import { Section } from "../../Service/Section";
 import { ProviderListener } from "../../Service/Provider";
 import WKApp from "../../App";
 import RouteContext from "../../Service/Context";
-import { GroupRole } from "../../Service/Const";
+import { ChannelTypeCommunityTopic, GroupRole } from "../../Service/Const";
 import { Convert } from "../../Service/Convert";
 import UserService from "../../Service/UserService";
 import { resolveExternalForViewer } from "../../Utils/externalViewer";
 import { isRealnameVerified, displayName as resolveDisplayName } from "../../Utils/displayName";
+import { parseThreadChannelId } from "../../Service/Thread";
 
 export class UserInfoRouteData {
   uid!: string;
@@ -34,6 +36,11 @@ export class UserInfoVM extends ProviderListener {
   channelInfo?: ChannelInfo;
   vercode?: string;
   subscriberChangeListener?: SubscriberChangeListener;
+  editingRemark = false;
+  remarkDraft = "";
+  savingRemark = false;
+  remarkSaveError = "";
+  private mounted = false;
 
   constructor(uid: string, fromChannel?: Channel, vercode?: string) {
     super();
@@ -43,6 +50,7 @@ export class UserInfoVM extends ProviderListener {
   }
 
   didMount(): void {
+    this.mounted = true;
     this.reloadSubscribers();
 
     WKApp.shared.changeChannelAvatarTag(
@@ -69,6 +77,7 @@ export class UserInfoVM extends ProviderListener {
   }
 
   didUnMount(): void {
+    this.mounted = false;
     if (this.subscriberChangeListener) {
       WKSDK.shared().channelManager.removeSubscriberChangeListener(
         this.subscriberChangeListener
@@ -76,23 +85,123 @@ export class UserInfoVM extends ProviderListener {
     }
   }
 
+  getRemark() {
+    return this.channelInfo?.orgData?.remark || "";
+  }
+
+  startEditRemark() {
+    this.editingRemark = true;
+    this.remarkDraft = this.getRemark();
+    this.notifyListener();
+  }
+
+  cancelEditRemark() {
+    this.editingRemark = false;
+    this.remarkDraft = "";
+    this.notifyListener();
+  }
+
+  setRemarkDraft(value: string) {
+    this.remarkDraft = value;
+    this.notifyListener();
+  }
+
+  async saveRemark(): Promise<"ok" | "stale" | "failed"> {
+    const requestedUid = this.uid;
+    const remark = this.remarkDraft.trim();
+    this.savingRemark = true;
+    this.remarkSaveError = "";
+    this.notifyListener();
+    try {
+      await UserService.updateRemark(requestedUid, remark);
+      if (!this.isCurrentUid(requestedUid)) return "stale";
+      if (this.channelInfo) {
+        this.channelInfo.orgData = {
+          ...this.channelInfo.orgData,
+          remark,
+          displayName: remark || this.channelInfo.title,
+        };
+      }
+      this.editingRemark = false;
+      this.remarkDraft = "";
+      this.notifyListener();
+      Promise.resolve(
+        WKSDK.shared().channelManager.fetchChannelInfo(new Channel(requestedUid, ChannelTypePerson))
+      ).catch((error: unknown) => {
+        console.warn("[UserInfo] refresh channel after remark failed:", error);
+      });
+      Promise.resolve(this.reloadChannelInfo()).catch((error: unknown) => {
+        console.warn("[UserInfo] reload profile after remark failed:", error);
+      });
+      return "ok";
+    } catch (error: any) {
+      if (!this.isCurrentUid(requestedUid)) return "stale";
+      this.remarkSaveError = error?.msg || "";
+      return "failed";
+    } finally {
+      if (this.isCurrentUid(requestedUid)) {
+        this.savingRemark = false;
+        this.notifyListener();
+      }
+    }
+  }
+
+  applyFriend(remark: string, spaceId?: string) {
+    return UserService.applyFriend({
+      uid: this.uid,
+      remark,
+      vercode: this.vercode || "",
+      spaceId,
+    });
+  }
+
+  private isCurrentUid(uid: string) {
+    return this.mounted && this.uid === uid;
+  }
+
   reloadSubscribers() {
-    if (
-      this.fromChannel &&
-      this.fromChannel.channelType !== ChannelTypePerson
-    ) {
-      const subscribers = WKSDK.shared().channelManager.getSubscribes(
-        this.fromChannel
-      );
-      if (subscribers && subscribers.length > 0) {
-        for (const subscriber of subscribers) {
-          if (subscriber.uid === this.uid) {
-            this.fromSubscriberOfUser = subscriber;
-          } else if (subscriber.uid === WKApp.loginInfo.uid) {
-            this.subscriberOfMy = subscriber;
-          }
+    const sourceChannel =
+      this.fromChannel && this.fromChannel.channelType !== ChannelTypePerson
+        ? this.fromChannel
+        : undefined;
+    const memberChannel = this.memberContextChannel();
+    const applySubscribers = (
+      subscribers: Subscriber[] | undefined,
+      options: { replaceUser?: boolean; replaceMe?: boolean } = {}
+    ) => {
+      if (!subscribers || subscribers.length === 0) return;
+      for (const subscriber of subscribers) {
+        if (
+          subscriber.uid === this.uid &&
+          (options.replaceUser || !this.fromSubscriberOfUser)
+        ) {
+          this.fromSubscriberOfUser = subscriber;
+        } else if (
+          subscriber.uid === WKApp.loginInfo.uid &&
+          (options.replaceMe || !this.subscriberOfMy)
+        ) {
+          this.subscriberOfMy = subscriber;
         }
       }
+    };
+
+    if (sourceChannel) {
+      applySubscribers(WKSDK.shared().channelManager.getSubscribes(sourceChannel), {
+        replaceUser: true,
+        replaceMe: true,
+      });
+    }
+    if (
+      memberChannel &&
+      (!sourceChannel ||
+        memberChannel.channelID !== sourceChannel.channelID ||
+        memberChannel.channelType !== sourceChannel.channelType)
+    ) {
+      applySubscribers(WKSDK.shared().channelManager.getSubscribes(memberChannel), {
+        replaceMe: true,
+      });
+    }
+    if (sourceChannel || memberChannel) {
       this.notifyListener();
     }
   }
@@ -253,7 +362,7 @@ export class UserInfoVM extends ProviderListener {
   }
 
   async reloadChannelInfo() {
-    const res = await UserService.getUserProfile(this.uid, this.fromChannel?.channelID);
+    const res = await UserService.getUserProfile(this.uid, this.profileGroupNo());
     this.channelInfo = Convert.userToChannelInfo(res);
     if (!this.vercode || this.vercode === "") {
       if (res.vercode && res.vercode !== "") {
@@ -270,5 +379,26 @@ export class UserInfoVM extends ProviderListener {
       );
       this.notifyListener();
     }
+  }
+
+  private memberContextChannel(): Channel | undefined {
+    if (!this.fromChannel || this.fromChannel.channelType === ChannelTypePerson) {
+      return undefined;
+    }
+    if (this.fromChannel.channelType === ChannelTypeCommunityTopic) {
+      const parsed = parseThreadChannelId(this.fromChannel.channelID);
+      return parsed ? new Channel(parsed.groupNo, ChannelTypeGroup) : undefined;
+    }
+    return this.fromChannel;
+  }
+
+  private profileGroupNo(): string | undefined {
+    if (!this.fromChannel || this.fromChannel.channelType === ChannelTypePerson) {
+      return undefined;
+    }
+    if (this.fromChannel.channelType === ChannelTypeCommunityTopic) {
+      return parseThreadChannelId(this.fromChannel.channelID)?.groupNo;
+    }
+    return this.fromChannel.channelID;
   }
 }

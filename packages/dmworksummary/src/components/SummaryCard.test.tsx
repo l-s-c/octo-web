@@ -19,6 +19,7 @@ vi.mock('@douyinfe/semi-ui', () => ({
             {children}
         </span>
     ),
+    Tag: ({ children }: any) => <span data-testid="ai-tag">{children}</span>,
 }));
 
 vi.mock('@douyinfe/semi-icons', () => ({
@@ -64,6 +65,22 @@ function makeItem(overrides: Record<string, unknown> = {}) {
 }
 
 const noop = () => {};
+
+describe('SummaryCard attention dot', () => {
+    it('needs_attention=true 时显示关注红点', () => {
+        const { container } = render(
+            <SummaryCard task={makeItem({ needs_attention: true }) as any} onClick={noop} onDelete={noop} />,
+        );
+        expect(container.querySelector('.summary-card-attention-dot')).not.toBeNull();
+    });
+
+    it('无需关注时不显示红点', () => {
+        const { container } = render(
+            <SummaryCard task={makeItem({ needs_attention: false }) as any} onClick={noop} onDelete={noop} />,
+        );
+        expect(container.querySelector('.summary-card-attention-dot')).toBeNull();
+    });
+});
 
 describe('SummaryCard isScheduledTask', () => {
     it('schedule_id > 0 时使用定时删除确认文案', () => {
@@ -194,5 +211,47 @@ describe('SummaryCard creator vs participant footer (问题1)', () => {
         // creator_id 缺失 + 非参与者 → 既不删除也不退出。
         expect(screen.queryByTestId('delete-icon')).not.toBeInTheDocument();
         expect(screen.queryByTestId('exit-icon')).not.toBeInTheDocument();
+    });
+});
+
+describe('SummaryCard AI Generated Badge', () => {
+    it('trigger_type === 3 (AGENT) 时显示对话生成徽标', () => {
+        render(
+            <SummaryCard
+                task={makeItem({ title: '对话生成总结', trigger_type: 3 }) as any}
+                onClick={noop}
+                onDelete={noop}
+            />,
+        );
+
+        // 检查对话生成徽标 Tag 组件是否存在
+        const aiTag = screen.getByTestId('ai-tag');
+        expect(aiTag).toBeInTheDocument();
+        expect(aiTag).toHaveTextContent('🤖');
+    });
+
+    it('trigger_type === 1 (MANUAL) 时不显示对话生成徽标', () => {
+        render(
+            <SummaryCard
+                task={makeItem({ title: '手动总结', trigger_type: 1 }) as any}
+                onClick={noop}
+                onDelete={noop}
+            />,
+        );
+
+        expect(screen.queryByText(/对话生成/)).not.toBeInTheDocument();
+        expect(screen.queryByText(/🤖/)).not.toBeInTheDocument();
+    });
+
+    it('trigger_type === 2 (SCHEDULED) 时不显示对话生成徽标', () => {
+        render(
+            <SummaryCard
+                task={makeItem({ title: '定时总结', trigger_type: 2 }) as any}
+                onClick={noop}
+                onDelete={noop}
+            />,
+        );
+
+        expect(screen.queryByText(/对话生成/)).not.toBeInTheDocument();
     });
 });

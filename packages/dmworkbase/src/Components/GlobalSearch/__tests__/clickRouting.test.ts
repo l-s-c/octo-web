@@ -67,7 +67,9 @@ function simulateHandleLocate(
   props.hideModal?.();
 }
 
-function baseItem(overrides: Partial<ChannelSearchItem> = {}): ChannelSearchItem {
+function baseItem(
+  overrides: Partial<ChannelSearchItem> = {}
+): ChannelSearchItem {
   return {
     id: "m1",
     messageId: "m1",
@@ -174,13 +176,24 @@ describe("handleLocate — click routing (§A behavior)", () => {
 // -----------------------------------------------------------------------------
 describe("handleLocate — source-level regression guard (§B)", () => {
   const src = fs.readFileSync(
-    path.join(__dirname, "..", "index.tsx"),
+    path.join(
+      __dirname,
+      "..",
+      "..",
+      "..",
+      "features",
+      "globalSearch",
+      "GlobalSearchPanel.tsx"
+    ),
     "utf8"
   );
 
   it("does not forward camelCase item to props.onClick inside handleLocate", () => {
-    const match = src.match(/handleLocate\s*=\s*\(item[\s\S]*?\n\s{4}\}/);
-    expect(match, "handleLocate block should exist in GlobalSearch/index.tsx").toBeTruthy();
+    const match = src.match(/handleLocate\s*=\s*\(item[\s\S]*?\n\s{2}\};/);
+    expect(
+      match,
+      "handleLocate block should exist in GlobalSearch/index.tsx"
+    ).toBeTruthy();
     const body = match![0];
     expect(
       /this\.props\.onClick\?\.\(item/.test(body),
@@ -189,7 +202,7 @@ describe("handleLocate — source-level regression guard (§B)", () => {
   });
 
   it("invokes props.hideModal so the enclosing modal can dismiss", () => {
-    const match = src.match(/handleLocate\s*=\s*\(item[\s\S]*?\n\s{4}\}/);
+    const match = src.match(/handleLocate\s*=\s*\(item[\s\S]*?\n\s{2}\};/);
     expect(match).toBeTruthy();
     const body = match![0];
     expect(

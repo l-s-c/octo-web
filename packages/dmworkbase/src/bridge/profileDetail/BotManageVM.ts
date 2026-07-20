@@ -1,8 +1,9 @@
-import WKApp from "../../App"
 import { ProviderListener } from "../../Service/Provider"
-import { Toast } from "@douyinfe/semi-ui"
 import { extractErrorMsg } from "../../Service/APIClient"
-import { t } from "../../i18n"
+import BotManageService, {
+    type BotGroupsListResponse,
+    type BotGroupItem,
+} from "../../Service/BotManageService"
 
 /**
  * BotManage — 独立「Bot 管理」模块 ViewModel（octo-web#235 / YUJ-2838）。
@@ -25,23 +26,7 @@ import { t } from "../../i18n"
  * robotId 丢弃，绝不把上一个 bot 的群灌进当前 bot 的列表。
  */
 
-/**
- * 群列表单项。镜像后端 groupListItem JSON：
- *   { group_no: string, name: string, no_mention: bool }
- */
-export interface BotGroupItem {
-    group_no: string
-    name: string
-    /** 是否已对本群开启「免@回答」（no_mention=1）。 */
-    no_mention: boolean
-}
-
-/** 列群响应 envelope（后端 listGroups 返回）。 */
-interface GroupsListResp {
-    list?: BotGroupItem[]
-    next_cursor?: string | null
-    has_more?: boolean
-}
+export type { BotGroupItem } from "../../Service/BotManageService"
 
 /** 单页拉取条数。与后端 groupsListDefaultLimit 对齐。 */
 const GROUPS_PAGE_LIMIT = 30
@@ -66,6 +51,8 @@ export class MentionFreeVM extends ProviderListener {
     loadingMore: boolean = false
     loadError: boolean = false
     isBackendMissing: boolean = false
+    toggleFailed: boolean = false
+    toggleErrorMessage: string = ""
 
     /** 下一页游标（不透明 base64）。null/空 表示没有下一页。 */
     nextCursor: string | null = null
@@ -114,6 +101,8 @@ export class MentionFreeVM extends ProviderListener {
         this.loadingMore = false
         this.loadError = false
         this.isBackendMissing = false
+        this.toggleFailed = false
+        this.toggleErrorMessage = ""
         void this.loadGroups()
     }
 
@@ -156,12 +145,14 @@ export class MentionFreeVM extends ProviderListener {
         this.loadingMore = false
         this.loadError = false
         this.isBackendMissing = false
+        this.toggleFailed = false
+        this.toggleErrorMessage = ""
         this.notifyListener()
         try {
-            const res = await WKApp.apiClient.get<GroupsListResp>(
-                `robot/${requestedUid}/groups`,
-                { param: { limit: GROUPS_PAGE_LIMIT } },
-            )
+            const res = await BotManageService.listGroups({
+                robotId: requestedUid,
+                limit: GROUPS_PAGE_LIMIT,
+            })
             if (isStale()) return
             const { list, nextCursor, hasMore } = parseGroupsResp(res)
             this.groups = list
@@ -204,10 +195,11 @@ export class MentionFreeVM extends ProviderListener {
         this.loadingMore = true
         this.notifyListener()
         try {
-            const res = await WKApp.apiClient.get<GroupsListResp>(
-                `robot/${requestedUid}/groups`,
-                { param: { limit: GROUPS_PAGE_LIMIT, cursor: requestedCursor } },
-            )
+            const res = await BotManageService.listGroups({
+                robotId: requestedUid,
+                limit: GROUPS_PAGE_LIMIT,
+                cursor: requestedCursor,
+            })
             if (isStale()) return
             const { list, nextCursor, hasMore } = parseGroupsResp(res)
             // 去重 append：极端并发下后端可能回放边界项，按 group_no 去重防重复 key。
@@ -238,7 +230,7 @@ export class MentionFreeVM extends ProviderListener {
      *   关（next=false）→ DELETE robot/uid/groups/g/mention_pref（删记录回退默认）
      *
      * 成功后局部更新 no_mention 并触发重排（visibleGroups 重新分区）；
-     * 失败时 Toast + 不改本地状态（开关回弹由 ListItemSwitch 的 checked 复位驱动）。
+     * 失败时记录错误信息 + 不改本地状态（开关回弹由 ListItemSwitch 的 checked 复位驱动）。
      *
      * 返回是否成功，供视图层复位 ctx.loading。
      *
@@ -250,16 +242,13 @@ export class MentionFreeVM extends ProviderListener {
         if (!requestedUid) return false
         const gen = this.generation
         const isStale = () => this.generation !== gen
+        this.toggleFailed = false
+        this.toggleErrorMessage = ""
         try {
             if (next) {
-                await WKApp.apiClient.put(
-                    `robot/${requestedUid}/groups/${groupNo}/mention_pref`,
-                    { no_mention: 1 },
-                )
+                await BotManageService.enableMentionFree(requestedUid, groupNo)
             } else {
-                await WKApp.apiClient.delete(
-                    `robot/${requestedUid}/groups/${groupNo}/mention_pref`,
-                )
+                await BotManageService.disableMentionFree(requestedUid, groupNo)
             }
             if (isStale()) return false
             // 局部更新 + 重排：只改命中项的 no_mention，visibleGroups 会重新分区置顶。
@@ -270,7 +259,8 @@ export class MentionFreeVM extends ProviderListener {
             return true
         } catch (e) {
             if (isStale()) return false
-            Toast.error(extractErrorMsg(e) || t("base.botManage.mentionFree.toggleFailed"))
+            this.toggleFailed = true
+            this.toggleErrorMessage = extractErrorMsg(e) || ""
             return false
         }
     }
@@ -280,7 +270,7 @@ export class MentionFreeVM extends ProviderListener {
  * 解析列群响应 envelope。后端返回 {list, next_cursor, has_more}；做防御性兜底：
  * 非数组 list → []，next_cursor 仅接受非空字符串，has_more 强制布尔。
  */
-function parseGroupsResp(res: GroupsListResp | undefined): {
+function parseGroupsResp(res: BotGroupsListResponse | undefined): {
     list: BotGroupItem[]
     nextCursor: string | null
     hasMore: boolean

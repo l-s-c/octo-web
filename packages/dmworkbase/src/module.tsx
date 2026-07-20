@@ -18,8 +18,8 @@ import React, { ElementType } from "react";
 import { Smile, Scissors, ImagePlus, Paperclip, AtSign } from "lucide-react";
 import { Howl, Howler } from "howler";
 import WKApp, { FriendApply, FriendApplyState, ThemeMode } from "./App";
-import { isChannelSearchEnabled } from "./Components/ChannelSearch/feature";
-import ChatSearchEntryButton from "./Components/ChannelSearch/ChatSearchEntryButton";
+import { isChannelSearchEnabled } from "./features/channelSearch/feature";
+import ChatSearchEntryButton from "./features/channelSearch/ChatSearchEntryButton";
 import ChannelQRCode from "./Components/ChannelQRCode";
 import { ChannelSettingRouteData } from "./Components/ChannelSetting/context";
 import { IndexTableItem } from "./Components/IndexTable";
@@ -89,7 +89,11 @@ import IconClick from "./Components/IconClick";
 import EmojiToolbar from "./Components/EmojiToolbar";
 import MergeforwardContent, { MergeforwardCell } from "./Messages/Mergeforward";
 import { wkConfirm } from "./Components/WKModal";
-import { UserInfoRouteData } from "./Components/UserInfo/vm";
+import { UserInfoRouteData } from "./bridge/profileDetail/UserInfoVM";
+import {
+  userInfoMembershipCreatedAt,
+  userInfoMembershipOrgData,
+} from "./bridge/profileDetail/userInfoMembership";
 import { IconAlertCircle } from "@douyinfe/semi-icons";
 import { TypingManager } from "./Service/TypingManager";
 import APIClient from "./Service/APIClient";
@@ -653,8 +657,7 @@ export default class BaseModule implements IModule {
 
   /**
    * 频道头右侧入口按钮。dmworksummary / dmworktodo 各自注册了「智能总结」/「事项」
-   * 图标；这里注册「查找聊天内容」按钮，与信息栏入口 (channel.base.settingMessageHistory)
-   * 使用同一 feature 门禁 (isChannelSearchEnabled) 与同一打开效果，通过 mittBus
+   * 图标；这里注册「查找聊天内容」的唯一入口，通过 feature 门禁后用 mittBus
    * 事件 wk:open-channel-search 通知 Pages/Chat 调 _openChannelSearchPanel()。
    */
   registerChannelHeaderRightItems() {
@@ -1164,17 +1167,20 @@ export default class BaseModule implements IModule {
             },
           })
         );
-        if (fromSubscriberOfUser) {
-          let joinDesc = `${fromSubscriberOfUser.orgData.created_at.substr(
-            0,
-            10
-          )}`;
+        const membershipOrgData = userInfoMembershipOrgData({
+          fromChannel: data.fromChannel,
+          channelInfo,
+          fromSubscriberOfUser,
+        });
+        const membershipCreatedAt = userInfoMembershipCreatedAt(membershipOrgData);
+        if (membershipCreatedAt) {
+          let joinDesc = `${membershipCreatedAt.substr(0, 10)}`;
           if (
-            fromSubscriberOfUser.orgData?.invite_uid &&
-            fromSubscriberOfUser.orgData?.invite_uid !== ""
+            membershipOrgData?.invite_uid &&
+            membershipOrgData?.invite_uid !== ""
           ) {
             const inviterChannel = new Channel(
-              fromSubscriberOfUser.orgData?.invite_uid,
+              membershipOrgData?.invite_uid,
               ChannelTypePerson
             );
             const inviteChannelInfo =
@@ -1706,7 +1712,6 @@ export default class BaseModule implements IModule {
                   <ChannelAvatar
                     showUpload={data.isManagerOrCreatorOfMe}
                     channel={channel}
-                    context={context}
                   ></ChannelAvatar>,
                   { title: t("base.module.channelSettings.groupAvatar") }
                 );
@@ -1992,34 +1997,6 @@ export default class BaseModule implements IModule {
         });
       },
       1000
-    );
-
-    WKApp.shared.channelSettingRegister(
-      "channel.base.settingMessageHistory",
-      (context) => {
-        const data = context.routeData() as ChannelSettingRouteData;
-        if (!data.onOpenChannelSearch) {
-          return undefined;
-        }
-        if (!isChannelSearchEnabled(data.channel)) {
-          return undefined;
-        }
-
-        return new Section({
-          rows: [
-            new Row({
-              cell: ListItem,
-              properties: {
-                title: t("base.module.channelSettings.messageHistory"),
-                onClick: () => {
-                  data.onOpenChannelSearch?.();
-                },
-              },
-            }),
-          ],
-        });
-      },
-      1100
     );
 
     WKApp.shared.channelSettingRegister(
