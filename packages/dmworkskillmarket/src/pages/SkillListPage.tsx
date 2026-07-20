@@ -194,13 +194,6 @@ export default function SkillListPage() {
                 values: { count: list.total },
               })}
             </span>
-            {list.total > list.skills.length && (
-              <span className="skill-market-result-summary__shown">
-                {t("skillMarket.list.shownCount", {
-                  values: { count: list.skills.length },
-                })}
-              </span>
-            )}
           </div>
         )}
         {list.loading && (

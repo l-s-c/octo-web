@@ -27,7 +27,6 @@
     "retry": "Retry",
     "empty": "No data",
     "totalCount": "Total {{count}} Skills",
-    "shownCount": "Showing {{count}}",
     "loadMore": "Load more...",
     "deleted": "Deleted",
     "created": "Created successfully",
