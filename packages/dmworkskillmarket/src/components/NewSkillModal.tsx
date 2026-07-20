@@ -10,7 +10,7 @@ interface NewSkillModalProps {
   visible: boolean;
   categories: Category[];
   onClose: () => void;
-  onCreated: () => void;
+  onCreated: (skill: Pick<NewSkillForm, "name" | "displayName">) => void;
 }
 
 type UploadStage = "idle" | "uploading" | "parsing" | "form" | "error";
@@ -378,7 +378,7 @@ export default function NewSkillModal({ visible, categories, onClose, onCreated 
       };
       await createSkill(form);
       reset();
-      onCreated();
+      onCreated({ name: form.name, displayName: form.displayName });
       onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : t("skillMarket.form.createFailed"));

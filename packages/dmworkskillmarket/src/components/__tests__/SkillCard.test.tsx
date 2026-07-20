@@ -62,7 +62,7 @@ describe("SkillCard", () => {
     expect(screen.queryByText("@我")).not.toBeInTheDocument();
   });
 
-  it("supports keyboard open and icon actions without opening the card", () => {
+  it("supports keyboard open and owner actions from the more menu without opening the card", () => {
     const onOpen = vi.fn();
     const onEdit = vi.fn();
     const onDelete = vi.fn();
@@ -80,16 +80,15 @@ describe("SkillCard", () => {
     fireEvent.keyDown(screen.getByRole("button", { name: "ci-helper @我" }), { key: "Enter" });
     expect(onOpen).toHaveBeenCalledWith(skill);
 
-    fireEvent.click(screen.getByRole("button", { name: "编辑 ci-helper" }));
+    expect(screen.queryByRole("menuitem", { name: "编辑 ci-helper" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "更多" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "编辑 ci-helper" }));
     expect(onEdit).toHaveBeenCalledWith(skill);
     expect(onOpen).toHaveBeenCalledTimes(1);
 
-    fireEvent.click(screen.getByRole("button", { name: "删除 ci-helper" }));
+    fireEvent.click(screen.getByRole("button", { name: "更多" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "删除 ci-helper" }));
     expect(onDelete).toHaveBeenCalledWith(skill);
-    expect(onOpen).toHaveBeenCalledTimes(1);
-
-    fireEvent.keyDown(screen.getByRole("button", { name: "编辑 ci-helper" }), { key: "Enter" });
-    fireEvent.keyDown(screen.getByRole("button", { name: "删除 ci-helper" }), { key: " " });
     expect(onOpen).toHaveBeenCalledTimes(1);
   });
 
@@ -106,6 +105,27 @@ describe("SkillCard", () => {
     expect(await screen.findByRole("tooltip")).toHaveTextContent(skill.description);
 
     fireEvent.mouseLeave(description);
+    expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
+  });
+
+  it("hides the description tooltip before opening owner actions", async () => {
+    render(
+      <SkillCard
+        skill={skill}
+        categories={categories}
+        onOpen={vi.fn()}
+        onEdit={vi.fn()}
+      />,
+    );
+
+    const description = screen.getByText(skill.description);
+    Object.defineProperty(description, "scrollHeight", { configurable: true, value: 80 });
+    Object.defineProperty(description, "clientHeight", { configurable: true, value: 42 });
+
+    fireEvent.mouseEnter(description);
+    expect(await screen.findByRole("tooltip")).toHaveTextContent(skill.description);
+
+    fireEvent.click(screen.getByRole("button", { name: "更多" }));
     expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
   });
 

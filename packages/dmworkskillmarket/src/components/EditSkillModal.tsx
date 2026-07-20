@@ -42,6 +42,7 @@ export default function EditSkillModal({ skill, categories, onClose, onUpdated }
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const tagFieldRef = useRef<HTMLDivElement | null>(null);
   const abortRef = useRef(false);
+  const savingRef = useRef(false);
   const [name, setName] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [description, setDescription] = useState("");
@@ -339,6 +340,7 @@ export default function EditSkillModal({ skill, categories, onClose, onUpdated }
 
   async function submit() {
     if (!skill) return;
+    if (savingRef.current) return;
     if (!name.trim() || !displayName.trim() || !categoryId || (parseTaskId && (!version.trim() || !changelog.trim()))) {
       setError(t("skillMarket.form.validationRequired"));
       return;
@@ -351,6 +353,7 @@ export default function EditSkillModal({ skill, categories, onClose, onUpdated }
     const submittedTags = tagDraft.trim()
       ? [...tags, tagDraft.trim()].slice(0, MAX_SKILL_TAGS)
       : tags;
+    savingRef.current = true;
     setSaving(true);
     setError(null);
     try {
@@ -372,6 +375,7 @@ export default function EditSkillModal({ skill, categories, onClose, onUpdated }
     } catch (err) {
       setError(err instanceof Error ? err.message : t("skillMarket.form.saveFailed"));
     } finally {
+      savingRef.current = false;
       setSaving(false);
     }
   }

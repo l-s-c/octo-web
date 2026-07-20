@@ -862,36 +862,75 @@
   border-color: var(--wk-border-strong);
 }
 
-.skill-market-card__actions {
+.skill-market-card__actions-menu {
+  position: relative;
   display: inline-flex;
-  align-items: center;
   flex: 0 0 auto;
-  gap: var(--wk-sp-1);
 }
 
-.skill-market-card__actions button {
+.skill-market-card__more {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
+  width: 30px;
+  height: 30px;
   padding: 0;
-  border: 0;
-  border-radius: var(--wk-r-sm);
-  background: transparent;
+  border: 1px solid var(--wk-border-subtle);
+  border-radius: var(--wk-r-full);
+  background: var(--wk-bg-base);
   color: var(--wk-icon-muted);
+  cursor: pointer;
   transition: background var(--wk-dur-fast) var(--wk-ease),
+    border-color var(--wk-dur-fast) var(--wk-ease),
     color var(--wk-dur-fast) var(--wk-ease);
 }
 
-.skill-market-card__actions button:hover,
-.skill-market-card__actions button:focus-visible {
+.skill-market-card__more:hover,
+.skill-market-card__more:focus-visible {
+  outline: none;
+  background: var(--wk-bg-hover);
+  border-color: var(--wk-border-strong);
+  color: var(--wk-text-primary);
+}
+
+.skill-market-card__actions-panel {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + var(--wk-sp-2));
+  z-index: 20;
+  display: grid;
+  min-width: 112px;
+  padding: var(--wk-sp-1);
+  border: 1px solid var(--wk-border-subtle);
+  border-radius: var(--wk-r-sm);
+  background: var(--wk-bg-elevated);
+  box-shadow: var(--wk-shadow-dropdown);
+}
+
+.skill-market-card__actions-panel button {
+  display: flex;
+  align-items: center;
+  gap: var(--wk-sp-2);
+  width: 100%;
+  height: 32px;
+  padding: 0 var(--wk-sp-2);
+  border: 0;
+  border-radius: var(--wk-r-xs);
+  background: transparent;
+  color: var(--wk-text-secondary);
+  font: 500 13px/1 var(--wk-font-sans);
+  text-align: left;
+  cursor: pointer;
+}
+
+.skill-market-card__actions-panel button:hover,
+.skill-market-card__actions-panel button:focus-visible {
   outline: none;
   background: var(--wk-bg-hover);
   color: var(--wk-text-primary);
 }
 
-.skill-market-card__actions button.is-danger {
+.skill-market-card__actions-panel button.is-danger {
   color: var(--wk-color-error);
 }
 
@@ -984,11 +1023,11 @@
 @keyframes skill-market-toast-in {
   from {
     opacity: 0;
-    transform: translateY(-8px);
+    transform: translate(-50%, -8px);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
+    transform: translate(-50%, 0);
   }
 }
 

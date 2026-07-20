@@ -7,7 +7,7 @@ import { deleteSkill } from "../api/skillApi";
 interface DeleteConfirmModalProps {
   skill: Skill | null;
   onClose: () => void;
-  onDeleted: () => void;
+  onDeleted: (skill: Skill) => void;
 }
 
 export default function DeleteConfirmModal({ skill, onClose, onDeleted }: DeleteConfirmModalProps) {
@@ -21,7 +21,7 @@ export default function DeleteConfirmModal({ skill, onClose, onDeleted }: Delete
     setError(null);
     try {
       await deleteSkill(skill.id);
-      onDeleted();
+      onDeleted(skill);
       onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : t("skillMarket.delete.failed"));

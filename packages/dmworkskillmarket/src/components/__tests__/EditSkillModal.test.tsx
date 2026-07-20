@@ -104,6 +104,26 @@ describe("EditSkillModal", () => {
     expect(onClose).toHaveBeenCalled();
   });
 
+  it("ignores duplicate save clicks while the update is pending", async () => {
+    let resolveUpdate: (value: typeof skill) => void = () => {};
+    vi.mocked(api.updateSkill).mockReturnValue(
+      new Promise((resolve) => {
+        resolveUpdate = resolve;
+      }) as ReturnType<typeof api.updateSkill>,
+    );
+    const onUpdated = vi.fn();
+    render(<EditSkillModal skill={skill} categories={categories} onClose={vi.fn()} onUpdated={onUpdated} />);
+
+    fireEvent.change(screen.getByPlaceholderText(displayNamePlaceholder), { target: { value: "更新展示名" } });
+    const save = screen.getByRole("button", { name: saveButton });
+    fireEvent.click(save);
+    fireEvent.click(save);
+
+    expect(api.updateSkill).toHaveBeenCalledTimes(1);
+    resolveUpdate({ ...skill, displayName: "更新展示名" });
+    await waitFor(() => expect(onUpdated).toHaveBeenCalledTimes(1));
+  });
+
   it("blocks save while a tag validation error is visible", () => {
     render(<EditSkillModal skill={skill} categories={categories} onClose={vi.fn()} onUpdated={vi.fn()} />);
 

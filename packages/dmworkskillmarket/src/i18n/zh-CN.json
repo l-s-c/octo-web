@@ -28,9 +28,9 @@
     "empty": "暂无数据",
     "totalCount": "共 {{count}} 个 Skill",
     "loadMore": "继续加载...",
-    "deleted": "已删除",
-    "created": "创建成功",
-    "saved": "已保存",
+    "deleted": "已删除「{{name}}」",
+    "created": "已上架「{{name}}」",
+    "saved": "已保存「{{name}}」",
     "navAriaLabel": "Skill 市场导航",
     "loadingAriaLabel": "Skill 加载中",
     "closeToast": "关闭提示"

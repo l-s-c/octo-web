@@ -28,9 +28,9 @@
     "empty": "No data",
     "totalCount": "Total {{count}} Skills",
     "loadMore": "Load more...",
-    "deleted": "Deleted",
-    "created": "Created successfully",
-    "saved": "Saved",
+    "deleted": "Deleted \"{{name}}\"",
+    "created": "Published \"{{name}}\"",
+    "saved": "Saved \"{{name}}\"",
     "navAriaLabel": "Skill Market Navigation",
     "loadingAriaLabel": "Loading skills",
     "closeToast": "Close notification"

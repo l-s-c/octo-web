@@ -67,6 +67,7 @@ const publishSkillName = /上架 Skill|skillMarket\.list\.publishSkill/;
 const botPublishName = /Bot 上架|skillMarket\.publishMenu\.botTitle/;
 const manualPublishName = /手动上传|skillMarket\.publishMenu\.manualTitle/;
 const copyPromptName = /复制提示词|skillMarket\.botPublish\.copyBtn/;
+const moreButtonName = /^更多$|^skillMarket\.common\.more$/;
 const editSkillName =
   /编辑 meeting-note-cleaner|skillMarket\.card\.editAriaLabel/;
 const deleteSkillName =
@@ -124,19 +125,26 @@ describe("SkillListPage", () => {
     vi.restoreAllMocks();
   });
 
-  it("hides category chips on the mine tab and shows owner actions", async () => {
-    render(<SkillListPage />);
+  it("shows owner actions from the more menu only on the mine tab", async () => {
+    const { container } = render(<SkillListPage />);
+
+    expect(
+      await screen.findByRole("button", { name: "meeting-note-cleaner @我" })
+    ).toBeInTheDocument();
+    expect(container.querySelector(".skill-market-card__more")).not.toBeInTheDocument();
+
     await switchToMineTab();
 
     expect(screen.queryByLabelText(categoryAriaLabel)).not.toBeInTheDocument();
     expect(
       await screen.findByRole("button", { name: "meeting-note-cleaner @我" })
     ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: moreButtonName }));
     expect(
-      screen.getByRole("button", { name: editSkillName })
+      screen.getByRole("menuitem", { name: editSkillName })
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: deleteSkillName })
+      screen.getByRole("menuitem", { name: deleteSkillName })
     ).toBeInTheDocument();
   });
 
@@ -327,11 +335,8 @@ describe("SkillListPage", () => {
     render(<SkillListPage />);
     await switchToMineTab();
 
-    fireEvent.click(
-      await screen.findByRole("button", {
-        name: deleteSkillName,
-      })
-    );
+    fireEvent.click(await screen.findByRole("button", { name: moreButtonName }));
+    fireEvent.click(screen.getByRole("menuitem", { name: deleteSkillName }));
     expect(screen.getByText(deleteConfirmText)).toBeInTheDocument();
     fireEvent.click(
       screen.getAllByRole("button", { name: deleteButtonName }).at(-1)!
@@ -351,11 +356,7 @@ describe("SkillListPage", () => {
     );
     expect(await screen.findByText(skill.description)).toBeInTheDocument();
 
-    fireEvent.click(
-      screen.getAllByRole("button", {
-        name: deleteSkillName,
-      })[1]
-    );
+    fireEvent.click(screen.getByRole("button", { name: deleteSkillName }));
     expect(screen.getByText(deleteConfirmText)).toBeInTheDocument();
 
     fireEvent.click(
@@ -403,11 +404,7 @@ describe("SkillListPage", () => {
     );
     expect(await screen.findByText(skill.description)).toBeInTheDocument();
 
-    fireEvent.click(
-      screen.getAllByRole("button", {
-        name: editSkillName,
-      })[1]
-    );
+    fireEvent.click(screen.getByRole("button", { name: editSkillName }));
     fireEvent.change(screen.getByPlaceholderText(displayNamePlaceholder), {
       target: { value: updatedSkill.displayName },
     });

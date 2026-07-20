@@ -1,8 +1,6 @@
 import React from "react";
 import type { IModule } from "@octo/base";
-import { i18n, I18nProvider, WKApp, Menus, t as translate } from "@octo/base";
-import { SkillListPage } from "@dmwork/skillmarket";
-import McpMarketListPage from "./pages/McpMarketListPage";
+import { i18n, WKApp, Menus, t as translate } from "@octo/base";
 import MarketSidebar from "./components/MarketSidebar";
 import enUS from "./i18n/en-US.json";
 import zhCN from "./i18n/zh-CN.json";
@@ -49,12 +47,13 @@ export class McpMarketModule implements IModule {
       return <MarketSidebar />;
     });
 
-    // Route mounted into WKLayout.contentRight by MarketSidebar / the menu's
-    // onPress. Kept separate from the sidebar so future markets (Skills 市场,
-    // …) can register additional /mcp-market/* routes without touching this
-    // one.
+    // Deep-link aliases for the shared market shell. The right pane is mounted
+    // exclusively by MarketSidebar based on WKApp.route.currentPath /
+    // window.location.pathname; returning page content directly here would
+    // create a second mounted page instance and duplicate portal side effects
+    // such as Skill Market toast.
     WKApp.route.register("/mcp-market/mcp", () => {
-      return <McpMarketListPage />;
+      return <MarketSidebar />;
     });
 
     // Skills market tab — physically owned by @dmwork/skillmarket (i18n +
@@ -63,7 +62,7 @@ export class McpMarketModule implements IModule {
     // module no longer registers its own NavRail icon; this route is the
     // single source of truth for the Skills market URL.
     WKApp.route.register("/mcp-market/skills", () => {
-      return <SkillListPage />;
+      return <MarketSidebar />;
     });
 
     // 顶层 NavRail 菜单入口。sort=5003 紧跟在 summary(4002/5000) 之后，

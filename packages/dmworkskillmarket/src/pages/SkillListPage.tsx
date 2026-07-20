@@ -23,6 +23,7 @@ import SkillCardSkeleton from "../components/SkillCardSkeleton";
 import SkillDetailModal from "../components/SkillDetailModal";
 
 type TabId = "skills" | "mine";
+type SkillToastInfo = Pick<Skill, "name" | "displayName">;
 
 const TOAST_DURATION = 3000;
 const SORT_OPTIONS: Array<{ value: SkillSort; labelKey: string }> = [
@@ -64,6 +65,10 @@ export default function SkillListPage() {
       toastTimerRef.current = null;
     }, TOAST_DURATION);
   }, []);
+
+  function getSkillToastName(skill: SkillToastInfo) {
+    return skill.displayName || skill.name;
+  }
 
   useEffect(() => {
     return () => {
@@ -126,21 +131,21 @@ export default function SkillListPage() {
     setTab(next);
   }
 
-  function handleDeleted() {
+  function handleDeleted(skill: Skill) {
     setDetailId(null);
     setEditing(null);
     setDeleting(null);
-    showToast(t("skillMarket.list.deleted"));
+    showToast(t("skillMarket.list.deleted", { values: { name: getSkillToastName(skill) } }));
     list.refresh();
   }
 
-  function handleCreated() {
-    showToast(t("skillMarket.list.created"));
+  function handleCreated(skill: SkillToastInfo) {
+    showToast(t("skillMarket.list.created", { values: { name: getSkillToastName(skill) } }));
     list.refresh();
   }
 
-  function handleUpdated() {
-    showToast(t("skillMarket.list.saved"));
+  function handleUpdated(skill: Skill) {
+    showToast(t("skillMarket.list.saved", { values: { name: getSkillToastName(skill) } }));
     list.refresh();
     setDetailRefreshKey((current) => current + 1);
   }
