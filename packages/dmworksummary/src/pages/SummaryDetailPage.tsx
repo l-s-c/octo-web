@@ -18,6 +18,8 @@ import type { ReplaceMode, SelectionRange } from "@octo/base/src/Components/Voic
 import { splitSummaryText } from "../utils/splitMessage";
 import SummaryConfirmPage from "./SummaryConfirmPage";
 import * as api from "../api/summaryApi";
+// RefineSection 已移除 — 反馈修改改为在智能总结 chat 里引用总结迭代
+// (见 CHAT-REFERENCE-BASED-DESIGN-v1)
 import OverflowTooltip from "../components/OverflowTooltip";
 import type {
     SummaryDetail,
@@ -29,7 +31,7 @@ import type {
     SummaryVersionDetail,
     SummaryVersionItem,
 } from "../types/summary";
-import { TaskStatus, SummaryMode, ParticipantStatus } from "../types/summary";
+import { TaskStatus, SummaryMode, ParticipantStatus, TriggerType } from "../types/summary";
 import {
     formatDate,
     canCancel,
@@ -488,6 +490,22 @@ export default class SummaryDetailPage extends Component<SummaryDetailPageProps,
                 lastKnownStatus: detail.status,
                 workflowGateContent: false,
             });
+            if (detail.status === TaskStatus.COMPLETED && detail.result_id) {
+                const markRead = api.markSummaryRead;
+                if (markRead) void markRead(detail.task_id, { team_result_id: detail.result_id }).then((attention) => {
+                    // Guard with the request sequence/lookup key rather than
+                    // comparing numeric detail.task_id with a task_no deep-link.
+                    if (this.scheduleLoadSeq === seq && this.detailLookupId === requestTaskId) {
+                        window.dispatchEvent(new CustomEvent("summary-read", {
+                            detail: {
+                                taskId: detail.task_id,
+                                isUnread: attention.is_unread,
+                                needsAttention: attention.needs_attention,
+                            },
+                        }));
+                    }
+                }).catch(() => { /* keep unread on failure */ });
+            }
             if (detail.status === TaskStatus.COMPLETED && detail.result) {
                 this.loadVersions(detail.task_id);
             }
@@ -597,6 +615,20 @@ export default class SummaryDetailPage extends Component<SummaryDetailPageProps,
                 });
             }
             this.startPersonalPoll(result.worker_status);
+            if (result.current_version_id && result.content?.trim()) {
+                const markRead = api.markSummaryRead;
+                if (markRead) void markRead(requestTaskId, { personal_version_id: result.current_version_id }).then((attention) => {
+                    if (this.scheduleLoadSeq === reqSeq && (this.taskId == null || this.taskId === requestTaskId)) {
+                        window.dispatchEvent(new CustomEvent("summary-read", {
+                            detail: {
+                                taskId: requestTaskId,
+                                isUnread: attention.is_unread,
+                                needsAttention: attention.needs_attention,
+                            },
+                        }));
+                    }
+                }).catch(() => { /* keep unread on failure */ });
+            }
             if (result.content?.trim()) {
                 this.loadPersonalVersions(requestTaskId);
             } else if (this.taskId == null || this.taskId === requestTaskId) {
@@ -1818,6 +1850,40 @@ export default class SummaryDetailPage extends Component<SummaryDetailPageProps,
             this.setState({ scheduleDisabling: false });
             Toast.error(err.message || t("summary.common.operationFailed"));
         }
+    };
+
+    /**
+     * 「继续优化」按钮 — 打开一个新的智能总结 chat session,预置引用当前总结。
+     * 见 CHAT-REFERENCE-BASED-DESIGN-v1: 详情页入口和顶栏「新总结」入口的语义
+     * 完全等价 — 都是新起一次 chat 生产工作台,唯一差别是这里预填了引用。
+     *
+     * 实现:通过 window 事件解耦(避免 SummaryCreatePage↔SummaryDetailPage 循环导入)。
+     * module.tsx 里注册顶栏「新总结」入口的 handler 监听此事件,收到后打开
+     * 一个新的 SummaryCreatePage 实例,并把 derivedFromTask 作为 prop 塞入。
+     *
+     * 用户在新 chat 里聊完保存后:①出现的是全新总结(和当前总结平级) ②当前
+     * 总结不变 ③新总结的 SummaryTask.referenced_task_ids 记录来源。
+     */
+    handleContinueRefine = () => {
+        const { detail } = this.state;
+        if (!detail || detail.trigger_type !== TriggerType.AGENT) return;
+        const event = new CustomEvent('summary-open-chat-with-reference', {
+            detail: {
+                task_id: detail.task_id,
+                title: detail.title,
+                trigger_type: detail.trigger_type,
+                status: detail.status,
+                creator_id: detail.creator_id,
+                summary_mode: detail.summary_mode,
+                time_range_start: detail.time_range_start,
+                time_range_end: detail.time_range_end,
+                sources: detail.sources || [],
+                total_msg_count: 0,
+                created_at: '',
+                updated_at: '',
+            },
+        });
+        window.dispatchEvent(event);
     };
 
     handleForwardToChat = () => {
@@ -3109,6 +3175,7 @@ export default class SummaryDetailPage extends Component<SummaryDetailPageProps,
             // 迟到（已切 task）：不回显新 task（confirmingSchedule 由 finally 复位）。
             if (this.taskId !== requestTaskId) return;
             Toast.success(t("summary.detail.scheduleConfirmed"));
+            WKApp.mittBus.emit("summary-attention-refresh-requested" as any);
             // 复用现有加载路径刷新（不新增任何出站推送）：重拉 schedule 让按钮消失。
             this.loadSchedule(scheduleItem.schedule_id);
         } catch (err: any) {
@@ -3214,6 +3281,15 @@ export default class SummaryDetailPage extends Component<SummaryDetailPageProps,
                         {detail?.title || t("summary.detail.defaultTitle")}
                     </OverflowTooltip>
                     <div className="summary-detail-header-actions">
+                        {detail && detail.status === TaskStatus.COMPLETED && detail.trigger_type === TriggerType.AGENT && (
+                            <Button
+                                theme="solid"
+                                type="primary"
+                                onClick={this.handleContinueRefine}
+                            >
+                                {t("summary.detail.continueRefine")}
+                            </Button>
+                        )}
                         {detail && detail.status === TaskStatus.COMPLETED && (
                             <Button
                                 theme="borderless"
@@ -3432,6 +3508,9 @@ export default class SummaryDetailPage extends Component<SummaryDetailPageProps,
                                 {detail.status === TaskStatus.COMPLETED && detail.summary_mode !== SummaryMode.BY_PERSON && (
                                     this.renderCompleted()
                                 )}
+
+                                {/* RefineSection removed — 反馈修改改为在智能总结 chat 里引用总结迭代
+                                    (见 CHAT-REFERENCE-BASED-DESIGN-v1) */}
 
                                 <SelectedSourcesPanel sources={detail.sources} />
                             </>

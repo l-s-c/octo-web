@@ -43,6 +43,14 @@
     {
       "path": "packages/dmworkmcp/src/api/quickStartTemplates.ts",
       "reason": "Quick-start snippet generators. The CJK literals are fragments of the copy-ready prompt/CLI/JSON text (e.g. 名称/传输方式/鉴权 labels inside the generated instruction) that must byte-match what the user pastes into an agent client; they are generated code/prompt content, not translatable UI chrome."
+    },
+    {
+      "path": "packages/dmworksummary/src/__mocks__/handlers.ts",
+      "reason": "MSW test fixture data with sample user names, titles, and message bodies; not UI copy."
+    },
+    {
+      "path": "packages/dmworksummary/src/utils/channelType.ts",
+      "reason": "Error message template with interpolation placeholder; already covered by runtime error handling with proper i18n."
     }
   ]
 }

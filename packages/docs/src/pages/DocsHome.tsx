@@ -1,9 +1,10 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
-import { getWKApp, getRouteRight, onSpaceChanged, onNavMenuActivated, t } from '../octoweb/index.ts'
+import { getWKApp, getRouteRight, onSpaceChanged, onNavMenuActivated, t, fetchSpaceBotNames } from '../octoweb/index.ts'
 import { EditorShell } from '../editor/EditorShell.tsx'
 import { SheetView } from '../sheet/SheetView.tsx'
 import { parseXlsxToMatrix, pendingSheetImports } from '../sheet/xlsxImport.ts'
 import { BoardSession } from '../board/BoardSession.tsx'
+import { HtmlDocView } from '../html/HtmlDocView.tsx'
 import { isBoardDoc, isBoardIdLocally, rememberBoard } from '../board/boardStore.ts'
 import { runMarkdownImport, runDocxImport, ImportContentCorruptError } from '../editor/importFlow.ts'
 import '../editor/styles.css'
@@ -33,6 +34,8 @@ export interface DocTarget {
   docId: string
   /** `'board'` opens the whiteboard shell; anything else (incl. absent) opens the rich-text editor. */
   docType?: string
+  /** Present only for html docs: octo-doc body slug; absent falls back to docId. */
+  octoDocSlug?: string
 }
 
 /**
@@ -60,12 +63,24 @@ const IMPORT_ENABLED = true
 const TARGET_STORAGE_KEY = DOC_TARGET_STORAGE_KEY
 
 /** Mirror the active doc target to sessionStorage so it survives the host's query-wiping. */
-function persistDocTarget(target: { space: string; folder: string; doc: string; docType?: string }): void {
+function persistDocTarget(target: {
+  space: string
+  folder: string
+  doc: string
+  docType?: string
+  octoDocSlug?: string
+}): void {
   if (typeof window === 'undefined') return
   try {
     window.sessionStorage.setItem(
       TARGET_STORAGE_KEY,
-      JSON.stringify({ space: target.space, folder: target.folder, doc: target.doc, docType: target.docType }),
+      JSON.stringify({
+        space: target.space,
+        folder: target.folder,
+        doc: target.doc,
+        docType: target.docType,
+        octoDocSlug: target.octoDocSlug,
+      }),
     )
   } catch {
     // sessionStorage unavailable (private mode / disabled): the deep-link still opens on
@@ -105,6 +120,10 @@ function readDocTarget(uid?: string): DocTarget | null {
           : isBoardIdLocally(parsed.doc, uid)
             ? 'board'
             : undefined,
+      octoDocSlug:
+        typeof parsed.octoDocSlug === 'string' && parsed.octoDocSlug
+          ? parsed.octoDocSlug
+          : undefined,
     }
   } catch {
     return null
@@ -146,8 +165,16 @@ export function resolveDocTarget(search: string, uid?: string): DocTarget | null
   //    single `?doc=` param (three-party-fixed), so the kind is resolved from the local board
   //    registry rather than a separate query param.
   if (queryDoc) {
-    const docType = isBoardIdLocally(queryDoc, uid) ? 'board' : undefined
-    const target: DocTarget = { space, folder, doc: queryDoc, docId: queryDoc, docType }
+    // The mirrored `?doc=` re-render (docUrl only carries the docId) would otherwise clobber the
+    // persisted target with a docId-only value, dropping an html doc's kind/slug so HtmlDocView
+    // falls back to docId and 404s against octo-doc. Inherit docType/octoDocSlug from the already
+    // persisted target when it addresses the same doc; keep the board-registry fallback otherwise.
+    const prev = readDocTarget(uid)
+    const sameDoc = prev !== null && prev.doc === queryDoc
+    const docType =
+      sameDoc && prev.docType ? prev.docType : isBoardIdLocally(queryDoc, uid) ? 'board' : undefined
+    const octoDocSlug = sameDoc ? prev.octoDocSlug : undefined
+    const target: DocTarget = { space, folder, doc: queryDoc, docId: queryDoc, docType, octoDocSlug }
     persistDocTarget(target)
     return target
   }
@@ -298,6 +325,26 @@ function SheetRowIcon(): React.ReactElement {
 }
 
 /**
+ * HTML row glyph — a document outline with a `</>` angle-bracket mark in the center to identify a
+ * web/HTML doc, drawn in the same stroked style (no fill blocks) as the doc/board/sheet glyphs so a
+ * `docType==='html'` row reads as a peer of the other three kinds.
+ */
+function HtmlRowIcon(): React.ReactElement {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <path
+        d="M4 1.5h5L12.5 5v9a.5.5 0 0 1-.5.5H4a.5.5 0 0 1-.5-.5V2a.5.5 0 0 1 .5-.5Z"
+        stroke="currentColor"
+        strokeWidth="1"
+        fill="none"
+      />
+      <path d="M9 1.5V5h3.5" stroke="currentColor" strokeWidth="1" fill="none" />
+      <path d="M7 8.5 5.5 10 7 11.5M9 8.5 10.5 10 9 11.5" stroke="currentColor" strokeWidth="1" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
+/**
  * Layered empty states A–F (frontend-design §5.3). Each variant carries its OWN i18n title + CTA
  * keys — A ("看", browse) and B ("建", create) are deliberately NOT merged (product MF1). C/D/F cover
  * a single "condition matched nothing" (search / creator / type) and offer that one clear
@@ -410,18 +457,20 @@ function DocsList({
   selectedDocId,
   onSelect,
   reloadToken,
+  botUids,
 }: {
   space: string
   folder: string
   /** Authenticated uid — scopes the board-kind registry lookups/writes (P2). */
   uid: string
   selectedDocId: string | null
-  onSelect: (docId: string, docType?: string) => void
+  onSelect: (docId: string, docType?: string, octoDocSlug?: string) => void
   reloadToken?: number
+  /** uids of every bot in the space; a row whose ownerId is here shows a bot badge. */
+  botUids: Set<string>
 }): React.ReactElement {
   const [creating, setCreating] = useState(false)
   const [newMenuAt, setNewMenuAt] = useState<{ left: number; top: number } | null>(null)
-  const [importMenuAt, setImportMenuAt] = useState<{ left: number; top: number } | null>(null)
   const importInputRef = useRef<HTMLInputElement>(null)
   // Client-side pin (置顶) — persisted in localStorage; pinned docs sort to the top. Pin is a
   // "我的文档" affordance ONLY: the recent tab renders the server's `viewed_at DESC` order verbatim
@@ -592,28 +641,34 @@ function DocsList({
     // so a known spreadsheet row opens straight into SheetView. When the list API omitted docType
     // AND we have no local board record — a NON-creator viewing a shared board — pass `undefined`
     // so openDoc resolves the authoritative kind via getDoc (the M2 routing bug).
-    const knownKind: 'board' | 'doc' | 'sheet' | undefined = board
+    const knownKind: 'board' | 'doc' | 'sheet' | 'html' | undefined = board
       ? 'board'
       : d.docType === 'sheet'
         ? 'sheet'
-        : d.docType === 'doc'
-          ? 'doc'
-          : undefined
+        : d.docType === 'html'
+          ? 'html'
+          : d.docType === 'doc'
+            ? 'doc'
+            : undefined
     // Row-icon kind (visual only, always concrete): a known board, then an explicit sheet, else a
     // plain doc — the three-way distinction so a spreadsheet never renders as a document icon
     // (XIN-1188). Independent of `knownKind` above, which stays `undefined` for an unresolved
     // shared row so openDoc can still resolve the authoritative shell via getDoc.
-    const iconKind: 'board' | 'sheet' | 'doc' = board
+    const iconKind: 'board' | 'sheet' | 'html' | 'doc' = board
       ? 'board'
       : d.docType === 'sheet'
         ? 'sheet'
-        : 'doc'
+        : d.docType === 'html'
+          ? 'html'
+          : 'doc'
     const kindLabel =
       iconKind === 'board'
         ? t('docs.list.kindBoard')
         : iconKind === 'sheet'
           ? t('docs.list.kindSheet')
-          : t('docs.list.kindDoc')
+          : iconKind === 'html'
+            ? t('docs.list.kindHtml')
+            : t('docs.list.kindDoc')
     // Recent rows put the creator on its OWN line, then a SINGLE merged time line reporting only
     // the LATEST event (XIN-1236 merged design). Mine rows keep the plain "updated" sub-line
     // (frontend-design §2.1 / §5.1).
@@ -653,7 +708,7 @@ function DocsList({
             e.preventDefault()
             setMenu({ docId: d.docId, role: d.role, x: e.clientX, y: e.clientY })
           }}
-          onClick={() => onSelect(d.docId, knownKind)}
+          onClick={() => onSelect(d.docId, knownKind, d.octoDocSlug)}
           aria-current={active ? 'true' : undefined}
         >
           <span
@@ -665,19 +720,32 @@ function DocsList({
               <BoardRowIcon />
             ) : iconKind === 'sheet' ? (
               <SheetRowIcon />
+            ) : iconKind === 'html' ? (
+              <HtmlRowIcon />
             ) : (
               <DocRowIcon />
             )}
           </span>
           <span className="octo-docs-list-row-text">
-            <span
-              className={
-                hasTitle
-                  ? 'octo-docs-list-row-title'
-                  : 'octo-docs-list-row-title octo-docs-list-row-title-untitled'
-              }
-            >
-              {label}
+            <span className="octo-docs-list-row-title-line">
+              <span
+                className={
+                  hasTitle
+                    ? 'octo-docs-list-row-title'
+                    : 'octo-docs-list-row-title octo-docs-list-row-title-untitled'
+                }
+              >
+                {label}
+              </span>
+              {botUids.has(d.ownerId) && (
+                <span
+                  className="octo-docs-list-row-bot-badge"
+                  title={t('docs.list.botBadge')}
+                  aria-label={t('docs.list.botBadge')}
+                >
+                  {t('docs.list.botBadge')}
+                </span>
+              )}
             </span>
             {activeView === 'recent' ? (
               // Recent rows: creator on its own line, then ONE merged time line showing only the
@@ -738,8 +806,11 @@ function DocsList({
         setCreateError(t('docs.toolbar.importCorrupt'))
       } else if (err instanceof Error && /取消|cancel/i.test(err.message)) {
         // silent: user closed the file picker
+      } else if (err instanceof Error && /mdOnly|Markdown|\.md/i.test(err.message)) {
+        // Wrong file type picked (guard threw docs.import.mdOnly).
+        setCreateError(t('docs.import.mdOnly'))
       } else {
-        setCreateError(t('docs.state.error'))
+        setCreateError(t('docs.import.mdFailed'))
       }
     } finally {
       setCreating(false)
@@ -762,15 +833,24 @@ function DocsList({
         setCreateError(t('docs.toolbar.importCorrupt'))
       } else if (err instanceof Error && /取消|cancel/i.test(err.message)) {
         // silent: user closed the file picker
-      } else if (
-        typeof (err as { response?: { status?: number } })?.response?.status === 'number' &&
-        (err as { response: { status: number } }).response.status === 413
-      ) {
-        // The server rejected the upload as too large / too complex (zip-bomb
-        // guard, size / entry-count / compression-ratio bound).
-        setCreateError(t('docs.import.wordTooLarge'))
       } else {
-        setCreateError(t('docs.import.wordError'))
+        const status = (err as { response?: { status?: number } })?.response?.status
+        const body = (err as { response?: { data?: { error?: string; reason?: string } } })
+          ?.response?.data
+        if (status === 413) {
+          // The server rejected the upload as too large / too complex (zip-bomb
+          // guard, size / entry-count / compression-ratio bound).
+          setCreateError(t('docs.import.wordTooLarge'))
+        } else if (body?.error === 'empty_upload') {
+          setCreateError(t('docs.import.wordEmpty'))
+        } else if (body?.error === 'import_unsafe') {
+          // Backend hit a hard safety bound; show the precise reason when known.
+          const key = `docs.import.docxReason.${body.reason ?? ''}`
+          const mapped = t(key)
+          setCreateError(mapped === key ? t('docs.import.wordTooLarge') : mapped)
+        } else {
+          setCreateError(t('docs.import.wordError'))
+        }
       }
     } finally {
       setCreating(false)
@@ -856,64 +936,54 @@ function DocsList({
             >
               ▦ {t('docs.sheet.new')}
             </button>
-          </PortalMenu>
-        )}
-        {/* Import entry — flag ON; formal owner sign-off on this PR still PENDING, gated by needs-human-review (was hidden in #583). Toggle via IMPORT_ENABLED. */}
-        {IMPORT_ENABLED && (
-          <>
-        <button
-          type="button"
-          className="octo-docs-list-new"
-          disabled={creating}
-          title={t('docs.sheet.import')}
-          aria-haspopup="menu"
-          aria-expanded={importMenuAt != null}
-          onClick={(e) => {
-            const r = e.currentTarget.getBoundingClientRect()
-            setImportMenuAt(importMenuAt ? null : { left: r.left, top: r.bottom + 6 })
-          }}
-        >
-          {t('docs.sheet.import')}
-          <span style={{ marginLeft: 6, fontSize: 9, opacity: 0.9 }}>▾</span>
-        </button>
-        {importMenuAt && (
-          <PortalMenu at={importMenuAt} onClose={() => setImportMenuAt(null)}>
-            <button
-              type="button"
-              className="octo-tb-btn"
-              disabled={creating}
-              style={{ display: 'block', width: '100%', textAlign: 'left' }}
-              onClick={() => {
-                setImportMenuAt(null)
-                importInputRef.current?.click()
-              }}
-            >
-              📄 {t('docs.sheet.importExcel')}
-            </button>
-            <button
-              type="button"
-              className="octo-tb-btn"
-              disabled={creating}
-              style={{ display: 'block', width: '100%', textAlign: 'left' }}
-              onClick={() => {
-                setImportMenuAt(null)
-                void onImportWord()
-              }}
-            >
-              📃 {t('docs.import.word')}
-            </button>
-            <button
-              type="button"
-              className="octo-tb-btn"
-              disabled={creating}
-              style={{ display: 'block', width: '100%', textAlign: 'left' }}
-              onClick={() => {
-                setImportMenuAt(null)
-                void onImportMarkdown()
-              }}
-            >
-              📝 {t('docs.import.markdown')}
-            </button>
+            {/* Import entries merged into the "New" dropdown (was a standalone "Import" button).
+                Flag ON; formal owner sign-off still PENDING, gated by needs-human-review (was hidden
+                in #583). Toggle via IMPORT_ENABLED. Handlers unchanged — this only moves the entry. */}
+            {IMPORT_ENABLED && (
+              <>
+                <div
+                  role="separator"
+                  aria-hidden="true"
+                  style={{ borderTop: '1px solid #ebebeb', margin: '6px 0' }}
+                />
+                <button
+                  type="button"
+                  className="octo-tb-btn"
+                  disabled={creating}
+                  style={{ display: 'block', width: '100%', textAlign: 'left' }}
+                  onClick={() => {
+                    setNewMenuAt(null)
+                    importInputRef.current?.click()
+                  }}
+                >
+                  📄 {t('docs.sheet.importExcel')}
+                </button>
+                <button
+                  type="button"
+                  className="octo-tb-btn"
+                  disabled={creating}
+                  style={{ display: 'block', width: '100%', textAlign: 'left' }}
+                  onClick={() => {
+                    setNewMenuAt(null)
+                    void onImportWord()
+                  }}
+                >
+                  📃 {t('docs.import.word')}
+                </button>
+                <button
+                  type="button"
+                  className="octo-tb-btn"
+                  disabled={creating}
+                  style={{ display: 'block', width: '100%', textAlign: 'left' }}
+                  onClick={() => {
+                    setNewMenuAt(null)
+                    void onImportMarkdown()
+                  }}
+                >
+                  📝 {t('docs.import.markdown')}
+                </button>
+              </>
+            )}
           </PortalMenu>
         )}
         <input
@@ -927,8 +997,6 @@ function DocsList({
             e.currentTarget.value = ''
           }}
         />
-          </>
-        )}
       </div>
       <DocsTabs active={activeView} onChange={onTab} />
       <div className="octo-docs-toolbar">
@@ -1127,12 +1195,21 @@ export function DocsHome() {
   // an owner direct-opening a whiteboard fell back to the Docs editor (canvas=0). This mirrors
   // what the list-open path already does (openDoc → getDoc for unknown kinds), aligning the two
   // open paths so every member lands on the whiteboard regardless of how they entered.
-  const initialKnownKind: 'board' | 'doc' | undefined =
+  // Kinds we can assert from the stored docType WITHOUT a getDoc round-trip: 'board',
+  // 'sheet' (SheetView) and 'html' (read-only HtmlDocView) are all deterministic shells, so a
+  // persisted/deep-link target that already carries one of them opens straight into the right
+  // shell on first paint — no getDoc detour, and (for html) no risk of falling back to the
+  // rich-text editor. Only a docId with an UNKNOWN kind still defers to getDoc on mount.
+  const initialKnownKind: 'board' | 'doc' | 'sheet' | 'html' | undefined =
     initialTarget.current?.docType === 'board'
       ? 'board'
-      : initialTarget.current?.docType === 'doc'
-        ? 'doc'
-        : undefined
+      : initialTarget.current?.docType === 'sheet'
+        ? 'sheet'
+        : initialTarget.current?.docType === 'html'
+          ? 'html'
+          : initialTarget.current?.docType === 'doc'
+            ? 'doc'
+            : undefined
   const [selectedDocId, setSelectedDocId] = useState<string | null>(
     () => (initialKnownKind ? (initialTarget.current?.docId ?? null) : null),
   )
@@ -1142,6 +1219,9 @@ export function DocsHome() {
   // via getDoc (see the mount effect).
   const [selectedDocType, setSelectedDocType] = useState<string | undefined>(
     () => initialKnownKind,
+  )
+  const [selectedOctoDocSlug, setSelectedOctoDocSlug] = useState<string | undefined>(
+    () => initialTarget.current?.octoDocSlug,
   )
 
   // Live mirror of selectedDocId for callbacks pushed imperatively into the host route pane. The
@@ -1163,6 +1243,13 @@ export function DocsHome() {
   useEffect(() => {
     selectedDocTypeRef.current = selectedDocType
   }, [selectedDocType])
+  // Companion live mirror of the open doc's octo-doc slug — the nav-reactivation re-push below
+  // needs it, else an html doc re-opens with slug=undefined and HtmlDocView falls back to docId,
+  // 404ing against the slug-addressed octo-doc render endpoint.
+  const selectedOctoDocSlugRef = useRef<string | undefined>(selectedOctoDocSlug)
+  useEffect(() => {
+    selectedOctoDocSlugRef.current = selectedOctoDocSlug
+  }, [selectedOctoDocSlug])
 
   // The host's right (main) route pane. When present (production), the editor is pushed there
   // so it fills the main content area while the list stays in the left route slot — the same
@@ -1180,6 +1267,25 @@ export function DocsHome() {
   // presence avatar initial and the collaboration caret show a real name, not the raw uid.
   // Resilient: empty until resolved (or on fetch failure) → falls back to uid.
   const names = useMemberNames(space)
+
+  // Bot uids in the space, used to badge docs created by a bot in the list. Reuses the single
+  // non-viewer-scoped `GET /robot/space_bots` request (same seam memberNames backfill uses) so
+  // there is no per-uid fanout / extra permission. Best-effort: an empty set on failure just
+  // means no badge is shown. Refetched on Space switch.
+  const [botUids, setBotUids] = useState<Set<string>>(() => new Set())
+  useEffect(() => {
+    let active = true
+    void fetchSpaceBotNames(space)
+      .then((bots) => {
+        if (active) setBotUids(new Set(bots.map((b) => b.uid)))
+      })
+      .catch(() => {
+        if (active) setBotUids(new Set())
+      })
+    return () => {
+      active = false
+    }
+  }, [space])
 
   // Docs-owned empty state for the right pane. CRITICAL: the host renders its default
   // contentRight (<EmptyStateIllustration/> = the chat "select a conversation" placeholder)
@@ -1201,6 +1307,7 @@ export function DocsHome() {
   const backToList = useCallback(() => {
     setSelectedDocId(null)
     setSelectedDocType(undefined)
+    setSelectedOctoDocSlug(undefined)
     // Invalidate any in-flight unknown-kind open (openDoc → getDoc still pending). Without this,
     // a Space switch (this is also the onSpaceChanged reconciler) leaves latestOpenRef pointing at
     // the previous Space's docId, so a late getDoc resolve would pass the `latestOpenRef === docId`
@@ -1337,10 +1444,20 @@ export function DocsHome() {
   )
 
   // Choose the right-pane renderer by doc type: a spreadsheet ('sheet') mounts the collaborative
-  // Univer SheetView; a whiteboard ('board') mounts the Excalidraw shell; everything else (incl.
+  // Univer SheetView; a whiteboard ('board') mounts the Excalidraw shell; an agent-authored
+  // read-only HTML doc ('html') mounts the view-only HtmlDocView; everything else (incl.
   // unknown/absent kind) uses the Tiptap EditorShell — the safe default for legacy docs.
   const buildRightPane = useCallback(
-    (docId: string, docType: string | undefined, onBack?: () => void) => {
+    (
+      docId: string,
+      docType: string | undefined,
+      onBack?: () => void,
+      octoDocSlug?: string,
+    ) => {
+      // Read-only HTML: NO editor/collab wiring — a human may only view it (comments arrive in 2b).
+      if (docType === 'html') {
+        return <HtmlDocView key={docId} docId={docId} slug={octoDocSlug} space={space} onDeleted={onDocDeleted} />
+      }
       if (docType === 'sheet') {
         return (
           <SheetView
@@ -1369,13 +1486,15 @@ export function DocsHome() {
   // (durable sessionStorage + shareable `?doc=` URL), and push the matching shell into the host's
   // right pane. Split out from openDoc so the kind can be resolved asynchronously first.
   const commitOpen = useCallback(
-    (docId: string, docType: 'board' | 'doc' | 'sheet') => {
+    (docId: string, docType: 'board' | 'doc' | 'sheet' | 'html', octoDocSlug?: string) => {
+      const htmlSlug = docType === 'html' ? octoDocSlug : undefined
       // Whether a doc was already open BEFORE this commit — read from the live ref (not the
       // closed-over state, which lags a render). Drives whether we PUSH a new history entry
       // (first open from the list) or REPLACE in place (doc → doc switch). See mirrorDocToUrl.
       const wasOpen = selectedDocIdRef.current !== null
       setSelectedDocId(docId)
       setSelectedDocType(docType)
+      setSelectedOctoDocSlug(htmlSlug)
       // View ingest (frontend-design §3.4 / XIN-1098 API 1): record that this doc was opened so it
       // surfaces in "最近查看". Fire-and-forget on the open success path — read-only opens count too,
       // the call is idempotent (server UPSERTs on (uid,docId)), and a failure never blocks the open.
@@ -1383,13 +1502,14 @@ export function DocsHome() {
       // Durable mirror (survives the host's query-wiping re-push) + shareable URL. On a first open
       // we push a doc entry over a normalised list entry so a browser Back returns to the list, not
       // the tab's initial about:blank (XIN-1172).
-      persistDocTarget({ space, folder, doc: docId, docType })
+      persistDocTarget({ space, folder, doc: docId, docType, octoDocSlug: htmlSlug })
       mirrorDocToUrl(docId, space, folder, !wasOpen)
       const push = (dt: string | undefined) => {
         setSelectedDocType(dt)
+        setSelectedOctoDocSlug(dt === 'html' ? htmlSlug : undefined)
         if (routeRight) {
           try {
-            routeRight.replaceToRoot(buildRightPane(docId, dt) as unknown)
+            routeRight.replaceToRoot(buildRightPane(docId, dt, undefined, htmlSlug) as unknown)
           } catch {
             // ignore — fall back to inline render below if the host pane rejects.
           }
@@ -1404,13 +1524,14 @@ export function DocsHome() {
   )
 
   const openDoc = useCallback(
-    (docId: string, docType?: string) => {
+    (docId: string, docType?: string, octoDocSlug?: string) => {
       latestOpenRef.current = docId
       // Known kind — the creator's own board (API `docType` or the local registry, both surfaced
-      // by isBoardDoc at the call site), an explicit `'doc'`, or a `'sheet'` (created / imported /
-      // known list row): open the right shell immediately without a round-trip.
-      if (docType === 'board' || docType === 'doc' || docType === 'sheet') {
-        commitOpen(docId, docType)
+      // by isBoardDoc at the call site), an explicit `'doc'`, a `'sheet'` (created / imported /
+      // known list row), or an agent-authored read-only `'html'` doc: open the right shell
+      // immediately without a round-trip.
+      if (docType === 'board' || docType === 'doc' || docType === 'sheet' || docType === 'html') {
+        commitOpen(docId, docType, octoDocSlug)
         return
       }
       // Unknown kind: the list API omitted `docType` AND this client has no local board record.
@@ -1432,10 +1553,18 @@ export function DocsHome() {
         .then((meta) => {
           if (superseded()) return // superseded by a newer open or a Space switch
           // Preserve the resolved kind verbatim: a real 'sheet' must reach SheetView, a 'board'
-          // the whiteboard shell; everything else falls back to the rich-text editor.
+          // the whiteboard shell, an 'html' the read-only view; everything else falls back to the
+          // rich-text editor.
           commitOpen(
             docId,
-            meta?.docType === 'board' ? 'board' : meta?.docType === 'sheet' ? 'sheet' : 'doc',
+            meta?.docType === 'board'
+              ? 'board'
+              : meta?.docType === 'sheet'
+                ? 'sheet'
+                : meta?.docType === 'html'
+                  ? 'html'
+                  : 'doc',
+            meta?.octoDocSlug,
           )
         })
         .catch(() => {
@@ -1463,7 +1592,9 @@ export function DocsHome() {
     if (routeRight) {
       try {
         if (selectedDocId) {
-          routeRight.replaceToRoot(buildRightPane(selectedDocId, selectedDocType) as unknown)
+          routeRight.replaceToRoot(
+            buildRightPane(selectedDocId, selectedDocType, undefined, selectedOctoDocSlug) as unknown,
+          )
         } else {
           routeRight.replaceToRoot(buildEmptyState() as unknown)
         }
@@ -1510,13 +1641,28 @@ export function DocsHome() {
       try {
         const id = selectedDocIdRef.current
         if (id) {
-          routeRight.replaceToRoot(buildRightPaneRef.current(id, selectedDocTypeRef.current) as unknown)
+          routeRight.replaceToRoot(
+            buildRightPaneRef.current(
+              id,
+              selectedDocTypeRef.current,
+              undefined,
+              selectedOctoDocSlugRef.current,
+            ) as unknown,
+          )
         } else {
           routeRight.replaceToRoot(buildEmptyState() as unknown)
         }
       } catch {
         // ignore — right pane unavailable
       }
+      // The resident list only fetches on mount + on space/folder/reloadToken change (useDocsView),
+      // so a view recorded while another tab was active never showed up on a NavRail return to docs
+      // (XIN-1307 — host keeps DocsHome mounted, only toggles display). Bump the reload token here
+      // so both tabs refetch. The token feeds useDocsView's existing refetch effect, which re-sends
+      // each tab's remembered q/creators/types — so the current search/filter is preserved and no
+      // fetch dependency array or cache layer changes. setListReloadToken is a stable setter and the
+      // functional update reads the latest value, so no ref/stale-closure handling is needed.
+      setListReloadToken((n) => n + 1)
     })
     // routeRight + buildEmptyState are stable (singleton + []-dep useCallback); buildRightPane is
     // read through a ref so the subscription stays mounted for the component's life.
@@ -1559,6 +1705,7 @@ export function DocsHome() {
           selectedDocId={selectedDocId}
           onSelect={openDoc}
           reloadToken={listReloadToken}
+          botUids={botUids}
         />
       </div>
     )
@@ -1574,11 +1721,12 @@ export function DocsHome() {
           selectedDocId={selectedDocId}
           onSelect={openDoc}
           reloadToken={listReloadToken}
+          botUids={botUids}
         />
       </aside>
       <section className="octo-docs-split-right">
         {selectedDocId ? (
-          buildRightPane(selectedDocId, selectedDocType, backToList)
+          buildRightPane(selectedDocId, selectedDocType, backToList, selectedOctoDocSlug)
         ) : (
           <div className="octo-docs-split-empty">
             <p>{t('docs.state.empty')}</p>
