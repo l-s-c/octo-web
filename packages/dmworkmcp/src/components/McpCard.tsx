@@ -6,10 +6,29 @@ import { IconGlyph } from "../utils/icon";
 interface McpCardProps {
   item: McpListItem;
   onClick: (item: McpListItem) => void;
+  keyword?: string;
+}
+
+export function Highlight({ text, keyword = "" }: { text: string; keyword?: string }) {
+  const index = text.toLowerCase().indexOf(keyword.trim().toLowerCase());
+  if (!keyword.trim() || index < 0) return <>{text}</>;
+  return <>{text.slice(0, index)}<mark>{text.slice(index, index + keyword.trim().length)}</mark>{text.slice(index + keyword.trim().length)}</>;
+}
+
+export function parseMatchReason(reason: string): { key: string; value?: string } {
+  const colon = reason.indexOf(":");
+  const type = colon < 0 ? reason : reason.slice(0, colon);
+  const value = colon < 0 ? undefined : reason.slice(colon + 1);
+  const keys: Record<string, string> = { name: "name", description: "description", category: "category", usage_example: "usage", tool: "tool", tag: "tag", creator: "creator" };
+  return { key: `mcp.card.matchReason.${keys[type] ?? "other"}`, value };
+}
+
+export function MatchReasons({ reasons, keyword = "" }: { reasons: string[]; keyword?: string }) {
+  return <>{reasons.map((reason) => { const parsed = parseMatchReason(reason); const value = parsed.value || keyword; return <div className="wk-mcp-card__reason" key={reason}>{t(parsed.key)}{value ? <> <Highlight text={value} keyword={keyword} /></> : null}</div>; })}</>;
 }
 
 /** A single MCP server card in the list grid. */
-const McpCard: React.FC<McpCardProps> = ({ item, onClick }) => {
+const McpCard: React.FC<McpCardProps> = ({ item, onClick, keyword }) => {
   return (
     <div
       className="wk-mcp-card"
@@ -28,7 +47,7 @@ const McpCard: React.FC<McpCardProps> = ({ item, onClick }) => {
           <IconGlyph icon={item.icon} className="wk-mcp-card__icon-img" alt={item.name} />
         </div>
         <div className="wk-mcp-card__heading">
-          <div className="wk-mcp-card__name">{item.name}</div>
+          <div className="wk-mcp-card__name"><Highlight text={item.name} keyword={keyword} /></div>
           <div className="wk-mcp-card__tags">
             {item.tags.map((tag) => (
               <span key={tag} className="wk-mcp-tag wk-mcp-tag--accent">
@@ -38,7 +57,8 @@ const McpCard: React.FC<McpCardProps> = ({ item, onClick }) => {
           </div>
         </div>
       </div>
-      <div className="wk-mcp-card__slogan">{item.slogan}</div>
+      <div className="wk-mcp-card__slogan"><Highlight text={item.slogan} keyword={keyword} /></div>
+      {item.matchReasons?.length ? <MatchReasons reasons={item.matchReasons} keyword={keyword} /> : null}
       <div className="wk-mcp-card__footer">
         <span>
           {t("mcp.card.toolCount", { values: { count: item.toolCount } })}

@@ -36,16 +36,35 @@
   "list": {
     "desc": "Browse and connect MCP servers to extend your agent's tools.",
     "create": "New MCP",
-    "searchPlaceholder": "Search by name / summary",
+    "searchPlaceholder": "Search MCPs, tools, or capabilities",
+    "errorTitle": "Failed to load MCPs",
+    "retry": "Retry",
+    "error": {
+      "auth": "Your session expired. Sign in and try again.",
+      "forbidden": "You do not have permission to access the MCP marketplace.",
+      "network": "Network connection failed. Check your connection and retry.",
+      "server": "The service is temporarily unavailable. Try again later.",
+      "unknown": "Failed to load. Try again later."
+    },
     "empty": "No matching MCP servers",
     "loadMore": "Scroll down to load more",
     "reachedEnd": "You've reached the end",
+    "clear": "Clear filters",
+    "total": "{{count}} results",
+    "sort": { "label": "Sort", "relevance": "Relevance", "updated": "Recently updated", "verified": "Recently verified" },
+    "source": { "system": "System", "space": "Space team", "mine": "Created by me" },
+    "visibility": { "public": "Space", "private": "Private" },
+    "verification": { "verified": "Verified", "unverified": "Unverified", "error": "Error" },
+    "tagsPlaceholder": "Tags, comma separated",
     "mode": {
       "all": "All",
       "mine": "Mine"
     }
   },
   "card": {
+    "hitTool": "Matched tool",
+    "hitTag": "Matched tag",
+    "matchReason": { "name": "Matched name", "description": "Matched summary", "tool": "Matched tool", "tag": "Matched tag", "category": "Matched category", "usage": "Matched usage example", "creator": "Matched publisher", "other": "Matched content" },
     "toolCount": "Tools: {{count}}",
     "viewDetail": "View details"
   },

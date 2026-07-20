@@ -20,6 +20,7 @@ import {
   MOCK_PROBED_TOOLS,
 } from "../mock/mcpMock";
 import { CATEGORY_KEY_ALL, slugifyServerName } from "../utils/constants";
+import { McpListError, classifyMcpListError, executeMcpListRequest } from "./mcpListError";
 
 // ═══════════════════════════════════════════════════════════════════════════
 // MCP Market service layer
@@ -384,7 +385,7 @@ async function get<T>(
     return resp.data.data as T;
   } catch (err) {
     if (axios.isCancel(err)) throw err;
-    throw new Error(extractErrorMessage(err));
+    throw new McpListError(classifyMcpListError(err));
   }
 }
 
@@ -441,6 +442,12 @@ interface McpListItemWire {
   tool_count: number;
   visibility?: McpListItem["visibility"];
   creator_name?: string;
+  transport?: McpListItem["transport"];
+  source?: McpListItem["source"];
+  verification_status?: McpListItem["verificationStatus"];
+  match_reasons?: string[];
+  relevance?: number;
+  updated_at?: string;
 }
 
 interface McpDetailWire extends McpListItemWire {
@@ -479,6 +486,10 @@ function mapListItem(raw: McpListItemWire): McpListItem {
     toolCount: raw.tool_count,
     visibility: raw.visibility,
     creatorName: raw.creator_name,
+    transport: raw.transport, source: raw.source,
+    verificationStatus: raw.verification_status,
+    matchReasons: raw.match_reasons ?? [], relevance: raw.relevance,
+    updatedAt: raw.updated_at,
   };
 }
 
@@ -551,21 +562,22 @@ async function fetchMcpListPath(
   const keyword = params.keyword?.trim();
   if (keyword) query.keyword = keyword;
   // `all` disables the filter server-side; send it verbatim per §0.
-  query.category = params.category ?? CATEGORY_KEY_ALL;
+  query.category = params.categories?.length ? params.categories : (params.category ?? CATEGORY_KEY_ALL);
+  if (params.transports?.length) query.transport = params.transports;
+  if (params.visibilities?.length) query.visibility = params.visibilities;
+  if (params.sources?.length) query.source = params.sources;
+  if (params.verificationStatuses?.length) query.verification_status = params.verificationStatuses;
+  if (params.tags?.length) query.tag = params.tags;
+  if (params.sort) query.sort = params.sort;
   const pageSize = params.limit && params.limit > 0 ? params.limit : 20;
   query.page_size = pageSize;
   query.page = Math.floor((params.offset ?? 0) / pageSize) + 1;
   let resp;
   let categoryWire: { key: string; count: number }[];
-  try {
-    [resp, categoryWire] = await Promise.all([
+  [resp, categoryWire] = await executeMcpListRequest(() => Promise.all([
       mcpAxios.get<McpListResponseWire>(`${BASE}${path}`, { params: query }),
       get<{ key: string; count: number }[]>("/mcp_categories"),
-    ]);
-  } catch (err) {
-    if (axios.isCancel(err)) throw err;
-    throw new Error(extractErrorMessage(err));
-  }
+    ]));
   const items = (resp.data.data ?? []).map(mapListItem);
   const categoryCounts = new Map(
     categoryWire.map((item) => [item.key, item.count])
