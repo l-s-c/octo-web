@@ -20,7 +20,13 @@
   },
   "errors": {
     "unauthorized": "登录已过期，请重新登录",
-    "fileTooLarge": "文件过大，请压缩后重试"
+    "fileTooLarge": "文件过大，请压缩后重试",
+    "invalidUrl": "URL 无效",
+    "urlSchemeNotAllowed": "URL scheme 不允许",
+    "invalidDownloadUrl": "下载地址无效",
+    "uploadResponseMissing": "上传失败：响应字段缺失",
+    "parseFailed": "解析失败",
+    "parseTimeout": "解析超时，请重试"
   },
   "list": {
     "mine": "我的",

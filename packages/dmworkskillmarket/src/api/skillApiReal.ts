@@ -207,7 +207,7 @@ function assertSafeExternalURL(raw: string): void {
   try {
     u = new URL(raw);
   } catch {
-    throw normalizeError({ code: "invalid_response", message: "URL 无效" });
+    throw normalizeError({ code: "invalid_response", message: t("skillMarket.errors.invalidUrl") });
   }
   if (u.protocol === "https:") return;
   if (
@@ -217,7 +217,7 @@ function assertSafeExternalURL(raw: string): void {
     return;
   throw normalizeError({
     code: "invalid_response",
-    message: "URL scheme 不允许",
+    message: t("skillMarket.errors.urlSchemeNotAllowed"),
   });
 }
 
@@ -457,7 +457,7 @@ export async function downloadSkill(id: string): Promise<void> {
     `/skills/${encodeURIComponent(id)}/download?format=json`
   );
   if (!result.download_url) {
-    throw normalizeError({ code: "invalid_response", message: "下载地址无效" });
+    throw normalizeError({ code: "invalid_response", message: t("skillMarket.errors.invalidDownloadUrl") });
   }
   assertSafeExternalURL(result.download_url);
   const anchor = document.createElement("a");
@@ -548,7 +548,7 @@ export async function uploadIcon(blob: Blob): Promise<string> {
   if (!initResp?.presigned_url || !initResp?.object_key) {
     throw normalizeError({
       code: "invalid_response",
-      message: "上传失败：响应字段缺失",
+      message: t("skillMarket.errors.uploadResponseMissing"),
     });
   }
   // Step 2: Upload the file to presigned URL
@@ -609,7 +609,7 @@ function mapParseStatus(raw: RawParseStatusResult): ParseStatusResult {
   if (raw.status === "failed" && raw.error) {
     result.error = {
       code: raw.error.code ?? "unknown",
-      message: raw.error.message ?? "解析失败",
+      message: raw.error.message ?? t("skillMarket.errors.parseFailed"),
     };
   }
   return result;
@@ -629,13 +629,13 @@ export async function pollParse(taskId: string): Promise<ParseStatusResult> {
     if (status.status === "failed") {
       throw normalizeError({
         code: status.error?.code ?? "parse_failed",
-        message: status.error?.message ?? "解析失败",
+        message: status.error?.message ?? t("skillMarket.errors.parseFailed"),
         details: status.error,
       });
     }
     if (attempt < 59) await wait(2000);
   }
-  throw normalizeError({ code: "parse_timeout", message: "解析超时，请重试" });
+  throw normalizeError({ code: "parse_timeout", message: t("skillMarket.errors.parseTimeout") });
 }
 
 /** Reupload init for an existing skill. */

@@ -56,6 +56,7 @@
     "loadMore": "向下滚动加载更多",
     "reachedEnd": "已经到底了",
     "mineTotal": "共 {{count}} 个我创建的 MCP",
+    "navLabel": "MCP 市场导航",
     "mode": {
       "all": "全部",
       "mine": "我的"

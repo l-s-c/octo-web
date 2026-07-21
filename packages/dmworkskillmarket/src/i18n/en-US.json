@@ -20,7 +20,13 @@
   },
   "errors": {
     "unauthorized": "Session expired, please sign in again",
-    "fileTooLarge": "File is too large, please compress it and try again"
+    "fileTooLarge": "File is too large, please compress it and try again",
+    "invalidUrl": "Invalid URL",
+    "urlSchemeNotAllowed": "URL scheme not allowed",
+    "invalidDownloadUrl": "Invalid download URL",
+    "uploadResponseMissing": "Upload failed: response field missing",
+    "parseFailed": "Parse failed",
+    "parseTimeout": "Parse timed out, please retry"
   },
   "list": {
     "mine": "Mine",

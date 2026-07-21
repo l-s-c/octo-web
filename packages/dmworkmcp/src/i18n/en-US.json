@@ -56,6 +56,7 @@
     "loadMore": "Scroll down to load more",
     "reachedEnd": "You've reached the end",
     "mineTotal": "{{count}} MCPs created by me",
+    "navLabel": "MCP marketplace navigation",
     "mode": {
       "all": "All",
       "mine": "Mine"

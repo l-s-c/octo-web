@@ -299,7 +299,7 @@ export default class McpMarketListPage extends Component<
     return (
       <div className="wk-mcp">
         <header className="wk-mcp__topbar">
-          <nav className="wk-mcp__tabs" aria-label="MCP 市场导航">
+          <nav className="wk-mcp__tabs" aria-label={t("mcp.list.navLabel")}>
             {(["all", "mine"] as ListMode[]).map((k) => (
               <button
                 key={k}
