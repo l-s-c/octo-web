@@ -5,7 +5,7 @@
  * snake_case responses to camelCase frontend types.
  */
 import { API_BASE_URL } from "./constants";
-import { WKApp, t } from "@octo/base";
+import { WKApp, t, DEFAULT_REQUEST_TIMEOUT_MS } from "@octo/base";
 import type {
   Category,
   NewSkillForm,
@@ -102,9 +102,24 @@ async function requestEnvelope<T>(
       ? { "Content-Type": "application/json" }
       : getAuthHeaders();
   let res: Response;
+  // Bound every request to the shared 20s ceiling. The isolated fetch here
+  // never inherits axios.defaults.timeout that APIClient.initAxios sets, so
+  // apply the timeout explicitly to avoid the UI-hang class of bug that
+  // DEFAULT_REQUEST_TIMEOUT_MS was introduced to close. Compose with any
+  // caller-provided signal (e.g. list-request cancellation) so both cancel
+  // paths remain honoured.
+  const timeoutSignal = AbortSignal.timeout(DEFAULT_REQUEST_TIMEOUT_MS);
+  const composedSignal =
+    init?.signal && typeof (AbortSignal as unknown as { any?: unknown }).any === "function"
+      ? (AbortSignal as unknown as { any: (signals: AbortSignal[]) => AbortSignal }).any([
+          init.signal,
+          timeoutSignal,
+        ])
+      : init?.signal ?? timeoutSignal;
   try {
     res = await fetch(url, {
       ...init,
+      signal: composedSignal,
       headers: {
         ...defaultHeaders,
         ...(init?.headers as Record<string, string> | undefined),

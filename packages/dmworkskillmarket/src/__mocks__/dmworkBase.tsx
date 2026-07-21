@@ -67,6 +67,8 @@ export const Toast = {
   error: () => undefined,
 };
 
+export const DEFAULT_REQUEST_TIMEOUT_MS = 20_000;
+
 export const WKApp = {
   apiClient: {
     config: {

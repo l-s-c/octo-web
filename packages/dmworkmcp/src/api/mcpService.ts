@@ -1,5 +1,5 @@
 import axios, { AxiosRequestConfig } from "axios";
-import { WKApp, buildAcceptLanguage, t } from "@octo/base";
+import { WKApp, buildAcceptLanguage, t, DEFAULT_REQUEST_TIMEOUT_MS } from "@octo/base";
 import type {
   CreateMcpParams,
   ListMcpParams,
@@ -316,6 +316,11 @@ function slugify(s: string): string {
 
 const mcpAxios = axios.create({
   baseURL: "",
+  // Isolated instance (no shared interceptors), so it never picks up the
+  // 20s default that APIClient.initAxios sets on the axios singleton — set
+  // the same ceiling explicitly to avoid the UI-hang class of bug that
+  // DEFAULT_REQUEST_TIMEOUT_MS was introduced to close.
+  timeout: DEFAULT_REQUEST_TIMEOUT_MS,
   // Serialise array params as repeated keys (`?a=1&a=2`) instead of axios
   // 0.25's default `?a[]=1&a[]=2`. gin's QueryArray on the marketplace
   // backend only recognises the plain-repeat form; a bracketed key would

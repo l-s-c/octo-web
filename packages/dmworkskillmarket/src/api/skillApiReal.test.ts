@@ -861,7 +861,7 @@ describe("skillApiReal", () => {
     await expect(promise).rejects.toMatchObject({ name: "AbortError" });
     expect(mockFetch).toHaveBeenCalledWith(
       expect.any(String),
-      expect.objectContaining({ signal: controller.signal })
+      expect.objectContaining({ signal: expect.any(AbortSignal) })
     );
   });
 
@@ -873,7 +873,7 @@ describe("skillApiReal", () => {
 
     expect(mockFetch).toHaveBeenCalledWith(
       expect.any(String),
-      expect.objectContaining({ signal: controller.signal })
+      expect.objectContaining({ signal: expect.any(AbortSignal) })
     );
   });
 
@@ -885,7 +885,7 @@ describe("skillApiReal", () => {
 
     expect(mockFetch).toHaveBeenCalledWith(
       expect.any(String),
-      expect.objectContaining({ signal: controller.signal })
+      expect.objectContaining({ signal: expect.any(AbortSignal) })
     );
   });
 
