@@ -3,7 +3,7 @@ import WKApp from "../App";
 import { EndpointCategory, EndpointID } from "./Const";
 import { EndpointManager } from "./Module";
 import { normalizeRoutePath } from "./RoutePath";
-import { ensureSessionSid } from "./SessionScope";
+import { ensureSessionSid, stripSessionSidFromUrl } from "./SessionScope";
 
 export default class RouteManager {
   private handlePopState = () => {
@@ -18,6 +18,12 @@ export default class RouteManager {
     window.addEventListener('popstate', this.handlePopState);
     window.addEventListener('pageshow', this.handlePageShow);
     ensureSessionSid()
+    // Scrub the initial `?sid=` off the address bar (and browser history)
+    // now that the session id is cached in sessionStorage. Otherwise the
+    // sid lingers in Referer headers and back-stack — this restores the
+    // pre-consolidation behaviour that the boot sequence used to enforce
+    // in apps/web/src/index.tsx.
+    stripSessionSidFromUrl()
     this.currentPath = normalizeRoutePath(window.location.pathname)
   }
   public static shared = new RouteManager()
