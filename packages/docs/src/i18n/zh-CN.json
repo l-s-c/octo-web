@@ -382,7 +382,7 @@
     "clearAnchor": "取消定位",
     "placeholder": "写下评论…",
     "send": "发送",
-    "handleWithAI": "让 AI 处理",
+    "handleWithAI": "立即处理",
     "anonymous": "匿名",
     "agentInstructionTitle": "让 AI 处理评论：{{request}} (doc {{slug}} · {{target}})"
   },
@@ -623,7 +623,12 @@
     "latexTitle": "插入公式",
     "latexPreview": "预览",
     "formulaEditorCancel": "取消",
-    "formulaEditorOk": "确定"
+    "formulaEditorOk": "确定",
+    "mention": {
+      "menu": "提及",
+      "search": "搜索成员或文档…",
+      "empty": "无匹配"
+    }
   },
   "error": {
     "permission": {
