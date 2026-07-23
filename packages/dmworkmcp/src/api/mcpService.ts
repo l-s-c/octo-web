@@ -326,6 +326,31 @@ function slugify(s: string): string {
 // <origin>/market/api/v1 (nginx / vite proxy strips the /market prefix to the
 // service's own /api/v1), mirroring the summary + matter service convention.
 
+/** Serialise axios request params as repeated keys (`?a=1&a=2`) instead of
+ *  axios 0.25's default `?a[]=1&a[]=2`. gin's QueryArray on the marketplace
+ *  backend only recognises the plain-repeat form; a bracketed key would
+ *  silently become a single-string param that never matches. Also drops
+ *  undefined/null keys so callers can just pass an optional value without
+ *  pre-filtering. Exported so the wire contract can be pinned in unit
+ *  tests without spinning up an axios instance. */
+export function serializeMcpParams(
+  params: Record<string, unknown> | undefined
+): string {
+  const usp = new URLSearchParams();
+  for (const [key, value] of Object.entries(params ?? {})) {
+    if (value === undefined || value === null) continue;
+    if (Array.isArray(value)) {
+      for (const item of value) {
+        if (item === undefined || item === null) continue;
+        usp.append(key, String(item));
+      }
+    } else {
+      usp.append(key, String(value));
+    }
+  }
+  return usp.toString();
+}
+
 const mcpAxios = axios.create({
   baseURL: "",
   // Isolated instance (no shared interceptors), so it never picks up the
@@ -333,27 +358,7 @@ const mcpAxios = axios.create({
   // the same ceiling explicitly to avoid the UI-hang class of bug that
   // DEFAULT_REQUEST_TIMEOUT_MS was introduced to close.
   timeout: DEFAULT_REQUEST_TIMEOUT_MS,
-  // Serialise array params as repeated keys (`?a=1&a=2`) instead of axios
-  // 0.25's default `?a[]=1&a[]=2`. gin's QueryArray on the marketplace
-  // backend only recognises the plain-repeat form; a bracketed key would
-  // silently become a single-string param that never matches. Also drops
-  // undefined/null keys so callers can just pass an optional value without
-  // pre-filtering.
-  paramsSerializer: (params) => {
-    const usp = new URLSearchParams();
-    for (const [key, value] of Object.entries(params ?? {})) {
-      if (value === undefined || value === null) continue;
-      if (Array.isArray(value)) {
-        for (const item of value) {
-          if (item === undefined || item === null) continue;
-          usp.append(key, String(item));
-        }
-      } else {
-        usp.append(key, String(value));
-      }
-    }
-    return usp.toString();
-  },
+  paramsSerializer: serializeMcpParams,
 });
 
 const BASE = "/market/api/v1";
@@ -914,13 +919,22 @@ export function fetchMcpTags(
 
 async function fetchMcpTagsMock(
   query: string,
-  _opts: { signal?: AbortSignal; limit?: number; mode?: "all" | "mine" }
+  opts: { signal?: AbortSignal; limit?: number; mode?: "all" | "mine" }
 ): Promise<McpTagSuggestion[]> {
-  // Aggregate from the in-memory mock list — same visibility semantics as
-  // the real backend (everything visible to the caller's space). Count-desc
-  // + name-asc tie-break, case-insensitive query.
+  // Aggregate from the in-memory mock list. `mode: "mine"` mirrors
+  // fetchMcpMineMock's owner filter (creatorName === caller). Signal +
+  // limit honored for parity with the real backend so the mock behaves
+  // the same in dev harnesses; the mock body is otherwise unreachable in
+  // production (USE_MOCK is a `const false` at :59).
+  if (opts.signal?.aborted) {
+    throw new DOMException("Aborted", "AbortError");
+  }
+  const source =
+    opts.mode === "mine"
+      ? MOCK_MCP_LIST.filter((it) => it.creatorName === (WKApp.loginInfo?.name || ""))
+      : MOCK_MCP_LIST;
   const counts = new Map<string, number>();
-  for (const item of MOCK_MCP_LIST) {
+  for (const item of source) {
     for (const tag of item.tags) {
       counts.set(tag, (counts.get(tag) ?? 0) + 1);
     }
@@ -932,7 +946,16 @@ async function fetchMcpTagsMock(
     items.push({ name, count });
   });
   items.sort((a, b) => (b.count - a.count) || a.name.localeCompare(b.name));
-  return delay(items);
+  // Backend clamps `limit` to [1, 100] with default 50.
+  const limit = Math.min(100, Math.max(1, opts.limit ?? 50));
+  const trimmed = items.slice(0, limit);
+  return new Promise<McpTagSuggestion[]>((resolve, reject) => {
+    const timer = setTimeout(() => resolve(trimmed), MOCK_DELAY_MS);
+    opts.signal?.addEventListener("abort", () => {
+      clearTimeout(timer);
+      reject(new DOMException("Aborted", "AbortError"));
+    });
+  });
 }
 
 async function fetchMcpTagsReal(
@@ -943,11 +966,15 @@ async function fetchMcpTagsReal(
   if (query.trim()) params.q = query.trim();
   if (opts.limit && opts.limit > 0) params.limit = opts.limit;
   if (opts.mode === "mine") params.mode = "mine";
-  const resp = await mcpAxios.get<{ data: McpTagSuggestion[] }>(
-    `${BASE}/mcp_tags`,
-    { params, signal: opts.signal }
-  );
-  return resp.data.data ?? [];
+  // Route through the shared get<T>() helper so 4xx/5xx/network failures
+  // are classified into McpListError like every other read endpoint. The
+  // helper re-throws axios cancels unchanged, so the caller's abort branch
+  // still fires. Array.isArray guard covers a non-list envelope (`{}` or
+  // `{data:null}`) surfacing as an empty suggestions list.
+  const data = await get<McpTagSuggestion[] | null>(`/mcp_tags`, params, {
+    signal: opts.signal,
+  });
+  return Array.isArray(data) ? data : [];
 }
 
 /**

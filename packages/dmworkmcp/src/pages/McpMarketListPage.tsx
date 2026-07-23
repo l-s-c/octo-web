@@ -1,4 +1,5 @@
 import React, { Component } from "react";
+import axios from "axios";
 import { Spin, Toast } from "@douyinfe/semi-ui";
 import { IconSearch, IconClose } from "@douyinfe/semi-icons";
 import { Bot, Check, ChevronDown, SlidersHorizontal, Upload } from "lucide-react";
@@ -193,6 +194,7 @@ export default class McpMarketListPage extends Component<
       tagSuggestions: [],
       categoriesSelected: [],
       publishMenuOpen: false,
+      botPublishVisible: false,
     }, () => this.loadData());
   };
 
@@ -249,10 +251,20 @@ export default class McpMarketListPage extends Component<
           this.setState({ tagSuggestions: items });
         })
         .catch((err) => {
-          if (err instanceof DOMException && err.name === "AbortError") return;
-          // Silent fall-through: leave whatever the popover had before.
-          // The tag chips still work off tagsSelected, so a fetch failure
-          // is a degraded but not broken state.
+          // Stale request: newer fetch or cancellation already superseded us.
+          if (this.tagFetchController !== controller) return;
+          // Abort path: axios cancellation (get<T>() re-throws unchanged) OR
+          // the mock's DOMException. Either way, silently drop.
+          if (
+            axios.isCancel(err) ||
+            (err instanceof DOMException && err.name === "AbortError")
+          ) {
+            return;
+          }
+          // Surface the classified failure so the popover doesn't leave
+          // stale suggestions on a real backend/network problem — matches
+          // loadMore()'s Toast pattern one method away.
+          Toast.error(t(mcpListErrorI18nKey(err)));
         });
     }, 160);
   }
@@ -320,8 +332,13 @@ export default class McpMarketListPage extends Component<
     if (items.length >= total) return;
     const requestVersion = this.requestVersion;
     const requestKeyword = this.state.keyword;
-    const requestCategories = this.state.categoriesSelected.join(",");
-    const requestTags = this.state.tagsSelected.join(",");
+    // Snapshot the filter state by array reference — setState always allocates
+    // a fresh array on toggle/clear, so an identity mismatch after the await
+    // is a reliable "the user changed filters mid-request" signal. Avoids
+    // `join(",")` collisions between e.g. ["v1.0,beta"] and ["v1.0","beta"]
+    // (tags may themselves contain commas — see mcpListQuery.ts).
+    const requestCategoriesRef = this.state.categoriesSelected;
+    const requestTagsRef = this.state.tagsSelected;
     this.setState({ loadingMore: true });
     try {
       const fetcher = this.state.mode === "mine" ? fetchMcpMine : fetchMcpList;
@@ -335,8 +352,8 @@ export default class McpMarketListPage extends Component<
       if (
         requestVersion !== this.requestVersion ||
         requestKeyword !== this.state.keyword ||
-        requestCategories !== this.state.categoriesSelected.join(",") ||
-        requestTags !== this.state.tagsSelected.join(",")
+        requestCategoriesRef !== this.state.categoriesSelected ||
+        requestTagsRef !== this.state.tagsSelected
       ) {
         return;
       }
@@ -388,7 +405,10 @@ export default class McpMarketListPage extends Component<
   /** Patch a single row after a successful edit — keeps scroll position
    *  intact (a full loadData() would reset offset to 0 and rebuild the grid).
    *  Category-pill counts may go slightly stale until the next full reload,
-   *  which is an acceptable tradeoff for not losing the user's scroll spot. */
+   *  which is an acceptable tradeoff for not losing the user's scroll spot.
+   *  Also refreshes updatedAt + owner attribution so re-opening the detail
+   *  modal doesn't show pre-edit metadata, and drops matchReasons since the
+   *  edited fields may no longer align with the current search hit. */
   private handleItemUpdated = (updated: McpDetail) => {
     this.setState((prev) => {
       const idx = prev.items.findIndex((it) => it.id === updated.id);
@@ -404,6 +424,10 @@ export default class McpMarketListPage extends Component<
         icon: updated.icon,
         visibility: updated.visibility,
         creatorName: updated.creatorName,
+        updatedAt: updated.updatedAt,
+        createdByType: updated.createdByType,
+        createdByBotName: updated.createdByBotName,
+        matchReasons: undefined,
       };
       return { items: next };
     });

@@ -140,7 +140,7 @@
     "failed": "Delete failed"
   },
   "create": {
-    "title": "New MCP",
+    "title": "Publish MCP",
     "sectionBasics": "Basics",
     "sectionBasicsDesc": "Shown on the market card and detail header",
     "sectionConnect": "Connection",

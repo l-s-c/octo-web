@@ -4,6 +4,7 @@ import { Toast } from "@douyinfe/semi-ui";
 import { t, useI18n, WKApp, WKButton, WKModal } from "@octo/base";
 import {
   getMcpBotPublishPrompt,
+  isValidMcpSpaceId,
   resolveMcpAPIBaseURL,
 } from "../utils/mcpBotPublishPrompt";
 
@@ -32,31 +33,44 @@ export default function McpBotPublishModal({
   const [copied, setCopied] = useState(false);
   const copiedTimerRef = useRef<number | null>(null);
   const spaceId = getCurrentSpaceId();
-  // Memoize the prompt — inputs are stable for the modal's lifetime and the
-  // template is a few hundred bytes of string concat we'd otherwise rebuild
-  // on every parent re-render (space-changed, tab switches, etc.).
+  const apiURL = WKApp.apiClient.config.apiURL;
+  // Memoize the prompt. Depend on BOTH spaceId and the configured apiURL —
+  // resolveMcpAPIBaseURL derives from apiURL first and falls back to
+  // window.location.origin, so a runtime apiURL change (unusual, but the
+  // client config is a mutable object) must bust the cache. window.origin
+  // is treated as stable-for-session and intentionally omitted.
   const prompt = useMemo(
     () =>
       getMcpBotPublishPrompt({
         spaceId,
-        apiBaseUrl: resolveMcpAPIBaseURL(
-          WKApp.apiClient.config.apiURL,
-          window.location.origin
-        ),
+        apiBaseUrl: resolveMcpAPIBaseURL(apiURL, window.location.origin),
       }),
-    [spaceId]
+    [spaceId, apiURL]
   );
   // Placeholder guard: the prompt substitutes `<space-id>` when currentSpaceId
-  // is empty. Copying that would give the bot an unusable command — refuse.
-  const promptReady = Boolean(prompt) && !!spaceId.trim();
+  // is empty OR fails the UUID check (see sanitizeSpaceId in
+  // mcpBotPublishPrompt.ts — defense against a poisoned localStorage
+  // fallback flowing into a shell command example). Copying that would give
+  // the bot an unusable command — refuse.
+  const promptReady = Boolean(prompt) && isValidMcpSpaceId(spaceId);
 
+  // Clear the "copied" flag AND cancel any pending 2s reset timer whenever
+  // the modal transitions to hidden. Guarantees a fresh state on next open
+  // and stops a timer from firing setCopied(false) on a hidden-but-mounted
+  // component (harmless, but a lint- and audit-friendly cleanup).
   useEffect(() => {
-    if (visible) setCopied(false);
+    if (!visible) {
+      setCopied(false);
+      if (copiedTimerRef.current !== null) {
+        window.clearTimeout(copiedTimerRef.current);
+        copiedTimerRef.current = null;
+      }
+    }
   }, [visible]);
 
-  // Clear any in-flight copy-feedback timer when the modal unmounts to avoid
-  // "state update on unmounted component" warnings when the parent closes the
-  // modal within 2s of a successful copy.
+  // Also clear the timer on unmount — covers the parent unmounting the
+  // whole modal within 2s of a successful copy (the visible=false effect
+  // above covers the mounted-but-hidden path).
   useEffect(() => {
     return () => {
       if (copiedTimerRef.current !== null) {
@@ -75,6 +89,13 @@ export default function McpBotPublishModal({
     try {
       await navigator.clipboard.writeText(prompt);
     } catch {
+      // Reset the "copied" indicator on failure — otherwise a prior success
+      // would leave the checkmark showing after a subsequent failed attempt.
+      setCopied(false);
+      if (copiedTimerRef.current !== null) {
+        window.clearTimeout(copiedTimerRef.current);
+        copiedTimerRef.current = null;
+      }
       Toast.error(t("mcp.botPublish.copyFailed"));
       return;
     }

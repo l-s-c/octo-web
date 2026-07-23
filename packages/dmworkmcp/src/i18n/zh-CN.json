@@ -140,7 +140,7 @@
     "failed": "删除失败"
   },
   "create": {
-    "title": "新建 MCP",
+    "title": "上架 MCP",
     "sectionBasics": "基本信息",
     "sectionBasicsDesc": "展示在市场卡片和详情页顶部",
     "sectionConnect": "接入方式",

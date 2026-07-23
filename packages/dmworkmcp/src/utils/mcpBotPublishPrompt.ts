@@ -3,6 +3,26 @@ export interface McpBotPublishPromptValues {
   apiBaseUrl?: string;
 }
 
+// Server-issued space IDs are UUIDv4 (36 chars, lowercase hex + hyphens);
+// see server/internal/space/space.go. Reject anything else before embedding
+// into a shell command example so a poisoned localStorage fallback value
+// (see McpBotPublishModal.getCurrentSpaceId) can't inject shell tokens like
+// `$(whoami)` / `;` / backticks into `--space ${spaceId}`. The prompt then
+// falls back to the same `<space-id>` placeholder used when no id is set,
+// forcing the operator to notice and provide a real one.
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Whether a caller-supplied space id has the server-issued UUIDv4 shape.
+ *  Callers use this to gate the copy button — an unusable placeholder in the
+ *  prompt should not be copiable. */
+export function isValidMcpSpaceId(raw?: string): boolean {
+  return typeof raw === "string" && UUID_RE.test(raw.trim());
+}
+
+function sanitizeSpaceId(raw?: string): string {
+  return isValidMcpSpaceId(raw) ? (raw as string).trim() : "<space-id>";
+}
+
 /** Normalize the API base URL: trust the configured API URL when it's a full
  *  origin, otherwise fall back to the page origin. Mirrors dmworkskillmarket's
  *  resolveAPIBaseURL so Skill and MCP bot prompts point at the same backend. */
@@ -20,7 +40,7 @@ export function resolveMcpAPIBaseURL(apiURL: string, origin: string): string {
  *  workflow instead of a "Publish as a Bot" section that doesn't exist for
  *  MCP. */
 export function getMcpBotPublishPrompt(values: McpBotPublishPromptValues = {}): string {
-  const spaceId = values.spaceId?.trim() || "<space-id>";
+  const spaceId = sanitizeSpaceId(values.spaceId);
   const apiBaseUrl = values.apiBaseUrl?.trim() || "<api-base-url>";
 
   return `使用 octo-cli 内置的 \`octo-marketplace\` Skill，将指定 MCP 服务器上架到 OCTO Marketplace。
