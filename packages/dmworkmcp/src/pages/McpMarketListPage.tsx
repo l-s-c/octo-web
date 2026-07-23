@@ -94,6 +94,7 @@ export default class McpMarketListPage extends Component<
 
   private publishMenuRef = React.createRef<HTMLDivElement>();
   private tagFilterRef = React.createRef<HTMLDivElement>();
+  private tagSearchInputRef = React.createRef<HTMLInputElement>();
 
   private searchTimer: ReturnType<typeof setTimeout> | null = null;
   private requestVersion = 0;
@@ -130,6 +131,13 @@ export default class McpMarketListPage extends Component<
     const queryChanged = prevState.tagQuery !== this.state.tagQuery && this.state.tagFilterOpen;
     if (openedNow || queryChanged) {
       this.scheduleTagFetch_();
+    }
+    if (openedNow) {
+      // Focus the popover search input WITHOUT letting the browser scroll
+      // the ancestor list container — the input lives inside `.wk-mcp__body`
+      // which owns the near-bottom scroll listener; a scrollIntoView nudge
+      // there would trip loadMore() at the worst possible time.
+      this.tagSearchInputRef.current?.focus({ preventScroll: true });
     }
     if (prevState.tagFilterOpen && !this.state.tagFilterOpen) {
       this.cancelTagFetch_();
@@ -191,6 +199,38 @@ export default class McpMarketListPage extends Component<
   private tagFetchTimer: ReturnType<typeof setTimeout> | null = null;
   private tagFetchController: AbortController | null = null;
 
+  /** Identity-keyed memo for the popover's `tagRows`. Recomputing the
+   *  selected+suggestions union + sort on every parent re-render was
+   *  O(n*m) — measurable when the caller has typed several keystrokes into
+   *  the primary search input while the tag popover is open. Keying on the
+   *  array references is fine: state updates always produce new refs, so a
+   *  hit is a genuine "nothing changed" reuse. */
+  private tagRowsCacheKey_: [string[], McpTagSuggestion[]] | null = null;
+  private tagRowsCache_: Array<{ name: string; count?: number }> = [];
+
+  private memoizedTagRows_(
+    selected: string[],
+    suggestions: McpTagSuggestion[]
+  ): Array<{ name: string; count?: number }> {
+    if (
+      this.tagRowsCacheKey_ &&
+      this.tagRowsCacheKey_[0] === selected &&
+      this.tagRowsCacheKey_[1] === suggestions
+    ) {
+      return this.tagRowsCache_;
+    }
+    const suggestionNames = new Set(suggestions.map((s) => s.name));
+    const rows: Array<{ name: string; count?: number }> = [];
+    for (const name of selected) {
+      if (!suggestionNames.has(name)) rows.push({ name });
+    }
+    for (const s of suggestions) rows.push(s);
+    rows.sort((a, b) => (b.count ?? 0) - (a.count ?? 0) || a.name.localeCompare(b.name));
+    this.tagRowsCacheKey_ = [selected, suggestions];
+    this.tagRowsCache_ = rows;
+    return rows;
+  }
+
   /** Debounce + fire a /mcp_tags fetch, wiring the response into
    *  tagSuggestions. Cancels any in-flight request via AbortController so a
    *  fast typist doesn't clobber a fresh response with a stale one. */
@@ -202,7 +242,8 @@ export default class McpMarketListPage extends Component<
       const controller = new AbortController();
       this.tagFetchController = controller;
       const query = this.state.tagQuery;
-      fetchMcpTags(query, { signal: controller.signal, limit: 100 })
+      const mode = this.state.mode;
+      fetchMcpTags(query, { signal: controller.signal, limit: 100, mode })
         .then((items) => {
           if (this.tagFetchController !== controller) return;
           this.setState({ tagSuggestions: items });
@@ -329,7 +370,19 @@ export default class McpMarketListPage extends Component<
 
   private handleMode = (mode: ListMode) => {
     if (mode === this.state.mode) return;
-    this.setState({ mode, categoriesSelected: [], tagsSelected: [] }, () => this.loadData());
+    // Full reset — tag suggestions are mode-scoped on the backend (see
+    // /mcp_tags?mode=mine), so keeping stale suggestions after a tab switch
+    // paints suggestions the just-loaded list can't produce. Mirrors
+    // handleSpaceChanged_ for the same reason.
+    this.cancelTagFetch_();
+    this.setState({
+      mode,
+      categoriesSelected: [],
+      tagsSelected: [],
+      tagFilterOpen: false,
+      tagQuery: "",
+      tagSuggestions: [],
+    }, () => this.loadData());
   };
 
   /** Patch a single row after a successful edit — keeps scroll position
@@ -432,13 +485,12 @@ export default class McpMarketListPage extends Component<
     // Tag popover options: backend-authoritative via /mcp_tags (mcp-v1.md
     // §4.8). Union with tagsSelected so a chip the user selected before the
     // fetch completes (or from a stale query) still shows up so they can
-    // un-select it.
+    // un-select it. Cached on the class instance keyed on the identity of
+    // (tagsSelected, tagSuggestions) — recomputing the union+sort on every
+    // parent re-render (keyword keystroke, hover, etc.) was measurable at
+    // 100+ suggestions.
     const selectedNames = new Set<string>(tagsSelected);
-    const tagRows: Array<{ name: string; count?: number }> = tagsSelected
-      .filter((name) => !this.state.tagSuggestions.some((s) => s.name === name))
-      .map((name) => ({ name }));
-    for (const s of this.state.tagSuggestions) tagRows.push(s);
-    tagRows.sort((a, b) => (b.count ?? 0) - (a.count ?? 0) || a.name.localeCompare(b.name));
+    const tagRows = this.memoizedTagRows_(tagsSelected, this.state.tagSuggestions);
 
     const hasMore = items.length < total;
     // Ownership check: the "mine" tab is defined as caller-owned records
@@ -513,12 +565,12 @@ export default class McpMarketListPage extends Component<
                       <label className="wk-mcp-tag-filter__search">
                         <IconSearch aria-hidden />
                         <input
+                          ref={this.tagSearchInputRef}
                           type="search"
                           value={this.state.tagQuery}
                           onChange={(e) => this.setState({ tagQuery: e.target.value })}
                           placeholder={t("mcp.filter.searchTags")}
                           aria-label={t("mcp.filter.searchTags")}
-                          autoFocus
                         />
                       </label>
                       <div

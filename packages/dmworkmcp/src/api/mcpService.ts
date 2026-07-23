@@ -681,10 +681,12 @@ async function fetchMcpListPath(
   // making the sort order arbitrary. When browsing, surface freshest first.
   query.sort = keyword ? "relevance" : "updated";
   // Multi-tag filter — mcp-v1.md §4.2 accepts `tag` as repeatable OR
-  // comma-separated. Use comma-separated for compact wire; the backend
-  // AND-combines the parsed values.
+  // comma-separated. We use REPEATED params (`tag=a&tag=b&tag=c`) so a
+  // tag value that happens to contain a comma still round-trips intact;
+  // comma-joining would let the backend re-split "v1.0,beta" into two
+  // wrong tags and produce silent empty results.
   if (params.tags?.length) {
-    query.tag = params.tags.join(",");
+    query.tag = params.tags;
   }
   const pageSize = params.limit && params.limit > 0 ? params.limit : 20;
   query.page_size = pageSize;
@@ -898,10 +900,12 @@ export interface McpTagSuggestion {
 /** GET /market/api/v1/mcp_tags — tag suggestions for the search-bar
  *  popover. Backend aggregates across the caller's visible set (system +
  *  space rows), sorted by descending count. Empty `query` returns every
- *  visible tag; the backend clamps `limit` to [1, 100] with default 50. */
+ *  visible tag; the backend clamps `limit` to [1, 100] with default 50.
+ *  Pass `mode: "mine"` when the popover opens from the "我的" tab so
+ *  suggestions match `GET /mcps/mine`. */
 export function fetchMcpTags(
   query = "",
-  opts: { signal?: AbortSignal; limit?: number } = {}
+  opts: { signal?: AbortSignal; limit?: number; mode?: "all" | "mine" } = {}
 ): Promise<McpTagSuggestion[]> {
   return USE_MOCK
     ? fetchMcpTagsMock(query, opts)
@@ -910,7 +914,7 @@ export function fetchMcpTags(
 
 async function fetchMcpTagsMock(
   query: string,
-  _opts: { signal?: AbortSignal; limit?: number }
+  _opts: { signal?: AbortSignal; limit?: number; mode?: "all" | "mine" }
 ): Promise<McpTagSuggestion[]> {
   // Aggregate from the in-memory mock list — same visibility semantics as
   // the real backend (everything visible to the caller's space). Count-desc
@@ -933,11 +937,12 @@ async function fetchMcpTagsMock(
 
 async function fetchMcpTagsReal(
   query: string,
-  opts: { signal?: AbortSignal; limit?: number }
+  opts: { signal?: AbortSignal; limit?: number; mode?: "all" | "mine" }
 ): Promise<McpTagSuggestion[]> {
   const params: Record<string, unknown> = {};
   if (query.trim()) params.q = query.trim();
   if (opts.limit && opts.limit > 0) params.limit = opts.limit;
+  if (opts.mode === "mine") params.mode = "mine";
   const resp = await mcpAxios.get<{ data: McpTagSuggestion[] }>(
     `${BASE}/mcp_tags`,
     { params, signal: opts.signal }
