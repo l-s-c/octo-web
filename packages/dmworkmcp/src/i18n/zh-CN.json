@@ -33,10 +33,7 @@
     "ai": "AI 能力"
   },
   "source": {
-    "human": "人工创建",
-    "bot": "Bot 创建",
-    "import": "从仓库导入",
-    "botTooltip": "由 {{owner}} 的 Bot 创建"
+    "bot": "Bot 创建"
   },
   "list": {
     "desc": "浏览并接入 MCP 服务，为你的智能体扩展工具能力。",
@@ -80,6 +77,14 @@
     "tagLimit": "最多添加 {{count}} 个标签",
     "tagLengthLimit": "单个标签最多 {{count}} 个字符",
     "tagInvalidChars": "标签仅支持文字、数字、空格和 - _ . / # +"
+  },
+  "filter": {
+    "tags": "标签",
+    "searchTags": "搜索标签",
+    "noTags": "还没有可选标签",
+    "noTagsSelected": "未选择标签",
+    "tagsSelected": "已选 {{count}} 个标签",
+    "clear": "清空"
   },
   "card": {
     "matchReason": {

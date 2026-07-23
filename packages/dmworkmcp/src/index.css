@@ -359,6 +359,193 @@
   color: var(--wk-text-secondary);
 }
 
+/* Tag filter — trigger sits inside the search control (right of the input,
+   next to the clear button). Popover is anchored below the trigger and
+   mirrors dmworkskillmarket's `.skill-market-tag-filter__popover`. */
+.wk-mcp-tag-filter {
+  position: relative;
+  display: inline-flex;
+  flex: 0 0 auto;
+  margin-right: var(--wk-sp-2);
+}
+
+.wk-mcp-tag-filter__trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 28px;
+  padding: 0 var(--wk-sp-2);
+  border: 0;
+  border-radius: var(--wk-r-sm);
+  background: transparent;
+  color: var(--wk-text-secondary);
+  font: 500 12px/1 var(--wk-font-sans);
+  cursor: pointer;
+  transition: background var(--wk-dur-fast) var(--wk-ease),
+    color var(--wk-dur-fast) var(--wk-ease);
+}
+
+.wk-mcp-tag-filter__trigger:hover,
+.wk-mcp-tag-filter__trigger:focus-visible {
+  outline: none;
+  background: var(--wk-bg-item-hover);
+  color: var(--wk-text-primary);
+}
+
+.wk-mcp-tag-filter__trigger.is-active {
+  color: var(--wk-color-accent);
+}
+
+.wk-mcp-tag-filter__count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: var(--wk-r-full);
+  background: var(--wk-color-accent);
+  color: var(--wk-text-inverse);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.wk-mcp-tag-filter__popover {
+  position: absolute;
+  z-index: var(--wk-z-dropdown);
+  top: calc(100% + var(--wk-sp-2));
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  width: 260px;
+  max-height: 320px;
+  border: 1px solid var(--wk-border-subtle);
+  border-radius: var(--wk-r-md);
+  background: var(--wk-bg-surface);
+  box-shadow: var(--wk-shadow-md);
+  overflow: hidden;
+}
+
+/* In-popover fuzzy search input — mirrors dmworkskillmarket's
+   .skill-market-tag-filter__search so users get the same UX in both
+   markets. Bound to `tagQuery` state; debounced fetch fires on change. */
+.wk-mcp-tag-filter__search {
+  display: flex;
+  align-items: center;
+  gap: var(--wk-sp-2);
+  padding: var(--wk-sp-2) var(--wk-sp-3);
+  border-bottom: 1px solid var(--wk-border-subtle);
+  color: var(--wk-text-tertiary);
+}
+
+.wk-mcp-tag-filter__search input {
+  flex: 1 1 auto;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--wk-text-primary);
+  font: inherit;
+}
+
+.wk-mcp-tag-filter__search input::placeholder {
+  color: var(--wk-text-tertiary);
+}
+
+.wk-mcp-tag-filter__option-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wk-mcp-tag-filter__option-count {
+  flex: 0 0 auto;
+  color: var(--wk-text-tertiary);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.wk-mcp-tag-filter__list {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: var(--wk-sp-1);
+  scrollbar-width: none;
+}
+
+.wk-mcp-tag-filter__list::-webkit-scrollbar {
+  display: none;
+}
+
+.wk-mcp-tag-filter__option {
+  display: flex;
+  align-items: center;
+  gap: var(--wk-sp-2);
+  width: 100%;
+  padding: var(--wk-sp-2);
+  border: 0;
+  border-radius: var(--wk-r-sm);
+  background: transparent;
+  color: var(--wk-text-primary);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.wk-mcp-tag-filter__option:hover,
+.wk-mcp-tag-filter__option:focus-visible {
+  outline: none;
+  background: var(--wk-bg-item-hover);
+}
+
+.wk-mcp-tag-filter__option.is-active {
+  color: var(--wk-color-accent);
+  font-weight: 500;
+}
+
+.wk-mcp-tag-filter__check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  color: var(--wk-color-accent);
+}
+
+.wk-mcp-tag-filter__empty {
+  padding: var(--wk-sp-3);
+  color: var(--wk-text-tertiary);
+  font-size: 13px;
+  text-align: center;
+}
+
+.wk-mcp-tag-filter__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--wk-sp-2);
+  padding: var(--wk-sp-2) var(--wk-sp-3);
+  border-top: 1px solid var(--wk-border-subtle);
+  color: var(--wk-text-tertiary);
+  font-size: 12px;
+}
+
+.wk-mcp-tag-filter__footer button {
+  padding: 4px var(--wk-sp-2);
+  border: 0;
+  border-radius: var(--wk-r-sm);
+  background: transparent;
+  color: var(--wk-color-accent);
+  font: inherit;
+  cursor: pointer;
+}
+
+.wk-mcp-tag-filter__footer button:disabled {
+  color: var(--wk-text-disabled);
+  cursor: not-allowed;
+}
+
 /* 分类条 — 与 dmworkskillmarket 的分类胶囊保持一致。 */
 .wk-mcp__pills {
   display: flex;

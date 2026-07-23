@@ -1,9 +1,9 @@
 import React, { Component } from "react";
 import { Spin, Toast } from "@douyinfe/semi-ui";
 import { IconSearch, IconClose } from "@douyinfe/semi-icons";
-import { Bot, ChevronDown, Upload } from "lucide-react";
+import { Bot, Check, ChevronDown, SlidersHorizontal, Upload } from "lucide-react";
 import { I18nContext, t, WKApp, WKButton } from "@octo/base";
-import { fetchMcpList, fetchMcpMine } from "../api/mcpService";
+import { fetchMcpList, fetchMcpMine, fetchMcpTags, McpTagSuggestion } from "../api/mcpService";
 import { mcpListErrorI18nKey } from "../api/mcpListError";
 import type { McpCategory, McpDetail, McpListItem } from "../types/mcp";
 import McpCard from "../components/McpCard";
@@ -29,6 +29,20 @@ interface McpMarketListPageState {
   error: string | null;
   keyword: string;
   categoriesSelected: string[];
+  /** Multi-tag filter (mcp-v1.md §4.2, AND semantics). Populated from
+   *  `?tag=` URL params on mount; the tag popover in the search bar drives
+   *  updates. Empty = no tag filter. */
+  tagsSelected: string[];
+  /** Whether the search-bar tag popover is open. Kept in class state so the
+   *  outside-click listener + Escape handler can toggle it. */
+  tagFilterOpen: boolean;
+  /** Fuzzy filter typed into the tag-popover search input. Debounced fetch
+   *  against `/mcp_tags` populates `tagSuggestions`. */
+  tagQuery: string;
+  /** Backend-supplied tag suggestions (mcp-v1.md §4.8). Repopulated whenever
+   *  the popover opens or `tagQuery` changes; empty until the first fetch
+   *  resolves. */
+  tagSuggestions: McpTagSuggestion[];
   mode: ListMode;
   offset: number;
   total: number;
@@ -64,6 +78,10 @@ export default class McpMarketListPage extends Component<
     error: null,
     keyword: "",
     categoriesSelected: [],
+    tagsSelected: [],
+    tagFilterOpen: false,
+    tagQuery: "",
+    tagSuggestions: [],
     mode: "all",
     offset: 0,
     total: 0,
@@ -75,6 +93,7 @@ export default class McpMarketListPage extends Component<
   };
 
   private publishMenuRef = React.createRef<HTMLDivElement>();
+  private tagFilterRef = React.createRef<HTMLDivElement>();
 
   private searchTimer: ReturnType<typeof setTimeout> | null = null;
   private requestVersion = 0;
@@ -87,13 +106,15 @@ export default class McpMarketListPage extends Component<
   }
 
   componentDidUpdate(_prevProps: {}, prevState: McpMarketListPageState) {
-    // Only own the two global listeners while the publish dropdown is open —
-    // mirrors dmworkskillmarket's SkillListPage. Attaching in componentDidMount
-    // unconditionally forces every card click / scroll on the page to trip
-    // through a no-op guard for the 99% of the session where the menu is
-    // closed.
-    if (prevState.publishMenuOpen !== this.state.publishMenuOpen) {
-      if (this.state.publishMenuOpen) {
+    // Only own the two global listeners while EITHER the publish dropdown or
+    // the tag filter popover is open — mirrors dmworkskillmarket's
+    // SkillListPage. Attaching in componentDidMount unconditionally forces
+    // every card click / scroll on the page to trip through a no-op guard
+    // for the 99% of the session where both are closed.
+    const wasOpen = prevState.publishMenuOpen || prevState.tagFilterOpen;
+    const isOpen = this.state.publishMenuOpen || this.state.tagFilterOpen;
+    if (wasOpen !== isOpen) {
+      if (isOpen) {
         document.addEventListener("pointerdown", this.handleGlobalPointerDown_);
         document.addEventListener("keydown", this.handleGlobalKeyDown_);
       } else {
@@ -101,34 +122,110 @@ export default class McpMarketListPage extends Component<
         document.removeEventListener("keydown", this.handleGlobalKeyDown_);
       }
     }
+    // Fetch tag suggestions whenever the popover just opened or the fuzzy
+    // query changed while it's open. Debounced by 160ms — mirrors Skill's
+    // SearchBar (dmworkskillmarket/SearchBar.tsx) so the two markets pace
+    // the tag catalog the same way.
+    const openedNow = !prevState.tagFilterOpen && this.state.tagFilterOpen;
+    const queryChanged = prevState.tagQuery !== this.state.tagQuery && this.state.tagFilterOpen;
+    if (openedNow || queryChanged) {
+      this.scheduleTagFetch_();
+    }
+    if (prevState.tagFilterOpen && !this.state.tagFilterOpen) {
+      this.cancelTagFetch_();
+    }
   }
 
   componentWillUnmount() {
     WKApp.mittBus.off("wk:nav-menu-activated", this.handleNavMenuActivated_);
     WKApp.mittBus.off("space-changed", this.handleSpaceChanged_);
-    // Idempotent — safe if the menu was closed at unmount.
+    this.cancelTagFetch_();
+    // Idempotent — safe if both popovers were closed at unmount.
     document.removeEventListener("pointerdown", this.handleGlobalPointerDown_);
     document.removeEventListener("keydown", this.handleGlobalKeyDown_);
     if (this.searchTimer) clearTimeout(this.searchTimer);
   }
 
-  /** Close the publish dropdown on outside click. Attached only while
-   *  publishMenuOpen (see componentDidUpdate). */
+  /** Close either open dropdown on outside click. Attached only while at
+   *  least one is open (see componentDidUpdate). */
   private handleGlobalPointerDown_ = (e: PointerEvent) => {
-    if (!this.publishMenuRef.current?.contains(e.target as Node)) {
+    if (
+      this.state.publishMenuOpen &&
+      !this.publishMenuRef.current?.contains(e.target as Node)
+    ) {
       this.setState({ publishMenuOpen: false });
+    }
+    if (
+      this.state.tagFilterOpen &&
+      !this.tagFilterRef.current?.contains(e.target as Node)
+    ) {
+      this.setState({ tagFilterOpen: false });
     }
   };
 
-  /** Close the publish dropdown on Escape. Attached only while
-   *  publishMenuOpen (see componentDidUpdate). */
+  /** Close either open dropdown on Escape. Attached only while at least one
+   *  is open (see componentDidUpdate). */
   private handleGlobalKeyDown_ = (e: KeyboardEvent) => {
     if (e.key === "Escape") {
-      this.setState({ publishMenuOpen: false });
+      this.setState({ publishMenuOpen: false, tagFilterOpen: false });
     }
   };
 
-  private handleSpaceChanged_ = () => this.loadData();
+  /** Reset per-space UI state on space switch — dropped selections + closed
+   *  popovers before refetching. Tags / categories are space-scoped so a
+   *  filter from space A stays with space A; leaving it selected across a
+   *  switch produces a request the new backend will silently return zero
+   *  rows for. Matches dmworkskillmarket's SkillListPage handler. */
+  private handleSpaceChanged_ = () => {
+    this.cancelTagFetch_();
+    this.setState({
+      tagsSelected: [],
+      tagFilterOpen: false,
+      tagQuery: "",
+      tagSuggestions: [],
+      categoriesSelected: [],
+      publishMenuOpen: false,
+    }, () => this.loadData());
+  };
+
+  private tagFetchTimer: ReturnType<typeof setTimeout> | null = null;
+  private tagFetchController: AbortController | null = null;
+
+  /** Debounce + fire a /mcp_tags fetch, wiring the response into
+   *  tagSuggestions. Cancels any in-flight request via AbortController so a
+   *  fast typist doesn't clobber a fresh response with a stale one. */
+  private scheduleTagFetch_() {
+    if (this.tagFetchTimer) window.clearTimeout(this.tagFetchTimer);
+    this.tagFetchTimer = window.setTimeout(() => {
+      this.tagFetchTimer = null;
+      this.cancelTagFetch_();
+      const controller = new AbortController();
+      this.tagFetchController = controller;
+      const query = this.state.tagQuery;
+      fetchMcpTags(query, { signal: controller.signal, limit: 100 })
+        .then((items) => {
+          if (this.tagFetchController !== controller) return;
+          this.setState({ tagSuggestions: items });
+        })
+        .catch((err) => {
+          if (err instanceof DOMException && err.name === "AbortError") return;
+          // Silent fall-through: leave whatever the popover had before.
+          // The tag chips still work off tagsSelected, so a fetch failure
+          // is a degraded but not broken state.
+        });
+    }, 160);
+  }
+
+  private cancelTagFetch_() {
+    if (this.tagFetchTimer) {
+      window.clearTimeout(this.tagFetchTimer);
+      this.tagFetchTimer = null;
+    }
+    if (this.tagFetchController) {
+      this.tagFetchController.abort();
+      this.tagFetchController = null;
+    }
+  }
 
   private handleNavMenuActivated_ = ({ menuId }: { menuId: string }) => {
     if (menuId === "mcp-market") {
@@ -146,6 +243,7 @@ export default class McpMarketListPage extends Component<
       const resp = await fetcher({
         keyword: this.state.keyword,
         categories: this.state.categoriesSelected,
+        tags: this.state.tagsSelected,
         limit: PAGE_SIZE,
         offset: 0,
       });
@@ -182,19 +280,22 @@ export default class McpMarketListPage extends Component<
     const requestVersion = this.requestVersion;
     const requestKeyword = this.state.keyword;
     const requestCategories = this.state.categoriesSelected.join(",");
+    const requestTags = this.state.tagsSelected.join(",");
     this.setState({ loadingMore: true });
     try {
       const fetcher = this.state.mode === "mine" ? fetchMcpMine : fetchMcpList;
       const resp = await fetcher({
         keyword: this.state.keyword,
         categories: this.state.categoriesSelected,
+        tags: this.state.tagsSelected,
         limit: PAGE_SIZE,
         offset,
       });
       if (
         requestVersion !== this.requestVersion ||
         requestKeyword !== this.state.keyword ||
-        requestCategories !== this.state.categoriesSelected.join(",")
+        requestCategories !== this.state.categoriesSelected.join(",") ||
+        requestTags !== this.state.tagsSelected.join(",")
       ) {
         return;
       }
@@ -228,7 +329,7 @@ export default class McpMarketListPage extends Component<
 
   private handleMode = (mode: ListMode) => {
     if (mode === this.state.mode) return;
-    this.setState({ mode, categoriesSelected: [] }, () => this.loadData());
+    this.setState({ mode, categoriesSelected: [], tagsSelected: [] }, () => this.loadData());
   };
 
   /** Patch a single row after a successful edit — keeps scroll position
@@ -293,6 +394,23 @@ export default class McpMarketListPage extends Component<
     }), () => this.loadData());
   };
 
+  /** Multi-tag filter — clicking a tag in the popover toggles membership.
+   *  AND semantics: a row must carry every selected tag (mcp-v1.md §4.2).
+   *  Refetches on every change; the tag popover stays open so the user can
+   *  toggle several tags in one interaction. */
+  private handleToggleTag = (tag: string) => {
+    this.setState((prev) => ({
+      tagsSelected: prev.tagsSelected.includes(tag)
+        ? prev.tagsSelected.filter((t) => t !== tag)
+        : [...prev.tagsSelected, tag],
+    }), () => this.loadData());
+  };
+
+  private handleClearTags = () => {
+    if (this.state.tagsSelected.length === 0) return;
+    this.setState({ tagsSelected: [] }, () => this.loadData());
+  };
+
   render() {
     const {
       items,
@@ -302,12 +420,25 @@ export default class McpMarketListPage extends Component<
       error,
       keyword,
       categoriesSelected,
+      tagsSelected,
+      tagFilterOpen,
       mode,
       total,
       detailId,
       createVisible,
       editingDetail,
     } = this.state;
+
+    // Tag popover options: backend-authoritative via /mcp_tags (mcp-v1.md
+    // §4.8). Union with tagsSelected so a chip the user selected before the
+    // fetch completes (or from a stale query) still shows up so they can
+    // un-select it.
+    const selectedNames = new Set<string>(tagsSelected);
+    const tagRows: Array<{ name: string; count?: number }> = tagsSelected
+      .filter((name) => !this.state.tagSuggestions.some((s) => s.name === name))
+      .map((name) => ({ name }));
+    for (const s of this.state.tagSuggestions) tagRows.push(s);
+    tagRows.sort((a, b) => (b.count ?? 0) - (a.count ?? 0) || a.name.localeCompare(b.name));
 
     const hasMore = items.length < total;
     // Ownership check: the "mine" tab is defined as caller-owned records
@@ -353,6 +484,102 @@ export default class McpMarketListPage extends Component<
                     <IconClose aria-hidden />
                   </button>
                 )}
+                <div className="wk-mcp-tag-filter" ref={this.tagFilterRef}>
+                  <button
+                    type="button"
+                    className={
+                      tagsSelected.length > 0
+                        ? "wk-mcp-tag-filter__trigger is-active"
+                        : "wk-mcp-tag-filter__trigger"
+                    }
+                    aria-expanded={tagFilterOpen}
+                    aria-haspopup="listbox"
+                    onClick={() =>
+                      this.setState((prev) => ({
+                        tagFilterOpen: !prev.tagFilterOpen,
+                      }))
+                    }
+                  >
+                    <SlidersHorizontal size={15} aria-hidden="true" />
+                    {t("mcp.filter.tags")}
+                    {tagsSelected.length > 0 && (
+                      <span className="wk-mcp-tag-filter__count">
+                        {tagsSelected.length}
+                      </span>
+                    )}
+                  </button>
+                  {tagFilterOpen && (
+                    <div className="wk-mcp-tag-filter__popover">
+                      <label className="wk-mcp-tag-filter__search">
+                        <IconSearch aria-hidden />
+                        <input
+                          type="search"
+                          value={this.state.tagQuery}
+                          onChange={(e) => this.setState({ tagQuery: e.target.value })}
+                          placeholder={t("mcp.filter.searchTags")}
+                          aria-label={t("mcp.filter.searchTags")}
+                          autoFocus
+                        />
+                      </label>
+                      <div
+                        className="wk-mcp-tag-filter__list"
+                        role="listbox"
+                        aria-label={t("mcp.filter.tags")}
+                      >
+                        {tagRows.length > 0 ? (
+                          tagRows.map((row) => {
+                            const selected = selectedNames.has(row.name);
+                            return (
+                              <button
+                                key={row.name}
+                                type="button"
+                                className={
+                                  selected
+                                    ? "wk-mcp-tag-filter__option is-active"
+                                    : "wk-mcp-tag-filter__option"
+                                }
+                                role="option"
+                                aria-selected={selected}
+                                title={row.name}
+                                onClick={() => this.handleToggleTag(row.name)}
+                              >
+                                <span className="wk-mcp-tag-filter__check">
+                                  {selected && (
+                                    <Check size={15} aria-hidden="true" />
+                                  )}
+                                </span>
+                                <span className="wk-mcp-tag-filter__option-name">{row.name}</span>
+                                {typeof row.count === "number" && (
+                                  <span className="wk-mcp-tag-filter__option-count">{row.count}</span>
+                                )}
+                              </button>
+                            );
+                          })
+                        ) : (
+                          <div className="wk-mcp-tag-filter__empty">
+                            {t("mcp.filter.noTags")}
+                          </div>
+                        )}
+                      </div>
+                      <div className="wk-mcp-tag-filter__footer">
+                        <span>
+                          {tagsSelected.length > 0
+                            ? t("mcp.filter.tagsSelected", {
+                                values: { count: tagsSelected.length },
+                              })
+                            : t("mcp.filter.noTagsSelected")}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={this.handleClearTags}
+                          disabled={tagsSelected.length === 0}
+                        >
+                          {t("mcp.filter.clear")}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
             <div className="wk-mcp-publish-menu" ref={this.publishMenuRef}>

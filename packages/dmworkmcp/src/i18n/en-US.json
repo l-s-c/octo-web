@@ -33,10 +33,7 @@
     "ai": "AI"
   },
   "source": {
-    "human": "Human",
-    "bot": "Bot",
-    "import": "Imported",
-    "botTooltip": "Created by {{owner}}'s bot"
+    "bot": "Bot"
   },
   "list": {
     "desc": "Browse and connect MCP servers to extend your agent's tools.",
@@ -80,6 +77,14 @@
     "tagLimit": "At most {{count}} tags",
     "tagLengthLimit": "A tag can have at most {{count}} characters",
     "tagInvalidChars": "Tags can only contain letters, digits, spaces, and - _ . / # +"
+  },
+  "filter": {
+    "tags": "Tags",
+    "searchTags": "Search tags",
+    "noTags": "No tags available yet",
+    "noTagsSelected": "No tags selected",
+    "tagsSelected": "{{count}} tag(s) selected",
+    "clear": "Clear"
   },
   "card": {
     "matchReason": {

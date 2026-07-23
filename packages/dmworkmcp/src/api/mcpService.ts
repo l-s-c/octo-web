@@ -134,6 +134,7 @@ async function fetchMcpListMockFiltered(
   const keyword = (params.keyword ?? "").trim().toLowerCase();
   const category = params.category ?? "all";
   const createdBy = params.createdByType;
+  const tags = params.tags ?? [];
   const filtered = source.filter((item) => {
     const matchCategory = category === "all" || item.category === category;
     const matchKeyword =
@@ -144,7 +145,11 @@ async function fetchMcpListMockFiltered(
     // read-side default the wire mapper applies for pre-#894 records.
     const rowType = item.createdByType ?? "human";
     const matchCreatedBy = !createdBy || rowType === createdBy;
-    return matchCategory && matchKeyword && matchCreatedBy;
+    // Multi-tag filter is AND: a row must carry every selected tag. Mirrors
+    // the backend semantics in octo-marketplace (mcp-v1.md §4.2).
+    const matchTags =
+      tags.length === 0 || tags.every((tag) => item.tags.includes(tag));
+    return matchCategory && matchKeyword && matchCreatedBy && matchTags;
   });
   const offset = params.offset && params.offset > 0 ? params.offset : 0;
   const limit =
@@ -675,6 +680,12 @@ async function fetchMcpListPath(
   // Relevance is only meaningful with a keyword — every row scores 0 otherwise,
   // making the sort order arbitrary. When browsing, surface freshest first.
   query.sort = keyword ? "relevance" : "updated";
+  // Multi-tag filter — mcp-v1.md §4.2 accepts `tag` as repeatable OR
+  // comma-separated. Use comma-separated for compact wire; the backend
+  // AND-combines the parsed values.
+  if (params.tags?.length) {
+    query.tag = params.tags.join(",");
+  }
   const pageSize = params.limit && params.limit > 0 ? params.limit : 20;
   query.page_size = pageSize;
   query.page = Math.floor((params.offset ?? 0) / pageSize) + 1;
@@ -876,6 +887,62 @@ export function fetchMcpMine(
 
 export function fetchMcpDetail(id: string): Promise<McpDetail> {
   return USE_MOCK ? fetchMcpDetailMock(id) : fetchMcpDetailReal(id);
+}
+
+/** One tag suggestion in the tag-filter popover (mcp-v1.md §4.8). */
+export interface McpTagSuggestion {
+  name: string;
+  count: number;
+}
+
+/** GET /market/api/v1/mcp_tags — tag suggestions for the search-bar
+ *  popover. Backend aggregates across the caller's visible set (system +
+ *  space rows), sorted by descending count. Empty `query` returns every
+ *  visible tag; the backend clamps `limit` to [1, 100] with default 50. */
+export function fetchMcpTags(
+  query = "",
+  opts: { signal?: AbortSignal; limit?: number } = {}
+): Promise<McpTagSuggestion[]> {
+  return USE_MOCK
+    ? fetchMcpTagsMock(query, opts)
+    : fetchMcpTagsReal(query, opts);
+}
+
+async function fetchMcpTagsMock(
+  query: string,
+  _opts: { signal?: AbortSignal; limit?: number }
+): Promise<McpTagSuggestion[]> {
+  // Aggregate from the in-memory mock list — same visibility semantics as
+  // the real backend (everything visible to the caller's space). Count-desc
+  // + name-asc tie-break, case-insensitive query.
+  const counts = new Map<string, number>();
+  for (const item of MOCK_MCP_LIST) {
+    for (const tag of item.tags) {
+      counts.set(tag, (counts.get(tag) ?? 0) + 1);
+    }
+  }
+  const kw = query.trim().toLowerCase();
+  const items: McpTagSuggestion[] = [];
+  counts.forEach((count, name) => {
+    if (kw && !name.toLowerCase().includes(kw)) return;
+    items.push({ name, count });
+  });
+  items.sort((a, b) => (b.count - a.count) || a.name.localeCompare(b.name));
+  return delay(items);
+}
+
+async function fetchMcpTagsReal(
+  query: string,
+  opts: { signal?: AbortSignal; limit?: number }
+): Promise<McpTagSuggestion[]> {
+  const params: Record<string, unknown> = {};
+  if (query.trim()) params.q = query.trim();
+  if (opts.limit && opts.limit > 0) params.limit = opts.limit;
+  const resp = await mcpAxios.get<{ data: McpTagSuggestion[] }>(
+    `${BASE}/mcp_tags`,
+    { params, signal: opts.signal }
+  );
+  return resp.data.data ?? [];
 }
 
 /**
