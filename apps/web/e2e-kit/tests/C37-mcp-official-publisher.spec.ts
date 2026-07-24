@@ -17,12 +17,16 @@ test("@C37 @mcp @integration official publisher renders from application API fix
   authedPage,
 }, testInfo) => {
   const consoleErrors: string[] = [];
+  const pageErrors: string[] = [];
   const networkFailures: string[] = [];
   const requests: Array<{ method: string; url: string }> = [];
   const responses: Array<{ url: string; status: number; visibility?: string }> =
     [];
   authedPage.on("console", (message) => {
     if (message.type() === "error") consoleErrors.push(message.text());
+  });
+  authedPage.on("pageerror", (error) => {
+    pageErrors.push(error.message);
   });
   authedPage.on("requestfailed", (request) => {
     if (request.url().includes(API_BASE)) {
@@ -118,6 +122,7 @@ test("@C37 @mcp @integration official publisher renders from application API fix
     true
   );
   expect(consoleErrors).toEqual([]);
+  expect(pageErrors).toEqual([]);
   expect(networkFailures).toEqual([]);
 
   await testInfo.attach("mcp-api-evidence.json", {
@@ -126,6 +131,24 @@ test("@C37 @mcp @integration official publisher renders from application API fix
         {
           fixtureType: "application-level API fixture",
           sensitiveFields: "creator_name redacted",
+          environment: {
+            browser: "Playwright Chromium",
+            viewportDesktop: "default Desktop Chrome",
+            viewportMobile: "390x844",
+            locale: "zh-CN",
+            themeModes: ["light", "dark"],
+          },
+          application: {
+            startCommand: "pnpm dev",
+            url: "http://localhost:3000/mcp-market/mcp?sid=e2etest",
+            listRoute: "/mcp-market/mcp",
+            detailRoute: "modal from /mcp-market/mcp via MCP card click",
+          },
+          runtimeSummary: {
+            consoleErrors,
+            pageErrors,
+            networkFailures,
+          },
           requests,
           responses,
         },
