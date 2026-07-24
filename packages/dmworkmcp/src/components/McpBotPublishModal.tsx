@@ -4,7 +4,6 @@ import { Toast } from "@douyinfe/semi-ui";
 import { t, useI18n, WKApp, WKButton, WKModal } from "@octo/base";
 import {
   getMcpBotPublishPrompt,
-  isValidMcpSpaceId,
   resolveMcpAPIBaseURL,
 } from "../utils/mcpBotPublishPrompt";
 
@@ -47,12 +46,12 @@ export default function McpBotPublishModal({
       }),
     [spaceId, apiURL]
   );
-  // Placeholder guard: the prompt substitutes `<space-id>` when currentSpaceId
-  // is empty OR fails the UUID check (see sanitizeSpaceId in
-  // mcpBotPublishPrompt.ts — defense against a poisoned localStorage
-  // fallback flowing into a shell command example). Copying that would give
-  // the bot an unusable command — refuse.
-  const promptReady = Boolean(prompt) && isValidMcpSpaceId(spaceId);
+  // Copy is safe even when spaceId isn't a UUID — sanitizeSpaceId in
+  // mcpBotPublishPrompt.ts already replaces non-UUID input with the
+  // `<space-id>` placeholder before it reaches the shell command example.
+  // Gate only on the prompt being non-empty, matching dmworkskillmarket's
+  // BotPublishModal.
+  const promptReady = Boolean(prompt);
 
   // Clear the "copied" flag AND cancel any pending 2s reset timer whenever
   // the modal transitions to hidden. Guarantees a fresh state on next open

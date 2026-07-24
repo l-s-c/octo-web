@@ -4,13 +4,14 @@ import { Spin, Toast } from "@douyinfe/semi-ui";
 import { IconSearch, IconClose } from "@douyinfe/semi-icons";
 import { Bot, Check, ChevronDown, SlidersHorizontal, Upload } from "lucide-react";
 import { I18nContext, t, WKApp, WKButton } from "@octo/base";
-import { fetchMcpList, fetchMcpMine, fetchMcpTags, McpTagSuggestion } from "../api/mcpService";
+import { fetchMcpDetail, fetchMcpList, fetchMcpMine, fetchMcpTags, McpTagSuggestion } from "../api/mcpService";
 import { mcpListErrorI18nKey } from "../api/mcpListError";
 import type { McpCategory, McpDetail, McpListItem } from "../types/mcp";
 import McpCard from "../components/McpCard";
 import McpDetailModal from "../components/McpDetailModal";
 import McpCreateModal from "../components/McpCreateModal";
 import McpBotPublishModal from "../components/McpBotPublishModal";
+import McpDeleteConfirmModal from "../components/McpDeleteConfirmModal";
 import "../index.css";
 import { parseMcpListQuery, serializeMcpListQuery } from "./mcpListQuery";
 
@@ -58,6 +59,10 @@ interface McpMarketListPageState {
    *  detail. Cleared on modal close. Distinct from `createVisible` — this
    *  drives the "editing" branch of the shared modal component. */
   editingDetail: McpDetail | null;
+  /** When set, the standalone delete-confirm modal is visible for this row.
+   *  Mirrors dmworkskillmarket's `deleting` state — a card-level trash click
+   *  short-circuits opening the detail modal. */
+  deletingItem: McpListItem | null;
 }
 
 /**
@@ -91,6 +96,7 @@ export default class McpMarketListPage extends Component<
     publishMenuOpen: false,
     botPublishVisible: false,
     editingDetail: null,
+    deletingItem: null,
   };
 
   private publishMenuRef = React.createRef<HTMLDivElement>();
@@ -448,6 +454,19 @@ export default class McpMarketListPage extends Component<
     });
   };
 
+  /** Edit from a card. The list carries `McpListItem` (no quickStart/tools),
+   *  but the shared create/edit modal is prefilled from `McpDetail`, so
+   *  fetch the full row first. Toast on failure — do NOT silently open a
+   *  half-empty modal. */
+  private handleEditFromCard = async (item: McpListItem) => {
+    try {
+      const detail = await fetchMcpDetail(item.id);
+      this.setState({ editingDetail: detail, createVisible: true });
+    } catch (err) {
+      Toast.error(err instanceof Error ? err.message : t("mcp.edit.failed"));
+    }
+  };
+
   /** Post-save handler. Edit → in-place patch (no scroll reset). Create →
    *  full reload so the new row surfaces at its natural sort position. */
   private handleSaved = (updated?: McpDetail) => {
@@ -625,9 +644,6 @@ export default class McpMarketListPage extends Component<
                                   )}
                                 </span>
                                 <span className="wk-mcp-tag-filter__option-name">{row.name}</span>
-                                {typeof row.count === "number" && (
-                                  <span className="wk-mcp-tag-filter__option-count">{row.count}</span>
-                                )}
                               </button>
                             );
                           })
@@ -761,6 +777,12 @@ export default class McpMarketListPage extends Component<
                           key={item.id}
                           item={item}
                           onClick={(it) => this.setState({ detailId: it.id })}
+                          onEdit={canManage ? this.handleEditFromCard : undefined}
+                          onDelete={
+                            canManage
+                              ? (it) => this.setState({ deletingItem: it })
+                              : undefined
+                          }
                         />
                       ))}
                     </div>
@@ -802,6 +824,14 @@ export default class McpMarketListPage extends Component<
         <McpBotPublishModal
           visible={this.state.botPublishVisible}
           onClose={() => this.setState({ botPublishVisible: false })}
+        />
+        <McpDeleteConfirmModal
+          item={this.state.deletingItem}
+          onClose={() => this.setState({ deletingItem: null })}
+          onDeleted={(id) => {
+            this.handleItemDeleted(id);
+            Toast.success(t("mcp.delete.success"));
+          }}
         />
       </div>
     );

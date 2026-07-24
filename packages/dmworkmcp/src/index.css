@@ -460,13 +460,6 @@
   white-space: nowrap;
 }
 
-.wk-mcp-tag-filter__option-count {
-  flex: 0 0 auto;
-  color: var(--wk-text-tertiary);
-  font-size: 11px;
-  font-variant-numeric: tabular-nums;
-}
-
 .wk-mcp-tag-filter__list {
   flex: 1 1 auto;
   overflow-y: auto;
@@ -740,8 +733,7 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  flex: 0 0 auto;
-  max-width: 100%;
+  flex: 0 1 auto;
   min-width: 0;
   overflow: hidden;
   color: var(--wk-color-accent);
@@ -783,7 +775,6 @@
   display: inline-flex;
   align-items: center;
   flex: 0 1 auto;
-  max-width: 108px;
   min-width: 0;
   padding: 3px 8px;
   border-radius: var(--wk-r-full);
@@ -793,6 +784,14 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.wk-mcp-card__tags .wk-mcp-tag {
+  max-width: 108px;
+}
+
+.wk-mcp-detail__tags .wk-mcp-tag {
+  max-width: 168px;
 }
 
 .wk-mcp-tag--accent {
@@ -896,6 +895,45 @@
   color: var(--wk-text-secondary);
   font-size: 12px;
   line-height: 1;
+}
+
+.wk-mcp-card__footer-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--wk-sp-1);
+  flex: 0 0 auto;
+}
+
+.wk-mcp-card__action-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--wk-r-sm);
+  background: transparent;
+  color: var(--wk-icon-muted);
+  cursor: pointer;
+  transition: background var(--wk-dur-fast) var(--wk-ease),
+    color var(--wk-dur-fast) var(--wk-ease);
+}
+
+.wk-mcp-card__action-button:hover,
+.wk-mcp-card__action-button:focus-visible {
+  outline: none;
+  background: var(--wk-bg-hover);
+  color: var(--wk-text-primary);
+}
+
+.wk-mcp-card__action-button.is-danger {
+  color: var(--wk-color-error);
+}
+
+.wk-mcp-card__action-button.is-danger:hover,
+.wk-mcp-card__action-button.is-danger:focus-visible {
+  color: var(--wk-color-error);
 }
 
 /* 与 dmworkskillmarket 的 .skill-market-card__stat 视觉一致：
@@ -1111,7 +1149,7 @@
   white-space: pre;
 }
 
-/* Token placeholder highlight: the <把这里换成你的 Token> substring inside a
+/* Token placeholder highlight: each `<把这里换成你的 KEY>` substring inside a
  * QuickStart snippet needs to visually announce "swap me before use". Uses
  * the semantic warning tokens so light / dark themes track the shared palette
  * (see packages/dmworkbase/src/theme/semantic.css). */
@@ -1906,4 +1944,27 @@
   padding: var(--wk-sp-4) 0 var(--wk-sp-2);
   color: var(--wk-text-tertiary);
   font-size: var(--wk-text-size-sm);
+}
+
+.wk-mcp-delete {
+  display: flex;
+  gap: var(--wk-sp-3);
+  color: var(--wk-text-secondary);
+}
+
+.wk-mcp-delete svg {
+  flex: 0 0 auto;
+  color: var(--wk-color-error);
+}
+
+.wk-mcp-delete strong {
+  color: var(--wk-text-strong);
+}
+
+.wk-mcp-delete p {
+  margin: 4px 0 0;
+}
+
+.wk-mcp-delete__error {
+  color: var(--wk-color-error);
 }

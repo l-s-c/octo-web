@@ -3,20 +3,20 @@ export interface McpBotPublishPromptValues {
   apiBaseUrl?: string;
 }
 
-// Server-issued space IDs are UUIDv4 (36 chars, lowercase hex + hyphens);
-// see server/internal/space/space.go. Reject anything else before embedding
-// into a shell command example so a poisoned localStorage fallback value
-// (see McpBotPublishModal.getCurrentSpaceId) can't inject shell tokens like
-// `$(whoami)` / `;` / backticks into `--space ${spaceId}`. The prompt then
-// falls back to the same `<space-id>` placeholder used when no id is set,
-// forcing the operator to notice and provide a real one.
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+// Server-issued space IDs are hex — either the 32-char compact form
+// (`9f5fda183d94482cb49bca5024439105`) or the canonical 36-char UUIDv4
+// (`9f5fda18-3d94-482c-b49b-ca5024439105`). Reject anything else before
+// embedding into a shell command example so a poisoned localStorage
+// fallback value (see McpBotPublishModal.getCurrentSpaceId) can't inject
+// shell tokens like `$(whoami)` / `;` / backticks into `--space ${spaceId}`.
+// The prompt then falls back to the `<space-id>` placeholder, forcing the
+// operator to notice and provide a real one.
+const SPACE_ID_RE = /^(?:[0-9a-f]{32}|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
 
-/** Whether a caller-supplied space id has the server-issued UUIDv4 shape.
- *  Callers use this to gate the copy button — an unusable placeholder in the
- *  prompt should not be copiable. */
+/** Whether a caller-supplied space id has a server-issued hex shape
+ *  (compact 32-char or canonical 36-char UUIDv4). */
 export function isValidMcpSpaceId(raw?: string): boolean {
-  return typeof raw === "string" && UUID_RE.test(raw.trim());
+  return typeof raw === "string" && SPACE_ID_RE.test(raw.trim());
 }
 
 function sanitizeSpaceId(raw?: string): string {

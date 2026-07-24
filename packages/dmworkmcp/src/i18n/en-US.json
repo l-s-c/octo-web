@@ -38,7 +38,7 @@
   "list": {
     "desc": "Browse and connect MCP servers to extend your agent's tools.",
     "create": "Publish MCP",
-    "searchPlaceholder": "Search MCPs, tools, tags, or capabilities",
+    "searchPlaceholder": "Search name or description...",
     "searchClear": "Clear",
     "errorTitle": "Failed to load MCPs",
     "retry": "Retry",
@@ -97,7 +97,11 @@
       "creator": "Matched publisher",
       "other": "Matched content"
     },
-    "toolCount": "Tools: {{count}}"
+    "toolCount": "Tools: {{count}}",
+    "editAriaLabel": "Edit {{name}}",
+    "deleteAriaLabel": "Delete {{name}}",
+    "edit": "Edit",
+    "delete": "Delete"
   },
   "detail": {
     "title": "MCP Details",
@@ -114,7 +118,7 @@
       "headersLabel": "\nHeaders: ",
       "envLabel": "\nEnv: "
     },
-    "tokenHint": "Replace the <把这里换成你的 Token> placeholder in the config with your own token before use.",
+    "tokenHint": "Replace each <把这里换成你的 …> placeholder in the config with your own value before use.",
     "copy": "Copy",
     "copied": "Copied to clipboard",
     "copyFailed": "Copy failed",

@@ -38,7 +38,7 @@
   "list": {
     "desc": "浏览并接入 MCP 服务，为你的智能体扩展工具能力。",
     "create": "上架 MCP",
-    "searchPlaceholder": "搜索 MCP、工具、标签或能力",
+    "searchPlaceholder": "搜索名称、描述...",
     "searchClear": "清除",
     "errorTitle": "加载 MCP 失败",
     "retry": "重试",
@@ -97,7 +97,11 @@
       "creator": "命中发布者",
       "other": "命中内容"
     },
-    "toolCount": "工具数量: {{count}} 个"
+    "toolCount": "工具数量: {{count}} 个",
+    "editAriaLabel": "编辑 {{name}}",
+    "deleteAriaLabel": "删除 {{name}}",
+    "edit": "编辑",
+    "delete": "删除"
   },
   "detail": {
     "title": "MCP 详情",
@@ -114,7 +118,7 @@
       "headersLabel": "\n请求头：",
       "envLabel": "\n环境变量："
     },
-    "tokenHint": "配置里的 <把这里换成你的 Token> 请替换成你自己的 Token 后再使用。",
+    "tokenHint": "配置里的 <把这里换成你的 …> 请替换成你自己的值后再使用。",
     "copy": "复制",
     "copied": "已复制到剪贴板",
     "copyFailed": "复制失败",

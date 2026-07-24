@@ -4,7 +4,7 @@ import { Toast, Spin } from "@douyinfe/semi-ui";
 import { IconWrenchStroked } from "@douyinfe/semi-icons";
 import { Bot, UserRound } from "lucide-react";
 import { deleteMcp, fetchMcpDetail } from "../api/mcpService";
-import { buildQuickStartTabs, TOKEN_PLACEHOLDER } from "../api/quickStartTemplates";
+import { buildQuickStartTabs, TOKEN_PLACEHOLDER_RE } from "../api/quickStartTemplates";
 import type { McpDetail, McpQuickStart } from "../types/mcp";
 import { IconGlyph } from "../utils/icon";
 import { getMcpAvatarColor, getMcpAvatarText } from "../utils/mcpAvatar";
@@ -26,8 +26,9 @@ interface McpDetailModalProps {
 
 /**
  * The ⚡快速接入 block. Two tabs (提示词 / JSON) are generated from the
- * structured `quickStart` payload; the token position always renders as the
- * `<把这里换成你的 Token>` placeholder. Default tab = 提示词.
+ * structured `quickStart` payload; each user-supplied header/env value
+ * renders as the interpolated `<把这里换成你的 KEY>` placeholder so the
+ * user sees exactly which field they need to fill. Default tab = 提示词.
  */
 const QuickAccess: React.FC<{ quickStart: McpQuickStart }> = ({
   quickStart,
@@ -46,26 +47,34 @@ const QuickAccess: React.FC<{ quickStart: McpQuickStart }> = ({
     }
   };
 
-  /** Split the snippet on TOKEN_PLACEHOLDER so each occurrence renders as a
-   *  visually distinct <mark>. Users pasting the snippet elsewhere have to
-   *  hand-swap this literal for a real secret; highlighting the exact
-   *  span the token lives in makes that step un-missable. */
+  /** Split the snippet on every interpolated placeholder (one per
+   *  user-supplied header/env key) so each occurrence renders as a visually
+   *  distinct <mark>. Users pasting the snippet elsewhere have to hand-swap
+   *  each literal for a real value; highlighting the exact span makes that
+   *  step un-missable. */
   const renderedContent = useMemo(() => {
     const text = current?.content ?? "";
     if (!text) return null;
-    const parts = text.split(TOKEN_PLACEHOLDER);
-    if (parts.length === 1) return text;
+    // Fresh regex per render — sharing TOKEN_PLACEHOLDER_RE across calls
+    // would carry `lastIndex` state and produce phantom empty matches.
+    const re = new RegExp(TOKEN_PLACEHOLDER_RE.source, "g");
     const nodes: React.ReactNode[] = [];
-    parts.forEach((part, idx) => {
-      if (idx > 0) {
-        nodes.push(
-          <mark key={`t-${idx}`} className="wk-mcp-code__token">
-            {TOKEN_PLACEHOLDER}
-          </mark>
-        );
+    let cursor = 0;
+    let idx = 0;
+    let match: RegExpExecArray | null;
+    while ((match = re.exec(text)) !== null) {
+      if (match.index > cursor) {
+        nodes.push(text.slice(cursor, match.index));
       }
-      if (part) nodes.push(part);
-    });
+      nodes.push(
+        <mark key={`t-${idx++}`} className="wk-mcp-code__token">
+          {match[0]}
+        </mark>
+      );
+      cursor = match.index + match[0].length;
+    }
+    if (nodes.length === 0) return text;
+    if (cursor < text.length) nodes.push(text.slice(cursor));
     return nodes;
   }, [current?.content]);
 

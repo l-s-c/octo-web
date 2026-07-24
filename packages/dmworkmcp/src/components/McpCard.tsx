@@ -1,7 +1,7 @@
 import React from "react";
 import { Tooltip } from "@douyinfe/semi-ui";
 import { IconWrenchStroked } from "@douyinfe/semi-icons";
-import { Bot, UserRound } from "lucide-react";
+import { Bot, Pencil, Trash2, UserRound } from "lucide-react";
 import type { McpListItem } from "../types/mcp";
 import { t } from "@octo/base";
 import { IconGlyph } from "../utils/icon";
@@ -10,6 +10,8 @@ import { getMcpAvatarColor, getMcpAvatarText } from "../utils/mcpAvatar";
 interface McpCardProps {
   item: McpListItem;
   onClick: (item: McpListItem) => void;
+  onEdit?: (item: McpListItem) => void;
+  onDelete?: (item: McpListItem) => void;
 }
 
 /** Parse a backend `match_reasons` entry into an i18n key + optional value.
@@ -84,7 +86,7 @@ export function resolveOwner(item: McpListItem): { botName?: string; humanName?:
 }
 
 /** A single MCP server card in the list grid. */
-const McpCard: React.FC<McpCardProps> = ({ item, onClick }) => {
+const McpCard: React.FC<McpCardProps> = ({ item, onClick, onEdit, onDelete }) => {
   const visibleTags = item.tags.slice(0, CARD_TAG_LIMIT);
   const overflowTags = item.tags.slice(CARD_TAG_LIMIT);
   const owner = resolveOwner(item);
@@ -99,6 +101,13 @@ const McpCard: React.FC<McpCardProps> = ({ item, onClick }) => {
       tabIndex={0}
       onClick={() => onClick(item)}
       onKeyDown={(e) => {
+        // Don't hijack Enter/Space when the focused element is one of the
+        // inner action buttons (pencil / trash) — those buttons handle the
+        // key themselves and we must not also open the detail modal on top.
+        // Mirrors dmworkskillmarket's SkillCard.handleKeyDown.
+        if (e.target instanceof HTMLElement && e.target.closest("button")) {
+          return;
+        }
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
           onClick(item);
@@ -185,6 +194,41 @@ const McpCard: React.FC<McpCardProps> = ({ item, onClick }) => {
             {item.toolCount}
           </span>
         </div>
+        {(onEdit || onDelete) && (
+          <div
+            className="wk-mcp-card__footer-actions"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {onEdit && (
+              <button
+                type="button"
+                className="wk-mcp-card__action-button"
+                aria-label={t("mcp.card.editAriaLabel", { values: { name: item.name } })}
+                title={t("mcp.card.edit")}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onEdit(item);
+                }}
+              >
+                <Pencil size={15} />
+              </button>
+            )}
+            {onDelete && (
+              <button
+                type="button"
+                className="wk-mcp-card__action-button is-danger"
+                aria-label={t("mcp.card.deleteAriaLabel", { values: { name: item.name } })}
+                title={t("mcp.card.delete")}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDelete(item);
+                }}
+              >
+                <Trash2 size={15} />
+              </button>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

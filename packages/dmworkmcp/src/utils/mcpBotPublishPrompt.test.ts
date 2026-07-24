@@ -5,9 +5,15 @@ import {
   resolveMcpAPIBaseURL,
 } from "./mcpBotPublishPrompt";
 
-describe("isValidMcpSpaceId — server UUID gate", () => {
+describe("isValidMcpSpaceId — server space id gate", () => {
   it("accepts a canonical UUIDv4", () => {
     expect(isValidMcpSpaceId("11111111-2222-3333-4444-555555555555")).toBe(true);
+  });
+  it("accepts the compact 32-hex form (no hyphens)", () => {
+    // Real server-issued space ids arrive in this shape via localStorage —
+    // regression guard for the sanitizer falling back to `<space-id>` when
+    // the operator's actual space id is a valid 32-hex string.
+    expect(isValidMcpSpaceId("9f5fda183d94482cb49bca5024439105")).toBe(true);
   });
   it("accepts uppercase / mixed-case hex", () => {
     expect(isValidMcpSpaceId("AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE")).toBe(true);
@@ -18,11 +24,15 @@ describe("isValidMcpSpaceId — server UUID gate", () => {
   it.each([
     "",
     "not-a-uuid",
-    "11111111222233334444555555555555",
     "11111111-2222-3333-4444-555555555555;rm -rf /",
+    "9f5fda183d94482cb49bca5024439105;rm -rf /",
     "$(whoami)",
     "..",
     "11111111-2222-3333-4444",
+    // 31 hex chars — one short of the compact form
+    "9f5fda183d94482cb49bca502443910",
+    // 33 hex chars — one over
+    "9f5fda183d94482cb49bca50244391055",
   ])("rejects malformed value %j", (bad) => {
     expect(isValidMcpSpaceId(bad)).toBe(false);
   });
@@ -36,6 +46,13 @@ describe("getMcpBotPublishPrompt — shell-safe interpolation", () => {
     expect(p).toContain(`--profile space-${goodId}`);
     expect(p).toContain(`--space ${goodId}`);
     expect(p).toContain("https://example.com");
+  });
+
+  it("embeds a compact 32-hex spaceId verbatim into the login example", () => {
+    const compactId = "9f5fda183d94482cb49bca5024439105";
+    const p = getMcpBotPublishPrompt({ spaceId: compactId, apiBaseUrl: "https://example.com" });
+    expect(p).toContain(`--profile space-${compactId}`);
+    expect(p).toContain(`--space ${compactId}`);
   });
 
   it.each([
