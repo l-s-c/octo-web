@@ -387,6 +387,7 @@ export const MOCK_MCP_LIST: McpListItem[] = MOCK_MCP_DETAILS.map((d) => ({
   category: d.category,
   tags: d.tags,
   toolCount: d.toolCount,
+  viewCount: d.viewCount,
   icon: d.icon,
   createdByType: d.createdByType,
   createdByBotUid: d.createdByBotUid,

@@ -1,9 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const post = vi.fn();
-const get = vi.fn();
-const logout = vi.fn();
-let responseRejected: ((error: unknown) => Promise<never>) | undefined;
+const mocks = vi.hoisted(() => ({
+  post: vi.fn(),
+  get: vi.fn(),
+  logout: vi.fn(),
+  responseRejected: undefined as ((error: unknown) => Promise<never>) | undefined,
+}));
 
 vi.mock("axios", () => ({
   default: {
@@ -13,12 +15,12 @@ vi.mock("axios", () => ({
         request: { use: vi.fn() },
         response: {
           use: vi.fn((_fulfilled, rejected) => {
-            responseRejected = rejected;
+            mocks.responseRejected = rejected;
           }),
         },
       },
-      get,
-      post,
+      get: mocks.get,
+      post: mocks.post,
       patch: vi.fn(),
       delete: vi.fn(),
     }),
@@ -30,7 +32,7 @@ vi.mock("@octo/base", () => ({
   WKApp: {
     apiClient: { config: {} },
     loginInfo: {},
-    shared: { currentSpaceId: "space-a", logout },
+    shared: { currentSpaceId: "space-a", logout: mocks.logout },
     mittBus: { on: () => {}, off: () => {}, emit: () => {} },
   },
   buildAcceptLanguage: () => "en-US",
@@ -58,7 +60,7 @@ describe("MCP view count service", () => {
   });
 
   it("maps view_count for list and detail responses", async () => {
-    get
+    mocks.get
       .mockResolvedValueOnce({
         data: {
           data: [{ mcp_id: "m1", name: "MCP", slogan: "", category: "dev", icon: "", tags: [], tool_count: 1, view_count: 7.8 }],
@@ -80,18 +82,18 @@ describe("MCP view count service", () => {
   });
 
   it("posts the metrics payload and suppresses global logout for its 401", async () => {
-    post.mockResolvedValue({ data: { data: null } });
+    mocks.post.mockResolvedValue({ data: { data: null } });
     await trackMcpView("mcp/1");
 
-    expect(post).toHaveBeenCalledWith(
+    expect(mocks.post).toHaveBeenCalledWith(
       "/market/api/v1/metrics/track",
       { resource_type: "mcp", resource_id: "mcp/1", event_type: "view" },
       { skipGlobalAuthFailure: true }
     );
 
-    await expect(responseRejected?.({ response: { status: 401 }, config: { skipGlobalAuthFailure: true } })).rejects.toBeTruthy();
-    expect(logout).not.toHaveBeenCalled();
-    await expect(responseRejected?.({ response: { status: 401 }, config: {} })).rejects.toBeTruthy();
-    expect(logout).toHaveBeenCalledTimes(1);
+    await expect(mocks.responseRejected?.({ response: { status: 401 }, config: { skipGlobalAuthFailure: true } })).rejects.toBeTruthy();
+    expect(mocks.logout).not.toHaveBeenCalled();
+    await expect(mocks.responseRejected?.({ response: { status: 401 }, config: {} })).rejects.toBeTruthy();
+    expect(mocks.logout).toHaveBeenCalledTimes(1);
   });
 });

@@ -118,7 +118,9 @@ describe("McpDetailModal 就地内联删除确认（方案A）", () => {
     expect(trackMcpView).toHaveBeenCalledTimes(1);
     expect(trackMcpView).toHaveBeenCalledWith("m1");
 
-    ReactDOM.unmountComponentAtNode(root);
+    act(() => {
+      ReactDOM.unmountComponentAtNode(root);
+    });
     root.remove();
     container = null;
     await act(async () => {
@@ -141,7 +143,9 @@ describe("McpDetailModal 就地内联删除确认（方案A）", () => {
       resolveDetail = resolve;
     }));
     const root = render(React.createElement(McpDetailModal, { mcpId: "cancelled", onClose: vi.fn() }));
-    ReactDOM.unmountComponentAtNode(root);
+    act(() => {
+      ReactDOM.unmountComponentAtNode(root);
+    });
     root.remove();
     container = null;
     await act(async () => {
