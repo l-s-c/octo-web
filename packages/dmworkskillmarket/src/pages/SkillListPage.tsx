@@ -39,6 +39,11 @@ interface SkillListPageProps {
 
 const TOAST_DURATION = 3000;
 const SORT_OPTIONS: Array<{ value: SkillSort; labelKey: string; descending?: boolean }> = [
+  // 综合 leads the list and is the default sort. Its order is decided by the
+  // backend (the request layer already passes `sort: "comprehensive"` through),
+  // so no client-side `descending` direction is sent — it stays omitted like the
+  // other options.
+  { value: "comprehensive", labelKey: "skillMarket.sort.comprehensive" },
   { value: "latest", labelKey: "skillMarket.sort.latest" },
   { value: "downloads", labelKey: "skillMarket.sort.hottest" },
 ];
@@ -50,7 +55,10 @@ export default function SkillListPage({ variant = "market" }: SkillListPageProps
   // strip that used to flip it was removed in the market UI restructure.
   const mine = variant === "mine";
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
-  const [sort, setSort] = useState<SkillSort>("latest");
+  // 综合 (comprehensive) is the default on first mount and after a refresh; the
+  // user's own tag/category/search/pagination changes never reset it, they just
+  // reload with whatever sort is currently selected.
+  const [sort, setSort] = useState<SkillSort>("comprehensive");
   const list = useSkills({ mine, selectedTags, sort });
   // Review state for the "我的" surface. `mode=mine` is applicant-scoped (no
   // reviewer role needed), but the public catalog shows no review state at all,
